@@ -66,7 +66,10 @@ export default function ReceivePage() {
           <p><strong>ลูกค้า:</strong> {result.customers?.full_name || '-'}</p>
           <p><strong>เบอร์โทร:</strong> {result.customers?.phone || '-'}</p>
 
-          <button className="mt-4 bg-green-600 text-white px-4 py-2 rounded">
+          <button 
+            onClick={() => window.location.href = `/job?plate=${encodeURIComponent(result.license_plate)}`}
+            className="mt-4 bg-green-600 text-white px-4 py-2 rounded"
+          >
             รับงานรถคันนี้
           </button>
         </div>
