@@ -23,100 +23,115 @@ export default function ReceiptPage() {
   const total = items.reduce((sum, item) => sum + item.amount, 0) - discount
 
   return (
-    <div className="p-8 max-w-4xl mx-auto bg-white text-black print:p-4">
-      {/* Header */}
-      <div className="text-center mb-6">
-        <div className="flex justify-between items-start">
-          <div className="text-left">
-            <div className="text-2xl font-bold text-red-600">RATSADA</div>
-            <div className="text-sm">air</div>
+    <>
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      `}</style>
+
+      <div className="p-4 max-w-[210mm] mx-auto bg-white text-black print:p-0 print:max-w-none">
+        {/* Header */}
+        <div className="text-center mb-4">
+          <div className="flex justify-between items-start">
+            <div className="text-left">
+              <div className="text-2xl font-bold text-red-600">RATSADA</div>
+              <div className="text-xs">air</div>
+            </div>
+            <div className="text-right text-sm">เลขที่ 68-106</div>
           </div>
-          <div className="text-right text-sm">เลขที่ 68-106</div>
+          <h1 className="text-lg font-bold mt-1">รัษฎาแอร์ สนามบิน</h1>
+          <p className="text-xs">201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110</p>
+          <p className="text-xs">Tel. 099-4102559 , 076-602429 Email.ratsada_air@hotmail.com</p>
         </div>
-        <h1 className="text-xl font-bold mt-2">รัษฎาแอร์ สนามบิน</h1>
-        <p className="text-sm">201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110</p>
-        <p className="text-sm">Tel. 099-4102559 , 076-602429 Email.ratsada_air@hotmail.com</p>
-      </div>
 
-      <h2 className="text-2xl font-bold text-center mb-4">ใบเสร็จรับเงิน/Receipt</h2>
+        <h2 className="text-xl font-bold text-center mb-3">ใบเสร็จรับเงิน/Receipt</h2>
 
-      {/* Customer Info */}
-      <div className="flex justify-between mb-4 text-sm">
-        <div>
-          <p>สด</p>
-          <p>รุ่นรถ <strong>TOYOTA YARIS'14</strong></p>
-          <p>ทะเบียนรถ <strong>กร 8636 ภูเก็ต</strong></p>
+        {/* Customer Info */}
+        <div className="flex justify-between mb-3 text-xs">
+          <div>
+            <p>สด</p>
+            <p>รุ่นรถ <strong>TOYOTA YARIS'14</strong></p>
+            <p>ทะเบียนรถ <strong>กร 8636 ภูเก็ต</strong></p>
+          </div>
+          <div className="text-right">
+            <p>{date}</p>
+            <p>ชื่อลูกค้า/เบอร์โทร</p>
+            <p>เลขที่ไมล์ <strong>239,255 km.</strong></p>
+          </div>
         </div>
-        <div className="text-right">
-          <p>{date}</p>
-          <p>ชื่อลูกค้า/เบอร์โทร</p>
-          <p>เลขที่ไมล์ <strong>239,255 km.</strong></p>
-        </div>
-      </div>
 
-      {/* Table */}
-      <table className="w-full border-collapse border border-black text-sm mb-4">
-        <thead>
-          <tr className="border border-black">
-            <th className="border border-black p-1 w-12">ลำดับ</th>
-            <th className="border border-black p-1">รายการ</th>
-            <th className="border border-black p-1 w-16">จำนวน</th>
-            <th className="border border-black p-1 w-24">ราคา/หน่วย</th>
-            <th className="border border-black p-1 w-24">จำนวนเงิน</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.no}>
-              <td className="border border-black p-1 text-center">{item.no}</td>
-              <td className="border border-black p-1">{item.name}</td>
-              <td className="border border-black p-1 text-center">{item.qty}</td>
-              <td className="border border-black p-1 text-right">{item.price.toLocaleString()}</td>
-              <td className="border border-black p-1 text-right">{item.amount.toLocaleString()}</td>
+        {/* Table */}
+        <table className="w-full border-collapse border border-black text-xs mb-3">
+          <thead>
+            <tr>
+              <th className="border border-black p-1 w-10">ลำดับ</th>
+              <th className="border border-black p-1">รายการ</th>
+              <th className="border border-black p-1 w-14">จำนวน</th>
+              <th className="border border-black p-1 w-20">ราคา/หน่วย</th>
+              <th className="border border-black p-1 w-20">จำนวนเงิน</th>
             </tr>
-          ))}
-          <tr>
-            <td colSpan={4} className="border border-black p-1 text-right text-red-600">ส่วนลด</td>
-            <td className="border border-black p-1 text-right text-red-600">- {discount.toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td colSpan={4} className="border border-black p-1 text-right font-bold">รวม</td>
-            <td className="border border-black p-1 text-right font-bold">{total.toLocaleString()}.00</td>
-          </tr>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.no}>
+                <td className="border border-black p-1 text-center">{item.no}</td>
+                <td className="border border-black p-1">{item.name}</td>
+                <td className="border border-black p-1 text-center">{item.qty}</td>
+                <td className="border border-black p-1 text-right">{item.price.toLocaleString()}</td>
+                <td className="border border-black p-1 text-right">{item.amount.toLocaleString()}</td>
+              </tr>
+            ))}
+            <tr>
+              <td colSpan={4} className="border border-black p-1 text-right text-red-600">ส่วนลด</td>
+              <td className="border border-black p-1 text-right text-red-600">- {discount.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td colSpan={4} className="border border-black p-1 text-right font-bold">รวม</td>
+              <td className="border border-black p-1 text-right font-bold">{total.toLocaleString()}.00</td>
+            </tr>
+          </tbody>
+        </table>
 
-      <div className="bg-gray-300 text-center py-2 mb-8 text-sm">
-        เจ็ดพันเก้าร้อยแปดสิบบาทถ้วน
-      </div>
+        <div className="bg-gray-300 text-center py-1 mb-6 text-xs">
+          เจ็ดพันเก้าร้อยแปดสิบบาทถ้วน
+        </div>
 
-      {/* Signature */}
-      <div className="flex justify-between text-sm mt-12">
-        <div className="text-center">
-          <p>................................</p>
-          <p>......../......../........</p>
-          <p>ตรวจรับงานซ่อม</p>
+        {/* Signature */}
+        <div className="flex justify-between text-xs mt-8">
+          <div className="text-center w-1/3">
+            <p>................................</p>
+            <p>......../......../........</p>
+            <p className="mt-1">ตรวจรับงานซ่อม</p>
+          </div>
+          <div className="text-center w-1/3">
+            <p>ช่างแอร์/ช่างเมะ</p>
+            <p>{date}</p>
+            <p className="mt-1">ช่างซ่อม</p>
+          </div>
+          <div className="text-center w-1/3">
+            <p>................................</p>
+            <p>......../......../........</p>
+            <p className="mt-1">ผู้รับเงิน</p>
+          </div>
         </div>
-        <div className="text-center">
-          <p>ช่างแอร์/ช่างเมะ</p>
-          <p>{date}</p>
-          <p>ช่างซ่อม</p>
-        </div>
-        <div className="text-center">
-          <p>................................</p>
-          <p>......../......../........</p>
-          <p>ผู้รับเงิน</p>
-        </div>
-      </div>
 
-      <div className="mt-8 text-center">
-        <button 
-          onClick={() => window.print()}
-          className="bg-blue-600 text-white px-6 py-2 rounded print:hidden"
-        >
-          พิมพ์บิล
-        </button>
+        <div className="mt-6 text-center print:hidden">
+          <button 
+            onClick={() => window.print()}
+            className="bg-blue-600 text-white px-6 py-2 rounded"
+          >
+            พิมพ์บิล (A4)
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
