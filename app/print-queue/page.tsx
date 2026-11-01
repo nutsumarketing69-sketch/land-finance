@@ -45,7 +45,7 @@ export default function PrintQueuePage() {
 
   const getQrUrl = (total: number) => {
     if (!total || total <= 0) return ''
-    return `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
+    return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
   }
 
   const branchName = printBill?.branches?.name || ''
@@ -64,26 +64,34 @@ export default function PrintQueuePage() {
     <>
       <style jsx global>{`
         @media print {
-          @page { size: A4; margin: 10mm; }
-          html, body { background: white !important; }
-          body * { visibility: hidden; }
-          #print-area, #print-area * { visibility: visible; }
-          #print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white;
-            color: black;
+          @page { size: A4 portrait; margin: 7mm 8mm; }
+          html, body {
+            background: white !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .no-print { display: none !important; }
+          #print-area {
+            display: block !important;
+            position: static !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            color: black !important;
+          }
         }
       `}</style>
 
       <div className="p-6 max-w-4xl mx-auto no-print">
         <h1 className="text-2xl font-bold mb-2">คิวพิมพ์บิล</h1>
-        <p className="text-sm text-gray-400 mb-6">
+        <p className="text-sm text-gray-400 mb-2">
           พนักงานที่สาขาเปิดหน้านี้ เลือกสาขา แล้วกดพิมพ์บิลได้ทันที
+        </p>
+        <p className="text-xs text-amber-400 mb-6">
+          ตอนพิมพ์ ให้ปิด Headers and footers ในหน้าต่างพิมพ์ บิลจะอยู่หน้าเดียวได้ถึงประมาณ 24 รายการ
         </p>
 
         <div className="flex gap-3 mb-6 items-end">
@@ -143,20 +151,20 @@ export default function PrintQueuePage() {
       </div>
 
       {printBill && (
-        <div id="print-area" className="max-w-[210mm] mx-auto bg-white text-black p-5 text-[11px] font-sans">
-          <div className="flex justify-between items-start mb-4">
-            <div className="border-2 border-red-600 px-3 py-1">
-              <div className="text-red-600 font-black text-lg tracking-wider">RATSADA</div>
+        <div id="print-area" className="max-w-[210mm] mx-auto bg-white text-black px-4 py-3 text-[10px] leading-tight font-sans">
+          <div className="flex justify-between items-start">
+            <div className="border-2 border-red-600 px-2 py-0.5">
+              <div className="text-red-600 font-black text-base tracking-wider leading-none">RATSADA</div>
             </div>
-            <div className="text-right text-[10px]">
+            <div className="text-right text-[9px] leading-snug">
               <div>เลขที่ {printBill.bill_no}</div>
               <div>{billDate}</div>
             </div>
           </div>
 
-          <div className="text-center mb-3">
-            <h1 className="text-base font-bold">{headerTitle}</h1>
-            <p className="text-[8px] text-gray-700 mt-1">
+          <div className="text-center mt-2 mb-1">
+            <h1 className="text-[13px] font-bold leading-tight">{headerTitle}</h1>
+            <p className="text-[8px] text-gray-700 mt-0.5">
               201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110
             </p>
             <p className="text-[8px] text-gray-700">
@@ -164,33 +172,33 @@ export default function PrintQueuePage() {
             </p>
           </div>
 
-          <h2 className="text-center font-bold text-sm mb-4 border-b border-black pb-1">
+          <h2 className="text-center font-bold text-[12px] mt-1 mb-2 border-b border-black pb-1">
             ใบเสร็จรับเงิน / Receipt
           </h2>
 
-          <div className="text-[10px] mb-3 space-y-0.5">
+          <div className="text-[9px] mb-2 leading-snug">
             <div>ลูกค้า: {printBill.customer_name || '-'} &nbsp;|&nbsp; โทร: {printBill.phone || '-'}</div>
             <div>
               รถ: {printBill.car_info || '-'} &nbsp;|&nbsp; ทะเบียน: {printBill.license_plate || '-'} &nbsp;|&nbsp; ไมล์: {printBill.mileage || '-'}
             </div>
           </div>
 
-          <table className="w-full border-collapse border border-black text-[10px] mb-3">
+          <table className="w-full border-collapse border border-black text-[9px]">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border border-black p-1.5 text-left">รายการ</th>
-                <th className="border border-black p-1.5 w-14 text-center">จำนวน</th>
-                <th className="border border-black p-1.5 w-20 text-right">ราคา</th>
-                <th className="border border-black p-1.5 w-20 text-right">รวม</th>
+                <th className="border border-black px-1 py-0.5 text-left font-semibold">รายการ</th>
+                <th className="border border-black px-1 py-0.5 w-12 text-center font-semibold">จำนวน</th>
+                <th className="border border-black px-1 py-0.5 w-16 text-right font-semibold">ราคา</th>
+                <th className="border border-black px-1 py-0.5 w-16 text-right font-semibold">รวม</th>
               </tr>
             </thead>
             <tbody>
               {(printBill.items || []).map((item: any, i: number) => (
                 <tr key={i}>
-                  <td className="border border-black p-1">{item.name}</td>
-                  <td className="border border-black p-1 text-center">{item.qty}</td>
-                  <td className="border border-black p-1 text-right">{Number(item.price || 0).toLocaleString()}</td>
-                  <td className="border border-black p-1 text-right">
+                  <td className="border border-black px-1 py-px">{item.name}</td>
+                  <td className="border border-black px-1 py-px text-center">{item.qty}</td>
+                  <td className="border border-black px-1 py-px text-right">{Number(item.price || 0).toLocaleString()}</td>
+                  <td className="border border-black px-1 py-px text-right">
                     {(Number(item.price || 0) * (item.qty || 1)).toLocaleString()}
                   </td>
                 </tr>
@@ -198,45 +206,47 @@ export default function PrintQueuePage() {
             </tbody>
           </table>
 
-          <div className="flex justify-between items-start mt-2">
-            <div className="text-[10px]">
+          <div className="flex justify-between items-end mt-2">
+            <div>
               {Number(printBill.total) > 0 && (
                 <div className="text-center">
-                  <p className="text-[9px] mb-1 text-gray-700">สแกนจ่าย PromptPay</p>
+                  <p className="text-[8px] mb-0.5 text-gray-700">สแกนจ่าย PromptPay</p>
                   <img
                     src={getQrUrl(Number(printBill.total))}
                     alt="QR PromptPay"
                     className="border mx-auto"
-                    width={90}
-                    height={90}
+                    width={72}
+                    height={72}
                   />
                   <p className="text-[8px] mt-0.5">{Number(printBill.total).toLocaleString()} บาท</p>
                 </div>
               )}
             </div>
-            <div className="text-right text-sm">
+            <div className="text-right text-[11px] leading-snug">
               <div>ยอดรวม: {subtotal.toLocaleString()} บาท</div>
               {Number(printBill.discount || 0) > 0 && (
                 <div>ส่วนลด: {Number(printBill.discount).toLocaleString()} บาท</div>
               )}
-              <div className="font-bold mt-1">รวมทั้งสิ้น: {Number(printBill.total || 0).toLocaleString()} บาท</div>
+              <div className="font-bold text-[12px] mt-0.5">
+                รวมทั้งสิ้น: {Number(printBill.total || 0).toLocaleString()} บาท
+              </div>
             </div>
           </div>
 
-          {printBill.note && (
-            <div className="mt-3 text-[10px]">หมายเหตุ: {printBill.note}</div>
-          )}
+          {printBill.note ? (
+            <div className="mt-1.5 text-[9px]">หมายเหตุ: {printBill.note}</div>
+          ) : null}
 
-          <div className="flex justify-between text-[9px] mt-12">
+          <div className="flex justify-between text-[9px] mt-8">
             <div className="text-center w-1/3">
-              <div className="border-b border-black w-24 mx-auto mb-1 h-8"></div>
+              <div className="border-b border-black w-24 mx-auto mb-1 h-6"></div>
               ตรวจรับงานซ่อม
             </div>
-            <div className="text-center w-1/3">
+            <div className="text-center w-1/3 pt-4">
               ช่างซ่อม<br />{billDate}
             </div>
             <div className="text-center w-1/3">
-              <div className="border-b border-black w-24 mx-auto mb-1 h-8"></div>
+              <div className="border-b border-black w-24 mx-auto mb-1 h-6"></div>
               ผู้รับเงิน
             </div>
           </div>
