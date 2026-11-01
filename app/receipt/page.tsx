@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ReceiptPage() {
@@ -19,7 +19,9 @@ export default function ReceiptPage() {
   const [mileage, setMileage] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [sending, setSending] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [printerOnline, setPrinterOnline] = useState(false)
 
   const [searchCust, setSearchCust] = useState('')
   const [searchPlate, setSearchPlate] = useState('')
@@ -28,6 +30,7 @@ export default function ReceiptPage() {
   const [itemSearch, setItemSearch] = useState<{ [key: number]: string }>({})
   const [itemResults, setItemResults] = useState<{ [key: number]: any[] }>({})
 
+  const savedOnce = useRef(false)
   const PROMPTPAY_ID = '0994102559'
 
   useEffect(() => {
@@ -41,6 +44,34 @@ export default function ReceiptPage() {
 
     fetchData()
   }, [])
+
+  useEffect(() => {
+    if (!selectedBranch) {
+      setPrinterOnline(false)
+      return
+    }
+    let stop = false
+    const check = async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('printer_heartbeats')
+        .select('last_seen')
+        .eq('branch_id', selectedBranch)
+        .maybeSingle()
+      if (stop) return
+      if (!data?.last_seen) {
+        setPrinterOnline(false)
+        return
+      }
+      setPrinterOnline(Date.now() - new Date(data.last_seen).getTime() < 20000)
+    }
+    check()
+    const timer = setInterval(check, 5000)
+    return () => {
+      stop = true
+      clearInterval(timer)
+    }
+  }, [selectedBranch])
 
   const fetchData = async () => {
     const supabase = createClient()
@@ -136,19 +167,17 @@ export default function ReceiptPage() {
 
   const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0)
   const total = Math.max(0, subtotal - discount)
-
   const qrUrl =
     total > 0
       ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
       : ''
 
-  const saveBill = async () => {
-    if (items.length === 0) {
-      setSaveMsg('ยังไม่มีรายการ')
-      return
-    }
-    setSaving(true)
-    setSaveMsg('')
+  const selectedBranchName = branches.find((b) => b.id === selectedBranch)?.name || ''
+  const headerTitle = selectedBranchName ? `รัษฎาแอร์ ${selectedBranchName}` : 'รัษฎาแอร์'
+
+  const persistBill = async () => {
+    if (items.length === 0) return { ok: false, message: 'ยังไม่มีรายการ' }
+    if (savedOnce.current) return { ok: true }
 
     const supabase = createClient()
     const { error: billError } = await supabase.from('bills').insert({
@@ -158,18 +187,14 @@ export default function ReceiptPage() {
       license_plate: plate || null,
       car_info: car || null,
       mileage: parseInt(mileage) || null,
-      items: items,
-      discount: discount,
-      total: total,
+      items,
+      discount,
+      total,
       note: note || null,
       branch_id: selectedBranch || null,
     })
 
-    if (billError) {
-      setSaveMsg('บันทึกบิลไม่สำเร็จ')
-      setSaving(false)
-      return
-    }
+    if (billError) return { ok: false, message: 'บันทึกบิลไม่สำเร็จ' }
 
     for (const item of items) {
       if (item.part_id && item.qty > 0) {
@@ -181,12 +206,69 @@ export default function ReceiptPage() {
       }
     }
 
-    setSaveMsg('บันทึกบิลสำเร็จ!')
+    savedOnce.current = true
+    return { ok: true }
+  }
+
+  const saveBill = async () => {
+    setSaving(true)
+    setSaveMsg('')
+    const result = await persistBill()
+    setSaveMsg(result.ok ? 'บันทึกบิลสำเร็จ!' : result.message || 'บันทึกบิลไม่สำเร็จ')
     setSaving(false)
   }
 
-  const selectedBranchName = branches.find((b) => b.id === selectedBranch)?.name || ''
-  const headerTitle = selectedBranchName ? `รัษฎาแอร์ ${selectedBranchName}` : 'รัษฎาแอร์'
+  const sendToBranch = async () => {
+    if (!selectedBranch) {
+      setSaveMsg('เลือกสาขาก่อนส่งพิมพ์')
+      return
+    }
+    if (items.length === 0) {
+      setSaveMsg('ยังไม่มีรายการ')
+      return
+    }
+
+    setSending(true)
+    setSaveMsg('')
+    const saved = await persistBill()
+    if (!saved.ok) {
+      setSaveMsg(saved.message || 'บันทึกบิลไม่สำเร็จ')
+      setSending(false)
+      return
+    }
+
+    const supabase = createClient()
+    const { error } = await supabase.from('print_jobs').insert({
+      branch_id: selectedBranch,
+      bill_no: billNo,
+      status: 'pending',
+      payload: {
+        bill_no: billNo,
+        date,
+        headerTitle,
+        branchName: selectedBranchName,
+        customer,
+        phone,
+        plate,
+        car,
+        mileage,
+        items,
+        discount,
+        subtotal,
+        total,
+        note,
+      },
+    })
+
+    if (error) {
+      setSaveMsg('บันทึกบิลแล้ว แต่ส่งพิมพ์ไม่สำเร็จ')
+    } else if (printerOnline) {
+      setSaveMsg(`ส่งพิมพ์ไป${headerTitle} แล้ว เครื่องที่สาขาจะพิมพ์เอง`)
+    } else {
+      setSaveMsg(`ส่งเข้าคิว${headerTitle} แล้ว พอคอมสาขาเปิดหน้าพิมพ์ จะพิมพ์เอง`)
+    }
+    setSending(false)
+  }
 
   return (
     <>
@@ -210,57 +292,23 @@ export default function ReceiptPage() {
           border-radius: 2px;
           font-family: inherit;
         }
-        .bill-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        .bill-table th,
-        .bill-table td {
+        .bill-table { width: 100%; border-collapse: collapse; }
+        .bill-table th, .bill-table td {
           border: 1px solid #222;
           padding: 4px 6px;
           font-size: 12px;
           vertical-align: middle;
         }
-        .bill-table th {
-          background: #f3f3f3;
-          font-weight: 600;
-        }
-        .only-print {
-          display: none;
-        }
+        .bill-table th { background: #f3f3f3; font-weight: 600; }
+        .only-print { display: none; }
         @media print {
-          @page {
-            size: A4 portrait;
-            margin: 8mm 10mm;
-          }
-          html,
-          body {
-            background: #fff !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .only-print {
-            display: block !important;
-          }
-          span.only-print {
-            display: inline !important;
-          }
-          .bill-sheet {
-            max-width: none !important;
-            width: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-          }
-          .bill-table th,
-          .bill-table td {
-            padding: 3px 6px !important;
-            font-size: 11px !important;
-          }
+          @page { size: A4 portrait; margin: 8mm 10mm; }
+          html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; height: auto !important; }
+          .no-print { display: none !important; }
+          .only-print { display: block !important; }
+          span.only-print { display: inline !important; }
+          .bill-sheet { max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
+          .bill-table th, .bill-table td { padding: 3px 6px !important; font-size: 11px !important; }
         }
       `}</style>
 
@@ -297,11 +345,16 @@ export default function ReceiptPage() {
           >
             <option value="">-- เลือกสาขาที่ออกบิล --</option>
             {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
+              <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
+          {selectedBranch && (
+            <p className={`text-xs mt-1 ${printerOnline ? 'text-green-700' : 'text-amber-700'}`}>
+              {printerOnline
+                ? `เครื่องพิมพ์${headerTitle} พร้อม ใบนี้จะออกที่สาขาทันที`
+                : `คอม${headerTitle} ยังไม่ได้เปิดหน้าพิมพ์ บิลจะค้างในคิว พอเปิดแล้วพิมพ์เอง`}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3 no-print">
@@ -326,13 +379,7 @@ export default function ReceiptPage() {
               </div>
             )}
           </div>
-          <input
-            type="text"
-            placeholder="เบอร์โทร"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="p-1.5 text-sm"
-          />
+          <input type="text" placeholder="เบอร์โทร" value={phone} onChange={(e) => setPhone(e.target.value)} className="p-1.5 text-sm" />
 
           <div className="relative">
             <input
@@ -355,27 +402,13 @@ export default function ReceiptPage() {
               </div>
             )}
           </div>
-          <input
-            type="text"
-            placeholder="ยี่ห้อ/รุ่น"
-            value={car}
-            onChange={(e) => setCar(e.target.value)}
-            className="p-1.5 text-sm"
-          />
-          <input
-            type="text"
-            placeholder="เลขไมล์"
-            value={mileage}
-            onChange={(e) => setMileage(e.target.value)}
-            className="p-1.5 text-sm"
-          />
+          <input type="text" placeholder="ยี่ห้อ/รุ่น" value={car} onChange={(e) => setCar(e.target.value)} className="p-1.5 text-sm" />
+          <input type="text" placeholder="เลขไมล์" value={mileage} onChange={(e) => setMileage(e.target.value)} className="p-1.5 text-sm" />
         </div>
 
         <div className="only-print text-[11px] mb-2 leading-snug">
           <div>ลูกค้า: {customer || '-'} &nbsp;|&nbsp; โทร: {phone || '-'}</div>
-          <div>
-            รถ: {car || '-'} &nbsp;|&nbsp; ทะเบียน: {plate || '-'} &nbsp;|&nbsp; ไมล์: {mileage || '-'}
-          </div>
+          <div>รถ: {car || '-'} &nbsp;|&nbsp; ทะเบียน: {plate || '-'} &nbsp;|&nbsp; ไมล์: {mileage || '-'}</div>
         </div>
 
         <table className="bill-table">
@@ -405,11 +438,7 @@ export default function ReceiptPage() {
                   {itemResults[i]?.length > 0 && (
                     <div className="absolute z-20 bg-white border w-64 max-h-36 overflow-y-auto left-0 top-full text-xs no-print">
                       {itemResults[i].map((p) => (
-                        <div
-                          key={p.id}
-                          onClick={() => selectItem(i, p)}
-                          className="p-1.5 hover:bg-gray-100 cursor-pointer"
-                        >
+                        <div key={p.id} onClick={() => selectItem(i, p)} className="p-1.5 hover:bg-gray-100 cursor-pointer">
                           {p.name} - {Number(p.price).toLocaleString()}
                         </div>
                       ))}
@@ -417,37 +446,23 @@ export default function ReceiptPage() {
                   )}
                 </td>
                 <td>
-                  <input
-                    type="number"
-                    value={item.qty}
-                    onChange={(e) => updateItem(i, 'qty', Number(e.target.value))}
-                    className="w-full text-center no-print text-sm"
-                  />
+                  <input type="number" value={item.qty} onChange={(e) => updateItem(i, 'qty', Number(e.target.value))} className="w-full text-center no-print text-sm" />
                   <span className="only-print">{item.qty}</span>
                 </td>
                 <td>
-                  <input
-                    type="number"
-                    value={item.price}
-                    onChange={(e) => updateItem(i, 'price', Number(e.target.value))}
-                    className="w-full text-right no-print text-sm"
-                  />
+                  <input type="number" value={item.price} onChange={(e) => updateItem(i, 'price', Number(e.target.value))} className="w-full text-right no-print text-sm" />
                   <span className="only-print">{Number(item.price || 0).toLocaleString()}</span>
                 </td>
                 <td className="text-right">{(Number(item.price || 0) * (item.qty || 1)).toLocaleString()}</td>
                 <td className="text-center no-print">
-                  <button onClick={() => removeItem(i)} className="text-red-600">
-                    ×
-                  </button>
+                  <button onClick={() => removeItem(i)} className="text-red-600">×</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <button onClick={addEmptyLine} className="mt-2 text-blue-700 text-sm no-print">
-          + เพิ่มบรรทัด
-        </button>
+        <button onClick={addEmptyLine} className="mt-2 text-blue-700 text-sm no-print">+ เพิ่มบรรทัด</button>
 
         <div className="flex justify-between items-end mt-3">
           <div>
@@ -463,12 +478,7 @@ export default function ReceiptPage() {
             <div>ยอดรวม: {subtotal.toLocaleString()} บาท</div>
             <div className="flex justify-end items-center gap-2">
               <span>ส่วนลด:</span>
-              <input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value))}
-                className="w-20 text-right no-print text-sm px-1"
-              />
+              <input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className="w-20 text-right no-print text-sm px-1" />
               <span className="only-print">{Number(discount || 0).toLocaleString()} บาท</span>
             </div>
             <div className="font-bold text-[13px] mt-1">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
@@ -476,13 +486,7 @@ export default function ReceiptPage() {
         </div>
 
         <div className="mt-3 no-print">
-          <textarea
-            placeholder="หมายเหตุ"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="w-full p-1.5 text-sm"
-            rows={2}
-          />
+          <textarea placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} className="w-full p-1.5 text-sm" rows={2} />
         </div>
         {note ? <div className="only-print mt-2 text-[11px]">หมายเหตุ: {note}</div> : null}
 
@@ -492,9 +496,7 @@ export default function ReceiptPage() {
             ตรวจรับงานซ่อม
           </div>
           <div className="text-center w-1/3 pt-5">
-            ช่างซ่อม
-            <br />
-            {date}
+            ช่างซ่อม<br />{date}
           </div>
           <div className="text-center w-1/3">
             <div className="border-b border-black w-28 mx-auto mb-1 h-7"></div>
@@ -503,15 +505,14 @@ export default function ReceiptPage() {
         </div>
 
         <div className="text-center mt-5 no-print flex gap-3 justify-center flex-wrap">
-          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded text-sm">
-            พิมพ์บิล A4
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-5 py-2 rounded text-sm">
+            พิมพ์ที่เครื่องนี้
           </button>
-          <button
-            onClick={saveBill}
-            disabled={saving}
-            className="bg-green-600 text-white px-6 py-2 rounded text-sm disabled:opacity-50"
-          >
+          <button onClick={saveBill} disabled={saving} className="bg-gray-700 text-white px-5 py-2 rounded text-sm disabled:opacity-50">
             {saving ? 'กำลังบันทึก...' : 'บันทึกบิล + ตัดสต็อก'}
+          </button>
+          <button onClick={sendToBranch} disabled={sending} className="bg-green-600 text-white px-5 py-2 rounded text-sm disabled:opacity-50">
+            {sending ? 'กำลังส่ง...' : 'ส่งพิมพ์ไปสาขานี้'}
           </button>
         </div>
         {saveMsg && <p className="text-center mt-2 no-print text-sm">{saveMsg}</p>}
