@@ -7,7 +7,7 @@ export default function BillsPage() {
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [selectedBill, setSelectedBill] = useState<any>(null)
+  const [printBill, setPrintBill] = useState<any>(null)
 
   useEffect(() => {
     fetchBills()
@@ -17,7 +17,7 @@ export default function BillsPage() {
     const supabase = createClient()
     const { data } = await supabase
       .from('bills')
-      .select('*')
+      .select('*, branches(name)')
       .order('created_at', { ascending: false })
       .limit(50)
     setBills(data || [])
@@ -35,11 +35,12 @@ export default function BillsPage() {
     )
   })
 
-  const printBill = (bill: any) => {
-    setSelectedBill(bill)
+  const handlePrint = (bill: any) => {
+    setPrintBill(bill)
     setTimeout(() => {
       window.print()
-    }, 300)
+      setPrintBill(null)
+    }, 500)
   }
 
   if (loading) return <div className="p-8 text-center">กำลังโหลด...</div>
@@ -50,7 +51,7 @@ export default function BillsPage() {
         @media print {
           body * { visibility: hidden; }
           #print-area, #print-area * { visibility: visible; }
-          #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+          #print-area { position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; }
         }
       `}</style>
 
@@ -78,6 +79,7 @@ export default function BillsPage() {
                       {bill.customer_name || '-'} | {bill.license_plate || '-'}
                     </div>
                     <div className="text-sm text-gray-400">{bill.car_info || '-'}</div>
+                    <div className="text-xs text-gray-500 mt-1">{bill.branches?.name || '-'}</div>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-lg">{Number(bill.total || 0).toLocaleString()} บาท</div>
@@ -101,18 +103,12 @@ export default function BillsPage() {
                   </div>
                 )}
 
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3">
                   <button
-                    onClick={() => setSelectedBill(bill)}
+                    onClick={() => handlePrint(bill)}
                     className="text-xs bg-blue-600 px-3 py-1 rounded"
                   >
-                    ดูรายละเอียด
-                  </button>
-                  <button
-                    onClick={() => printBill(bill)}
-                    className="text-xs bg-green-600 px-3 py-1 rounded"
-                  >
-                    พิมพ์
+                    พิมพ์บิล
                   </button>
                 </div>
               </div>
@@ -121,35 +117,41 @@ export default function BillsPage() {
         )}
       </div>
 
-      {/* พื้นที่พิมพ์ */}
-      {selectedBill && (
-        <div id="print-area" className="hidden print:block max-w-[210mm] mx-auto bg-white text-black p-4 text-[10px]">
-          <div className="flex justify-between mb-2">
-            <div className="border-2 border-red-600 px-2 py-1">
-              <div className="text-red-600 font-bold text-base">RATSADA</div>
+      {printBill && (
+        <div id="print-area" className="hidden print:block max-w-[210mm] mx-auto bg-white text-black p-5 text-[11px]">
+          <div className="flex justify-between items-start mb-4">
+            <div className="border-2 border-red-600 px-3 py-1">
+              <div className="text-red-600 font-black text-lg">RATSADA</div>
             </div>
-            <div>เลขที่ {selectedBill.bill_no}</div>
+            <div className="text-right text-[10px]">
+              <div>เลขที่ {printBill.bill_no}</div>
+              <div>{new Date(printBill.created_at).toLocaleDateString('th-TH')}</div>
+            </div>
           </div>
-          <div className="text-center mb-2">
-            <h1 className="text-sm font-bold">รัษฎาแอร์ สนามบิน</h1>
+
+          <div className="text-center mb-3">
+            <h1 className="text-base font-bold">รัษฎาแอร์ {printBill.branches?.name || ''}</h1>
+            <p className="text-[8px]">Tel. 099-4102559 , 076-602429</p>
           </div>
-          <h2 className="text-base font-bold text-center mb-3">ใบเสร็จรับเงิน/Receipt</h2>
-          <div className="text-right mb-2">{new Date(selectedBill.created_at).toLocaleDateString('th-TH')}</div>
-          <div className="mb-2 text-[9px]">
-            <div>ลูกค้า: {selectedBill.customer_name || '-'}</div>
-            <div>รถ: {selectedBill.car_info || '-'} | ทะเบียน: {selectedBill.license_plate || '-'}</div>
+
+          <h2 className="text-center font-bold text-sm mb-4 border-b border-black pb-1">ใบเสร็จรับเงิน / Receipt</h2>
+
+          <div className="text-[10px] mb-3">
+            <div>ลูกค้า: {printBill.customer_name || '-'} | โทร: {printBill.phone || '-'}</div>
+            <div>รถ: {printBill.car_info || '-'} | ทะเบียน: {printBill.license_plate || '-'}</div>
           </div>
-          <table className="w-full border-collapse border border-black text-[9px]">
+
+          <table className="w-full border-collapse border border-black text-[10px] mb-3">
             <thead>
               <tr className="bg-gray-100">
                 <th className="border border-black p-1 text-left">รายการ</th>
-                <th className="border border-black p-1 w-12">จำนวน</th>
-                <th className="border border-black p-1 w-16">ราคา</th>
-                <th className="border border-black p-1 w-16">รวม</th>
+                <th className="border border-black p-1 w-14 text-center">จำนวน</th>
+                <th className="border border-black p-1 w-20 text-right">ราคา</th>
+                <th className="border border-black p-1 w-20 text-right">รวม</th>
               </tr>
             </thead>
             <tbody>
-              {selectedBill.items?.map((item: any, i: number) => (
+              {printBill.items?.map((item: any, i: number) => (
                 <tr key={i}>
                   <td className="border border-black p-1">{item.name}</td>
                   <td className="border border-black p-1 text-center">{item.qty}</td>
@@ -159,10 +161,22 @@ export default function BillsPage() {
               ))}
               <tr className="font-bold">
                 <td colSpan={3} className="border border-black p-1 text-right">รวมทั้งสิ้น</td>
-                <td className="border border-black p-1 text-right">{Number(selectedBill.total).toLocaleString()}</td>
+                <td className="border border-black p-1 text-right">{Number(printBill.total).toLocaleString()}</td>
               </tr>
             </tbody>
           </table>
+
+          <div className="flex justify-between text-[9px] mt-10">
+            <div className="text-center w-1/3">
+              <div className="border-b border-black w-24 mx-auto mb-1 h-6"></div>
+              ตรวจรับงานซ่อม
+            </div>
+            <div className="text-center w-1/3">ช่างซ่อม</div>
+            <div className="text-center w-1/3">
+              <div className="border-b border-black w-24 mx-auto mb-1 h-6"></div>
+              ผู้รับเงิน
+            </div>
+          </div>
         </div>
       )}
     </>
