@@ -9,6 +9,7 @@ export default function PartsPage() {
   const [newName, setNewName] = useState('')
   const [newPrice, setNewPrice] = useState('')
   const [adding, setAdding] = useState(false)
+  const [msg, setMsg] = useState('')
 
   useEffect(() => {
     fetchParts()
@@ -30,14 +31,24 @@ export default function PartsPage() {
   }
 
   const addNewPart = async () => {
-    if (!newName.trim() || !newPrice) return
+    if (!newName.trim() || !newPrice) {
+      setMsg('กรุณากรอกชื่อและราคา')
+      return
+    }
     setAdding(true)
+    setMsg('')
     const supabase = createClient()
+
     const { error } = await supabase.from('parts_services').insert({
-      name: newName,
+      name: newName.trim(),
       price: parseFloat(newPrice),
+      type: 'part'
     })
-    if (!error) {
+
+    if (error) {
+      setMsg('เพิ่มไม่สำเร็จ: ' + error.message)
+    } else {
+      setMsg('เพิ่มสำเร็จ!')
       setNewName('')
       setNewPrice('')
       fetchParts()
@@ -56,7 +67,6 @@ export default function PartsPage() {
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">เลือกอะไหล่ / บริการ</h1>
 
-      {/* เพิ่มอะไหล่ใหม่ */}
       <div className="mb-6 p-4 border rounded">
         <h2 className="font-semibold mb-2">เพิ่มอะไหล่/บริการใหม่</h2>
         <div className="flex gap-2">
@@ -82,6 +92,7 @@ export default function PartsPage() {
             {adding ? '...' : 'เพิ่ม'}
           </button>
         </div>
+        {msg && <p className="mt-2 text-sm">{msg}</p>}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
