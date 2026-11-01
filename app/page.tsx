@@ -27,7 +27,7 @@ export default function HomePage() {
             RATSADA
           </div>
           <div>
-            <h1 className="text-2xl font-bold">รัษฎาแอร์ สนามบิน</h1>
+            <h1 className="text-2xl font-bold">รัษฎาแอร์</h1>
             <p className="text-sm opacity-90">ระบบจัดการร้านแอร์รถยนต์แบบหลายสาขา</p>
           </div>
         </div>
