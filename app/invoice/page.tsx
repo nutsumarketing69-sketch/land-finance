@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function InvoicePage() {
-  const [items, setItems] = useState([
+  const [date, setDate] = useState('')
+  const [items] = useState([
     { name: 'น้ำยาแอร์ R134a', price: 800, qty: 1 },
     { name: 'ค่าแรงเติมน้ำยา', price: 300, qty: 1 },
   ])
+
+  useEffect(() => {
+    setDate(new Date().toLocaleDateString('th-TH'))
+  }, [])
 
   const total = items.reduce((sum, item) => sum + item.price * item.qty, 0)
 
@@ -16,7 +21,7 @@ export default function InvoicePage() {
       
       <div className="border rounded-lg p-6">
         <div className="mb-4">
-          <p><strong>วันที่:</strong> {new Date().toLocaleDateString('th-TH')}</p>
+          <p><strong>วันที่:</strong> {date || 'กำลังโหลด...'}</p>
           <p><strong>สาขา:</strong> สาขา 1</p>
         </div>
 
