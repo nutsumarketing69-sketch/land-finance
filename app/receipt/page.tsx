@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import QRCode from 'qrcode.react'
+import generatePayload from 'promptpay-qr'
 
 export default function ReceiptPage() {
   const [date, setDate] = useState('')
@@ -27,6 +29,9 @@ export default function ReceiptPage() {
   const [plateResults, setPlateResults] = useState<any[]>([])
   const [itemSearch, setItemSearch] = useState<{[key: number]: string}>({})
   const [itemResults, setItemResults] = useState<{[key: number]: any[]}>({})
+
+  // เลขพร้อมเพย์ของร้าน (เปลี่ยนเป็นเลขจริงของร้าน)
+  const PROMPTPAY_ID = '0994102559'
 
   useEffect(() => {
     const now = new Date()
@@ -119,6 +124,8 @@ export default function ReceiptPage() {
 
   const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0)
   const total = Math.max(0, subtotal - discount)
+
+  const qrPayload = total > 0 ? generatePayload(PROMPTPAY_ID, { amount: total }) : ''
 
   const saveBill = async () => {
     if (items.length === 0) {
@@ -295,6 +302,17 @@ export default function ReceiptPage() {
           </div>
           <div className="font-bold text-sm mt-1">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
         </div>
+
+        {/* QR PromptPay */}
+        {total > 0 && (
+          <div className="mt-4 text-center">
+            <p className="text-[9px] mb-1">สแกนจ่ายด้วย PromptPay</p>
+            <div className="inline-block border p-1">
+              <QRCode value={qrPayload} size={120} />
+            </div>
+            <p className="text-[8px] mt-1">จำนวน {total.toLocaleString()} บาท</p>
+          </div>
+        )}
 
         <div className="mt-2 no-print">
           <textarea placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} className="w-full border p-1" rows={2} />
