@@ -16,6 +16,8 @@ export default function ReceiptPage() {
   const [car, setCar] = useState('')
   const [mileage, setMileage] = useState('')
   const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('')
 
   const [searchCust, setSearchCust] = useState('')
   const [searchPlate, setSearchPlate] = useState('')
@@ -110,6 +112,32 @@ export default function ReceiptPage() {
 
   const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0)
   const total = Math.max(0, subtotal - discount)
+
+  const saveBill = async () => {
+    if (items.length === 0) {
+      setSaveMsg('ยังไม่มีรายการ')
+      return
+    }
+    setSaving(true)
+    setSaveMsg('')
+
+    const supabase = createClient()
+    const { error } = await supabase.from('bills').insert({
+      bill_no: billNo,
+      customer_name: customer || null,
+      phone: phone || null,
+      license_plate: plate || null,
+      car_info: car || null,
+      mileage: parseInt(mileage) || null,
+      items: items,
+      discount: discount,
+      total: total,
+      note: note || null,
+    })
+
+    setSaveMsg(error ? 'บันทึกไม่สำเร็จ' : 'บันทึกบิลสำเร็จ!')
+    setSaving(false)
+  }
 
   return (
     <>
@@ -237,9 +265,15 @@ export default function ReceiptPage() {
           <div className="text-center w-1/3"><div className="border-b border-black w-20 mx-auto mb-1"></div>ผู้รับเงิน</div>
         </div>
 
-        <div className="text-center mt-4 no-print">
-          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded">พิมพ์บิล A4</button>
+        <div className="text-center mt-4 no-print flex gap-3 justify-center">
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded">
+            พิมพ์บิล A4
+          </button>
+          <button onClick={saveBill} disabled={saving} className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50">
+            {saving ? 'กำลังบันทึก...' : 'บันทึกบิล'}
+          </button>
         </div>
+        {saveMsg && <p className="text-center mt-2 no-print">{saveMsg}</p>}
       </div>
     </>
   )
