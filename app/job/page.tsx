@@ -17,15 +17,20 @@ function JobContent() {
   const [symptom, setSymptom] = useState('')
   const [diagnosis, setDiagnosis] = useState('')
   const [repair, setRepair] = useState('')
+  const [warrantyMonths, setWarrantyMonths] = useState('6')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
     const fetchData = async () => {
       const supabase = createClient()
-      
+
       if (plate) {
-        const { data: v } = await supabase.from('vehicles').select('*, customers(*)').eq('license_plate', plate).maybeSingle()
+        const { data: v } = await supabase
+          .from('vehicles')
+          .select('*, customers(*)')
+          .eq('license_plate', plate)
+          .maybeSingle()
         if (v) {
           setVehicle(v)
           setMileage(v.mileage?.toString() || '')
@@ -43,7 +48,18 @@ function JobContent() {
   const saveJob = async () => {
     if (!vehicle) return
     setSaving(true)
+    setMessage('')
+
     const supabase = createClient()
+
+    // คำนวณวันหมดประกัน
+    const months = parseInt(warrantyMonths) || 0
+    let warrantyUntil: string | null = null
+    if (months > 0) {
+      const date = new Date()
+      date.setMonth(date.getMonth() + months)
+      warrantyUntil = date.toISOString().split('T')[0]
+    }
 
     const { error } = await supabase.from('jobs').insert({
       vehicle_id: vehicle.id,
@@ -53,10 +69,12 @@ function JobContent() {
       symptom: symptom || null,
       diagnosis: diagnosis || null,
       repair: repair || null,
+      warranty_months: months || null,
+      warranty_until: warrantyUntil,
       status: 'in_progress',
     })
 
-    setMessage(error ? 'บันทึกไม่สำเร็จ' : 'บันทึกงานสำเร็จ!')
+    setMessage(error ? 'บันทึกไม่สำเร็จ: ' + error.message : 'บันทึกงานสำเร็จ!')
     setSaving(false)
   }
 
@@ -77,12 +95,21 @@ function JobContent() {
       <div className="space-y-4">
         <div>
           <label className="block mb-1">เลขไมล์ปัจจุบัน</label>
-          <input type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} className="w-full border p-2 rounded text-black" />
+          <input
+            type="number"
+            value={mileage}
+            onChange={(e) => setMileage(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          />
         </div>
 
         <div>
           <label className="block mb-1">พนักงานรับงาน</label>
-          <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full border p-2 rounded text-black">
+          <select
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          >
             <option value="">-- เลือกพนักงาน --</option>
             {employees.map((e) => (
               <option key={e.id} value={e.id}>{e.full_name}</option>
@@ -92,7 +119,11 @@ function JobContent() {
 
         <div>
           <label className="block mb-1">สาขา</label>
-          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="w-full border p-2 rounded text-black">
+          <select
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          >
             <option value="">-- เลือกสาขา --</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
@@ -102,24 +133,65 @@ function JobContent() {
 
         <div>
           <label className="block mb-1">อาการที่ลูกค้าแจ้ง</label>
-          <textarea value={symptom} onChange={(e) => setSymptom(e.target.value)} className="w-full border p-2 rounded text-black" rows={2} placeholder="เช่น แอร์ไม่เย็น" />
+          <textarea
+            value={symptom}
+            onChange={(e) => setSymptom(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+            rows={2}
+            placeholder="เช่น แอร์ไม่เย็น"
+          />
         </div>
 
         <div>
           <label className="block mb-1">ผลการตรวจ</label>
-          <textarea value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} className="w-full border p-2 rounded text-black" rows={2} placeholder="เช่น น้ำยาหมด" />
+          <textarea
+            value={diagnosis}
+            onChange={(e) => setDiagnosis(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+            rows={2}
+            placeholder="เช่น น้ำยาหมด"
+          />
         </div>
 
         <div>
           <label className="block mb-1">สิ่งที่ซ่อม</label>
-          <textarea value={repair} onChange={(e) => setRepair(e.target.value)} className="w-full border p-2 rounded text-black" rows={2} placeholder="เช่น เติมน้ำยา ล้างแอร์" />
+          <textarea
+            value={repair}
+            onChange={(e) => setRepair(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+            rows={2}
+            placeholder="เช่น เติมน้ำยา ล้างแอร์"
+          />
         </div>
 
-        <button onClick={saveJob} disabled={saving || !vehicle} className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50">
+        <div>
+          <label className="block mb-1">ระยะเวลารับประกัน (เดือน)</label>
+          <select
+            value={warrantyMonths}
+            onChange={(e) => setWarrantyMonths(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          >
+            <option value="0">ไม่รับประกัน</option>
+            <option value="3">3 เดือน</option>
+            <option value="6">6 เดือน</option>
+            <option value="12">12 เดือน</option>
+            <option value="24">24 เดือน</option>
+          </select>
+        </div>
+
+        <button
+          onClick={saveJob}
+          disabled={saving || !vehicle}
+          className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50"
+        >
           {saving ? 'กำลังบันทึก...' : 'บันทึกงาน'}
         </button>
 
-        {message && <p className="mt-4 font-medium">{message}</p>}
+        {message && (
+          <p className={`mt-4 font-medium ${message.includes('สำเร็จ') ? 'text-green-400' : 'text-red-400'}`}>
+            {message}
+          </p>
+        )}
       </div>
     </div>
   )
