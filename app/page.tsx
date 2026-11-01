@@ -10,6 +10,7 @@ export default function HomePage() {
     { name: 'อัปโหลดรูป', desc: 'ถ่ายรูปรถ', href: '/upload', icon: '📷' },
     { name: 'รับประกัน', desc: 'ตรวจสอบการรับประกัน', href: '/warranty', icon: '🛡️' },
     { name: 'ค้นหาขั้นสูง', desc: 'ค้นหาทุกอย่าง', href: '/search', icon: '🔍' },
+    { name: 'รายงานขั้นสูง', desc: 'สรุปงานตามช่วงเวลา', href: '/report-advanced', icon: '📈' },
   ]
 
   return (
