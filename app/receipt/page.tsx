@@ -28,7 +28,6 @@ export default function ReceiptPage() {
   const [itemSearch, setItemSearch] = useState<{[key: number]: string}>({})
   const [itemResults, setItemResults] = useState<{[key: number]: any[]}>({})
 
-  // เลขพร้อมเพย์ของร้าน (เปลี่ยนเป็นเลขจริง)
   const PROMPTPAY_ID = '0994102559'
 
   useEffect(() => {
@@ -123,7 +122,6 @@ export default function ReceiptPage() {
   const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0)
   const total = Math.max(0, subtotal - discount)
 
-  // สร้าง QR ผ่าน URL (ไม่ต้องติดตั้งไลบรารี)
   const qrUrl = total > 0 
     ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
     : ''
@@ -304,7 +302,6 @@ export default function ReceiptPage() {
           <div className="font-bold text-sm mt-1">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
         </div>
 
-        {/* QR PromptPay */}
         {total > 0 && qrUrl && (
           <div className="mt-4 text-center">
             <p className="text-[9px] mb-1">สแกนจ่ายด้วย PromptPay</p>
