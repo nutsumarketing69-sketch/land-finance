@@ -175,6 +175,9 @@ export default function ReceiptPage() {
     setSaving(false)
   }
 
+  const selectedBranchName = branches.find(b => b.id === selectedBranch)?.name || ''
+  const headerTitle = selectedBranchName ? `รัษฎาแอร์ ${selectedBranchName}` : 'รัษฎาแอร์'
+
   return (
     <>
       <style jsx global>{`
@@ -202,7 +205,7 @@ export default function ReceiptPage() {
         </div>
 
         <div className="text-center mb-4">
-          <h1 className="text-base font-bold">รัษฎาแอร์</h1>
+          <h1 className="text-base font-bold">{headerTitle}</h1>
           <p className="text-[9px] text-gray-600">Tel. 099-4102559 , 076-602429</p>
         </div>
 
