@@ -16,6 +16,7 @@ export default function HomePage() {
     { name: 'ประวัติบิล', desc: 'ดูบิลที่บันทึกไว้', href: '/bills', icon: '📜' },
     { name: 'จัดการงาน', desc: 'ดูและเปลี่ยนสถานะงาน', href: '/jobs', icon: '⚙️' },
     { name: 'บิลตามสาขา', desc: 'ดูบิลแยกสาขา', href: '/bills-by-branch', icon: '🏢' },
+    { name: 'ลูกค้า', desc: 'จัดการข้อมูลลูกค้า', href: '/customers', icon: '👥' },
   ]
 
   return (
