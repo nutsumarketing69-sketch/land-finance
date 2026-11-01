@@ -13,6 +13,7 @@ export default function HomePage() {
     { name: 'สาขา', desc: 'จัดการสาขา', href: '/branches', icon: '🏢' },
     { name: 'อัปโหลดรูป', desc: 'ถ่ายรูปรถเข้าสู่ระบบ', href: '/upload', icon: '📷' },
     { name: 'แดชบอร์ด', desc: 'ภาพรวมระบบ', href: '/dashboard', icon: '🏠' },
+    { name: 'ประวัติบิล', desc: 'ดูบิลที่บันทึกไว้', href: '/bills', icon: '📜' },
   ]
 
   return (
