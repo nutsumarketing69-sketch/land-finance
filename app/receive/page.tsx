@@ -57,7 +57,7 @@ export default function ReceivePage() {
       {message && <p className="text-red-500 mb-4">{message}</p>}
 
       {result && (
-        <div className="border rounded-lg p-6 bg-gray-50">
+          <div className="border rounded-lg p-6 bg-white text-black">
           <h2 className="font-bold text-lg mb-2">พบข้อมูลรถ</h2>
           <p><strong>ป้ายทะเบียน:</strong> {result.license_plate}</p>
           <p><strong>ยี่ห้อ/รุ่น:</strong> {result.brand} {result.model}</p>
