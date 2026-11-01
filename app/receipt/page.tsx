@@ -204,9 +204,14 @@ export default function ReceiptPage() {
           </div>
         </div>
 
-        <div className="text-center mb-4">
+        <div className="text-center mb-3">
           <h1 className="text-base font-bold">{headerTitle}</h1>
-          <p className="text-[9px] text-gray-600">Tel. 099-4102559 , 076-602429</p>
+          <p className="text-[8px] text-gray-600 mt-1">
+            201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110
+          </p>
+          <p className="text-[8px] text-gray-600">
+            Tel. 099-4102559 , 076-602429 &nbsp; Email. ratsada_air@hotmail.com
+          </p>
         </div>
 
         <h2 className="text-center font-bold text-sm mb-4 border-b border-black pb-1">ใบเสร็จรับเงิน / Receipt</h2>
