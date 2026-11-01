@@ -342,4 +342,12 @@ export default function ReceiptPage() {
           <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded text-sm">
             พิมพ์บิล A4
           </button>
-          <button 
+          <button onClick={saveBill} disabled={saving} className="bg-green-600 text-white px-6 py-2 rounded text-sm disabled:opacity-50">
+            {saving ? 'กำลังบันทึก...' : 'บันทึกบิล + ตัดสต็อก'}
+          </button>
+        </div>
+        {saveMsg && <p className="text-center mt-2 no-print text-sm">{saveMsg}</p>}
+      </div>
+    </>
+  )
+}
