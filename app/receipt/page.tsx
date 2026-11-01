@@ -9,6 +9,8 @@ export default function ReceiptPage() {
   const [items, setItems] = useState<any[]>([])
   const [discount, setDiscount] = useState(0)
   const [parts, setParts] = useState<any[]>([])
+  const [branches, setBranches] = useState<any[]>([])
+  const [selectedBranch, setSelectedBranch] = useState('')
   
   const [customer, setCustomer] = useState('')
   const [phone, setPhone] = useState('')
@@ -35,13 +37,17 @@ export default function ReceiptPage() {
     const saved = localStorage.getItem('selectedItems')
     if (saved) setItems(JSON.parse(saved))
 
-    fetchParts()
+    fetchData()
   }, [])
 
-  const fetchParts = async () => {
+  const fetchData = async () => {
     const supabase = createClient()
-    const { data } = await supabase.from('parts_services').select('*')
-    setParts(data || [])
+    const [partsRes, branchesRes] = await Promise.all([
+      supabase.from('parts_services').select('*'),
+      supabase.from('branches').select('*'),
+    ])
+    setParts(partsRes.data || [])
+    setBranches(branchesRes.data || [])
   }
 
   const searchCustomer = async (q: string) => {
@@ -124,7 +130,6 @@ export default function ReceiptPage() {
 
     const supabase = createClient()
 
-    // บันทึกบิล
     const { error: billError } = await supabase.from('bills').insert({
       bill_no: billNo,
       customer_name: customer || null,
@@ -136,6 +141,7 @@ export default function ReceiptPage() {
       discount: discount,
       total: total,
       note: note || null,
+      branch_id: selectedBranch || null,
     })
 
     if (billError) {
@@ -155,10 +161,11 @@ export default function ReceiptPage() {
       }
     }
 
-    setSaveMsg('บันทึกบิลและตัดสต็อกสำเร็จ!')
+    setSaveMsg('บันทึกบิลสำเร็จ! (สาขา: ' + (branches.find(b => b.id === selectedBranch)?.name || 'ไม่ระบุ') + ')')
     setSaving(false)
-    fetchParts() // อัปเดตข้อมูลสต็อกล่าสุด
   }
+
+  const branchName = branches.find(b => b.id === selectedBranch)?.name || ''
 
   return (
     <>
@@ -181,10 +188,25 @@ export default function ReceiptPage() {
         <div className="text-center mb-2">
           <h1 className="text-sm font-bold">รัษฎาแอร์ สนามบิน</h1>
           <p className="text-[8px]">Tel. 099-4102559 , 076-602429</p>
+          {branchName && <p className="text-[8px] font-semibold">สาขา: {branchName}</p>}
         </div>
 
         <h2 className="text-base font-bold text-center mb-3">ใบเสร็จรับเงิน/Receipt</h2>
         <div className="text-right mb-2">{date}</div>
+
+        {/* เลือกสาขา */}
+        <div className="mb-3 no-print">
+          <select
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="w-full border p-2 text-black"
+          >
+            <option value="">-- เลือกสาขาที่ออกบิล --</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
 
         <div className="grid grid-cols-2 gap-2 mb-3 no-print">
           <div className="relative">
@@ -216,6 +238,7 @@ export default function ReceiptPage() {
         <div className="hidden print:block text-[9px] mb-2">
           <div>ลูกค้า: {customer || '-'} | โทร: {phone || '-'}</div>
           <div>รถ: {car || '-'} | ทะเบียน: {plate || '-'} | ไมล์: {mileage || '-'}</div>
+          {branchName && <div>สาขา: {branchName}</div>}
         </div>
 
         <table className="w-full border-collapse border border-black text-[9px]">
@@ -286,7 +309,7 @@ export default function ReceiptPage() {
           <div className="text-center w-1/3"><div className="border-b border-black w-20 mx-auto mb-1"></div>ผู้รับเงิน</div>
         </div>
 
-        <div className="text-center mt-4 no-print flex gap-3 justify-center">
+        <div className="text-center mt-4 no-print flex gap-3 justify-center flex-wrap">
           <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded">
             พิมพ์บิล A4
           </button>
