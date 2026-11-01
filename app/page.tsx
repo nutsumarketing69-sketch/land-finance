@@ -8,6 +8,7 @@ export default function HomePage() {
     { name: 'พนักงาน', desc: 'จัดการพนักงาน', href: '/employees', icon: '👤' },
     { name: 'สาขา', desc: 'เลือกสาขา', href: '/branches', icon: '🏢' },
     { name: 'อัปโหลดรูป', desc: 'ถ่ายรูปรถ', href: '/upload', icon: '📷' },
+    { name: 'รับประกัน', desc: 'ตรวจสอบการรับประกัน', href: '/warranty', icon: '🛡️' },
   ]
 
   return (
