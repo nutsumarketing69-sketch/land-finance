@@ -1,17 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ReportPage() {
-  const [date, setDate] = useState(() => {
-    const d = new Date()
-    return d.toISOString().split('T')[0]
-  })
+  const [date, setDate] = useState('')
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    const d = new Date()
+    setDate(d.toISOString().split('T')[0])
+  }, [])
+
   const fetchReport = async () => {
+    if (!date) return
     setLoading(true)
     const supabase = createClient()
 
@@ -44,7 +47,7 @@ export default function ReportPage() {
         />
         <button
           onClick={fetchReport}
-          disabled={loading}
+          disabled={loading || !date}
           className="bg-blue-600 text-white px-4 py-2 rounded"
         >
           {loading ? 'กำลังโหลด...' : 'ดูรายงาน'}
