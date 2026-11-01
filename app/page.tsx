@@ -19,6 +19,7 @@ export default function HomePage() {
     { name: 'อัปโหลดรูป', desc: 'ถ่ายรูปรถเข้าสู่ระบบ', href: '/upload', icon: '📷' },
     { name: 'ยอดขายรายวัน', desc: 'สรุปบิลและยอดขาย', href: '/sales', icon: '💰' },
     { name: 'งานตามสาขา', desc: 'ดูงานแยกสาขา', href: '/jobs-by-branch', icon: '🏭' },
+    { name: 'คิวพิมพ์บิล', desc: 'พิมพ์บิลที่สาขา', href: '/print-queue', icon: '🖨️' },
   ]
 
   return (
