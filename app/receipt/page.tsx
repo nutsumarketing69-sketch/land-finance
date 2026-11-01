@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import QRCode from 'qrcode.react'
-import generatePayload from 'promptpay-qr'
 
 export default function ReceiptPage() {
   const [date, setDate] = useState('')
@@ -30,7 +28,7 @@ export default function ReceiptPage() {
   const [itemSearch, setItemSearch] = useState<{[key: number]: string}>({})
   const [itemResults, setItemResults] = useState<{[key: number]: any[]}>({})
 
-  // เลขพร้อมเพย์ของร้าน (เปลี่ยนเป็นเลขจริงของร้าน)
+  // เลขพร้อมเพย์ของร้าน (เปลี่ยนเป็นเลขจริง)
   const PROMPTPAY_ID = '0994102559'
 
   useEffect(() => {
@@ -125,7 +123,10 @@ export default function ReceiptPage() {
   const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0)
   const total = Math.max(0, subtotal - discount)
 
-  const qrPayload = total > 0 ? generatePayload(PROMPTPAY_ID, { amount: total }) : ''
+  // สร้าง QR ผ่าน URL (ไม่ต้องติดตั้งไลบรารี)
+  const qrUrl = total > 0 
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
+    : ''
 
   const saveBill = async () => {
     if (items.length === 0) {
@@ -304,12 +305,10 @@ export default function ReceiptPage() {
         </div>
 
         {/* QR PromptPay */}
-        {total > 0 && (
+        {total > 0 && qrUrl && (
           <div className="mt-4 text-center">
             <p className="text-[9px] mb-1">สแกนจ่ายด้วย PromptPay</p>
-            <div className="inline-block border p-1">
-              <QRCode value={qrPayload} size={120} />
-            </div>
+            <img src={qrUrl} alt="QR PromptPay" className="mx-auto border" width={120} height={120} />
             <p className="text-[8px] mt-1">จำนวน {total.toLocaleString()} บาท</p>
           </div>
         )}
