@@ -10,6 +10,8 @@ export default function PrintQueuePage() {
   const [loading, setLoading] = useState(false)
   const [printBill, setPrintBill] = useState<any>(null)
 
+  const PROMPTPAY_ID = '0994102559'
+
   useEffect(() => {
     fetchBranches()
   }, [])
@@ -25,7 +27,6 @@ export default function PrintQueuePage() {
     setLoading(true)
     const supabase = createClient()
 
-    // ดึงบิลของสาขานี้ที่ยังไม่พิมพ์ (หรือทั้งหมดล่าสุด)
     const { data } = await supabase
       .from('bills')
       .select('*, branches(name)')
@@ -43,6 +44,11 @@ export default function PrintQueuePage() {
       window.print()
       setPrintBill(null)
     }, 500)
+  }
+
+  const getQrUrl = (total: number) => {
+    if (!total || total <= 0) return ''
+    return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
   }
 
   return (
@@ -163,6 +169,20 @@ export default function PrintQueuePage() {
               </tr>
             </tbody>
           </table>
+
+          {Number(printBill.total) > 0 && (
+            <div className="mt-4 text-center">
+              <p className="text-[9px] mb-1">สแกนจ่ายด้วย PromptPay</p>
+              <img 
+                src={getQrUrl(Number(printBill.total))} 
+                alt="QR PromptPay" 
+                className="mx-auto border" 
+                width={100} 
+                height={100} 
+              />
+              <p className="text-[8px] mt-1">จำนวน {Number(printBill.total).toLocaleString()} บาท</p>
+            </div>
+          )}
 
           <div className="flex justify-between text-[9px] mt-10">
             <div className="text-center w-1/3">
