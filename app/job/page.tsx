@@ -14,6 +14,9 @@ function JobContent() {
   const [mileage, setMileage] = useState('')
   const [employeeId, setEmployeeId] = useState('')
   const [branchId, setBranchId] = useState('')
+  const [symptom, setSymptom] = useState('')
+  const [diagnosis, setDiagnosis] = useState('')
+  const [repair, setRepair] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -22,7 +25,7 @@ function JobContent() {
       const supabase = createClient()
       
       if (plate) {
-        const { data: v } = await supabase.from('vehicles').select('*').eq('license_plate', plate).maybeSingle()
+        const { data: v } = await supabase.from('vehicles').select('*, customers(*)').eq('license_plate', plate).maybeSingle()
         if (v) {
           setVehicle(v)
           setMileage(v.mileage?.toString() || '')
@@ -47,6 +50,9 @@ function JobContent() {
       mileage: parseInt(mileage) || null,
       employee_id: employeeId || null,
       branch_id: branchId || null,
+      symptom: symptom || null,
+      diagnosis: diagnosis || null,
+      repair: repair || null,
       status: 'in_progress',
     })
 
@@ -64,27 +70,19 @@ function JobContent() {
         <div className="mb-6 p-4 border rounded bg-white text-black">
           <p><strong>ป้ายทะเบียน:</strong> {vehicle.license_plate}</p>
           <p><strong>รถ:</strong> {vehicle.brand} {vehicle.model}</p>
+          <p><strong>ลูกค้า:</strong> {vehicle.customers?.full_name || '-'}</p>
         </div>
       )}
 
       <div className="space-y-4">
         <div>
           <label className="block mb-1">เลขไมล์ปัจจุบัน</label>
-          <input
-            type="number"
-            value={mileage}
-            onChange={(e) => setMileage(e.target.value)}
-            className="w-full border p-2 rounded text-black"
-          />
+          <input type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} className="w-full border p-2 rounded text-black" />
         </div>
 
         <div>
           <label className="block mb-1">พนักงานรับงาน</label>
-          <select
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            className="w-full border p-2 rounded text-black"
-          >
+          <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="w-full border p-2 rounded text-black">
             <option value="">-- เลือกพนักงาน --</option>
             {employees.map((e) => (
               <option key={e.id} value={e.id}>{e.full_name}</option>
@@ -94,11 +92,7 @@ function JobContent() {
 
         <div>
           <label className="block mb-1">สาขา</label>
-          <select
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            className="w-full border p-2 rounded text-black"
-          >
+          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="w-full border p-2 rounded text-black">
             <option value="">-- เลือกสาขา --</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
@@ -106,11 +100,22 @@ function JobContent() {
           </select>
         </div>
 
-        <button
-          onClick={saveJob}
-          disabled={saving || !vehicle}
-          className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50"
-        >
+        <div>
+          <label className="block mb-1">อาการที่ลูกค้าแจ้ง</label>
+          <textarea value={symptom} onChange={(e) => setSymptom(e.target.value)} className="w-full border p-2 rounded text-black" rows={2} placeholder="เช่น แอร์ไม่เย็น" />
+        </div>
+
+        <div>
+          <label className="block mb-1">ผลการตรวจ</label>
+          <textarea value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} className="w-full border p-2 rounded text-black" rows={2} placeholder="เช่น น้ำยาหมด" />
+        </div>
+
+        <div>
+          <label className="block mb-1">สิ่งที่ซ่อม</label>
+          <textarea value={repair} onChange={(e) => setRepair(e.target.value)} className="w-full border p-2 rounded text-black" rows={2} placeholder="เช่น เติมน้ำยา ล้างแอร์" />
+        </div>
+
+        <button onClick={saveJob} disabled={saving || !vehicle} className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50">
           {saving ? 'กำลังบันทึก...' : 'บันทึกงาน'}
         </button>
 
