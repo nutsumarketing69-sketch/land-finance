@@ -9,25 +9,32 @@ function JobContent() {
   const plate = searchParams.get('plate') || ''
 
   const [vehicle, setVehicle] = useState<any>(null)
+  const [employees, setEmployees] = useState<any[]>([])
+  const [branches, setBranches] = useState<any[]>([])
   const [mileage, setMileage] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const [branchId, setBranchId] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (!plate) return
-    const fetchVehicle = async () => {
+    const fetchData = async () => {
       const supabase = createClient()
-      const { data } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('license_plate', plate)
-        .maybeSingle()
-      if (data) {
-        setVehicle(data)
-        setMileage(data.mileage?.toString() || '')
+      
+      if (plate) {
+        const { data: v } = await supabase.from('vehicles').select('*').eq('license_plate', plate).maybeSingle()
+        if (v) {
+          setVehicle(v)
+          setMileage(v.mileage?.toString() || '')
+        }
       }
+
+      const { data: emp } = await supabase.from('employees').select('*')
+      const { data: br } = await supabase.from('branches').select('*')
+      setEmployees(emp || [])
+      setBranches(br || [])
     }
-    fetchVehicle()
+    fetchData()
   }, [plate])
 
   const saveJob = async () => {
@@ -38,6 +45,8 @@ function JobContent() {
     const { error } = await supabase.from('jobs').insert({
       vehicle_id: vehicle.id,
       mileage: parseInt(mileage) || null,
+      employee_id: employeeId || null,
+      branch_id: branchId || null,
       status: 'in_progress',
     })
 
@@ -51,13 +60,11 @@ function JobContent() {
     <div className="p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">บันทึกงานซ่อม</h1>
 
-      {vehicle ? (
+      {vehicle && (
         <div className="mb-6 p-4 border rounded bg-white text-black">
           <p><strong>ป้ายทะเบียน:</strong> {vehicle.license_plate}</p>
           <p><strong>รถ:</strong> {vehicle.brand} {vehicle.model}</p>
         </div>
-      ) : (
-        <p>กำลังโหลดข้อมูลรถ...</p>
       )}
 
       <div className="space-y-4">
@@ -69,6 +76,34 @@ function JobContent() {
             onChange={(e) => setMileage(e.target.value)}
             className="w-full border p-2 rounded text-black"
           />
+        </div>
+
+        <div>
+          <label className="block mb-1">พนักงานรับงาน</label>
+          <select
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          >
+            <option value="">-- เลือกพนักงาน --</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>{e.full_name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block mb-1">สาขา</label>
+          <select
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          >
+            <option value="">-- เลือกสาขา --</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
         </div>
 
         <button
