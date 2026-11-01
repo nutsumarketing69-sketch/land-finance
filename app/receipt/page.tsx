@@ -123,7 +123,7 @@ export default function ReceiptPage() {
   const total = Math.max(0, subtotal - discount)
 
   const qrUrl = total > 0 
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
     : ''
 
   const saveBill = async () => {
@@ -177,33 +177,37 @@ export default function ReceiptPage() {
     <>
       <style jsx global>{`
         @media print {
-          @page { size: A4; margin: 8mm; }
+          @page { size: A4; margin: 10mm; }
           body { -webkit-print-color-adjust: exact; }
           .no-print { display: none !important; }
         }
       `}</style>
 
-      <div className="max-w-[210mm] mx-auto bg-white text-black p-4 text-[10px]">
-        <div className="flex justify-between mb-2">
-          <div className="border-2 border-red-600 px-2 py-1">
-            <div className="text-red-600 font-bold text-base">RATSADA</div>
+      <div className="max-w-[210mm] mx-auto bg-white text-black p-5 text-[11px] font-sans">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-4">
+          <div className="border-2 border-red-600 px-3 py-1">
+            <div className="text-red-600 font-black text-lg tracking-wider">RATSADA</div>
           </div>
-          <div>เลขที่ {billNo}</div>
+          <div className="text-right text-[10px]">
+            <div>เลขที่ {billNo}</div>
+            <div>{date}</div>
+          </div>
         </div>
 
-        <div className="text-center mb-2">
-          <h1 className="text-sm font-bold">{headerTitle}</h1>
-          <p className="text-[8px]">Tel. 099-4102559 , 076-602429</p>
+        <div className="text-center mb-4">
+          <h1 className="text-base font-bold">{headerTitle}</h1>
+          <p className="text-[9px] text-gray-600">Tel. 099-4102559 , 076-602429</p>
         </div>
 
-        <h2 className="text-base font-bold text-center mb-3">ใบเสร็จรับเงิน/Receipt</h2>
-        <div className="text-right mb-2">{date}</div>
+        <h2 className="text-center font-bold text-sm mb-4 border-b border-black pb-1">ใบเสร็จรับเงิน / Receipt</h2>
 
+        {/* เลือกสาขา */}
         <div className="mb-3 no-print">
           <select
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
-            className="w-full border p-2 text-black"
+            className="w-full border p-2 text-black text-sm"
           >
             <option value="">-- เลือกสาขาที่ออกบิล --</option>
             {branches.map((b) => (
@@ -212,46 +216,48 @@ export default function ReceiptPage() {
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-3 no-print">
+        {/* ข้อมูลลูกค้า */}
+        <div className="grid grid-cols-2 gap-2 mb-4 no-print">
           <div className="relative">
-            <input type="text" placeholder="ค้นหา/พิมพ์ชื่อลูกค้า" value={searchCust || customer} onChange={(e) => { setCustomer(e.target.value); searchCustomer(e.target.value) }} className="w-full border p-1" />
+            <input type="text" placeholder="ค้นหา/พิมพ์ชื่อลูกค้า" value={searchCust || customer} onChange={(e) => { setCustomer(e.target.value); searchCustomer(e.target.value) }} className="w-full border p-1.5 text-sm" />
             {custResults.length > 0 && (
-              <div className="absolute z-10 bg-white border w-full max-h-32 overflow-y-auto">
+              <div className="absolute z-10 bg-white border w-full max-h-32 overflow-y-auto text-sm">
                 {custResults.map((c) => (
-                  <div key={c.id} onClick={() => selectCustomer(c)} className="p-1 hover:bg-gray-100 cursor-pointer">{c.full_name}</div>
+                  <div key={c.id} onClick={() => selectCustomer(c)} className="p-1.5 hover:bg-gray-100 cursor-pointer">{c.full_name}</div>
                 ))}
               </div>
             )}
           </div>
-          <input type="text" placeholder="เบอร์โทร" value={phone} onChange={(e) => setPhone(e.target.value)} className="border p-1" />
+          <input type="text" placeholder="เบอร์โทร" value={phone} onChange={(e) => setPhone(e.target.value)} className="border p-1.5 text-sm" />
           
           <div className="relative">
-            <input type="text" placeholder="ค้นหา/พิมพ์ป้ายทะเบียน" value={searchPlate || plate} onChange={(e) => { setPlate(e.target.value); searchPlateFn(e.target.value) }} className="w-full border p-1" />
+            <input type="text" placeholder="ค้นหา/พิมพ์ป้ายทะเบียน" value={searchPlate || plate} onChange={(e) => { setPlate(e.target.value); searchPlateFn(e.target.value) }} className="w-full border p-1.5 text-sm" />
             {plateResults.length > 0 && (
-              <div className="absolute z-10 bg-white border w-full max-h-32 overflow-y-auto">
+              <div className="absolute z-10 bg-white border w-full max-h-32 overflow-y-auto text-sm">
                 {plateResults.map((v) => (
-                  <div key={v.id} onClick={() => selectPlate(v)} className="p-1 hover:bg-gray-100 cursor-pointer">{v.license_plate} - {v.brand}</div>
+                  <div key={v.id} onClick={() => selectPlate(v)} className="p-1.5 hover:bg-gray-100 cursor-pointer">{v.license_plate} - {v.brand}</div>
                 ))}
               </div>
             )}
           </div>
-          <input type="text" placeholder="ยี่ห้อ/รุ่น" value={car} onChange={(e) => setCar(e.target.value)} className="border p-1" />
-          <input type="text" placeholder="เลขไมล์" value={mileage} onChange={(e) => setMileage(e.target.value)} className="border p-1" />
+          <input type="text" placeholder="ยี่ห้อ/รุ่น" value={car} onChange={(e) => setCar(e.target.value)} className="border p-1.5 text-sm" />
+          <input type="text" placeholder="เลขไมล์" value={mileage} onChange={(e) => setMileage(e.target.value)} className="border p-1.5 text-sm" />
         </div>
 
-        <div className="hidden print:block text-[9px] mb-2">
-          <div>ลูกค้า: {customer || '-'} | โทร: {phone || '-'}</div>
-          <div>รถ: {car || '-'} | ทะเบียน: {plate || '-'} | ไมล์: {mileage || '-'}</div>
+        <div className="hidden print:block text-[10px] mb-3 space-y-0.5">
+          <div>ลูกค้า: {customer || '-'} &nbsp;|&nbsp; โทร: {phone || '-'}</div>
+          <div>รถ: {car || '-'} &nbsp;|&nbsp; ทะเบียน: {plate || '-'} &nbsp;|&nbsp; ไมล์: {mileage || '-'}</div>
         </div>
 
-        <table className="w-full border-collapse border border-black text-[9px]">
+        {/* ตารางรายการ */}
+        <table className="w-full border-collapse border border-black text-[10px] mb-3">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border border-black p-1 text-left">รายการ</th>
-              <th className="border border-black p-1 w-12">จำนวน</th>
-              <th className="border border-black p-1 w-16">ราคา</th>
-              <th className="border border-black p-1 w-16">รวม</th>
-              <th className="border border-black p-1 w-6 no-print"></th>
+              <th className="border border-black p-1.5 text-left">รายการ</th>
+              <th className="border border-black p-1.5 w-14 text-center">จำนวน</th>
+              <th className="border border-black p-1.5 w-20 text-right">ราคา</th>
+              <th className="border border-black p-1.5 w-20 text-right">รวม</th>
+              <th className="border border-black p-1.5 w-6 no-print"></th>
             </tr>
           </thead>
           <tbody>
@@ -262,13 +268,13 @@ export default function ReceiptPage() {
                     type="text" 
                     value={itemSearch[i] !== undefined ? itemSearch[i] : item.name} 
                     onChange={(e) => { updateItem(i, 'name', e.target.value); searchItem(i, e.target.value) }} 
-                    className="w-full no-print" 
+                    className="w-full no-print text-sm" 
                   />
                   <span className="hidden print:inline">{item.name}</span>
                   {itemResults[i]?.length > 0 && (
-                    <div className="absolute z-20 bg-white border w-48 max-h-32 overflow-y-auto left-0 top-full">
+                    <div className="absolute z-20 bg-white border w-56 max-h-32 overflow-y-auto left-0 top-full text-xs">
                       {itemResults[i].map((p) => (
-                        <div key={p.id} onClick={() => selectItem(i, p)} className="p-1 hover:bg-gray-100 cursor-pointer text-[8px]">
+                        <div key={p.id} onClick={() => selectItem(i, p)} className="p-1.5 hover:bg-gray-100 cursor-pointer">
                           {p.name} - {Number(p.price).toLocaleString()}
                         </div>
                       ))}
@@ -276,12 +282,12 @@ export default function ReceiptPage() {
                   )}
                 </td>
                 <td className="border border-black p-1">
-                  <input type="number" value={item.qty} onChange={(e) => updateItem(i, 'qty', Number(e.target.value))} className="w-full text-center no-print" />
-                  <span className="hidden print:inline">{item.qty}</span>
+                  <input type="number" value={item.qty} onChange={(e) => updateItem(i, 'qty', Number(e.target.value))} className="w-full text-center no-print text-sm" />
+                  <span className="hidden print:inline text-center block">{item.qty}</span>
                 </td>
                 <td className="border border-black p-1">
-                  <input type="number" value={item.price} onChange={(e) => updateItem(i, 'price', Number(e.target.value))} className="w-full text-right no-print" />
-                  <span className="hidden print:inline">{Number(item.price).toLocaleString()}</span>
+                  <input type="number" value={item.price} onChange={(e) => updateItem(i, 'price', Number(e.target.value))} className="w-full text-right no-print text-sm" />
+                  <span className="hidden print:inline text-right block">{Number(item.price).toLocaleString()}</span>
                 </td>
                 <td className="border border-black p-1 text-right">{(Number(item.price || 0) * (item.qty || 1)).toLocaleString()}</td>
                 <td className="border border-black p-1 text-center no-print">
@@ -292,43 +298,57 @@ export default function ReceiptPage() {
           </tbody>
         </table>
 
-        <button onClick={addEmptyLine} className="mt-2 text-blue-600 text-sm no-print">+ เพิ่มบรรทัด</button>
+        <button onClick={addEmptyLine} className="text-blue-600 text-sm no-print mb-3">+ เพิ่มบรรทัด</button>
 
-        <div className="mt-2 text-right">
-          <div className="flex justify-end gap-2 items-center">
-            <span>ส่วนลด:</span>
-            <input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className="border w-20 text-right no-print" />
+        {/* สรุปยอด + QR */}
+        <div className="flex justify-between items-start mt-2">
+          <div className="text-[10px]">
+            {total > 0 && qrUrl && (
+              <div className="text-center">
+                <p className="text-[9px] mb-1 text-gray-600">สแกนจ่าย PromptPay</p>
+                <img src={qrUrl} alt="QR" className="border mx-auto" width={90} height={90} />
+                <p className="text-[8px] mt-0.5">{total.toLocaleString()} บาท</p>
+              </div>
+            )}
           </div>
-          <div className="font-bold text-sm mt-1">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
-        </div>
-
-        {total > 0 && qrUrl && (
-          <div className="mt-4 text-center">
-            <p className="text-[9px] mb-1">สแกนจ่ายด้วย PromptPay</p>
-            <img src={qrUrl} alt="QR PromptPay" className="mx-auto border" width={120} height={120} />
-            <p className="text-[8px] mt-1">จำนวน {total.toLocaleString()} บาท</p>
+          <div className="text-right">
+            <div className="flex justify-end gap-2 items-center text-sm">
+              <span>ส่วนลด:</span>
+              <input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className="border w-20 text-right no-print text-sm" />
+            </div>
+            <div className="font-bold text-sm mt-2">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
           </div>
-        )}
-
-        <div className="mt-2 no-print">
-          <textarea placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} className="w-full border p-1" rows={2} />
         </div>
 
-        <div className="flex justify-between text-[8px] mt-8">
-          <div className="text-center w-1/3"><div className="border-b border-black w-20 mx-auto mb-1"></div>ตรวจรับงานซ่อม</div>
-          <div className="text-center w-1/3">ช่างซ่อม<br/>{date}</div>
-          <div className="text-center w-1/3"><div className="border-b border-black w-20 mx-auto mb-1"></div>ผู้รับเงิน</div>
+        <div className="mt-3 no-print">
+          <textarea placeholder="หมายเหตุ" value={note} onChange={(e) => setNote(e.target.value)} className="w-full border p-1.5 text-sm" rows={2} />
         </div>
 
-        <div className="text-center mt-4 no-print flex gap-3 justify-center flex-wrap">
-          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded">
+        {/* ลายเซ็น */}
+        <div className="flex justify-between text-[9px] mt-10">
+          <div className="text-center w-1/3">
+            <div className="border-b border-black w-24 mx-auto mb-1 h-6"></div>
+            ตรวจรับงานซ่อม
+          </div>
+          <div className="text-center w-1/3">
+            ช่างซ่อม<br/>{date}
+          </div>
+          <div className="text-center w-1/3">
+            <div className="border-b border-black w-24 mx-auto mb-1 h-6"></div>
+            ผู้รับเงิน
+          </div>
+        </div>
+
+        {/* ปุ่ม */}
+        <div className="text-center mt-6 no-print flex gap-3 justify-center flex-wrap">
+          <button onClick={() => window.print()} className="bg-blue-600 text-white px-6 py-2 rounded text-sm">
             พิมพ์บิล A4
           </button>
-          <button onClick={saveBill} disabled={saving} className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50">
+          <button onClick={saveBill} disabled={saving} className="bg-green-600 text-white px-6 py-2 rounded text-sm disabled:opacity-50">
             {saving ? 'กำลังบันทึก...' : 'บันทึกบิล + ตัดสต็อก'}
           </button>
         </div>
-        {saveMsg && <p className="text-center mt-2 no-print">{saveMsg}</p>}
+        {saveMsg && <p className="text-center mt-2 no-print text-sm">{saveMsg}</p>}
       </div>
     </>
   )
