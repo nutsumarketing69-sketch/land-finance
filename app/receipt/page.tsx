@@ -150,7 +150,6 @@ export default function ReceiptPage() {
       return
     }
 
-    // ตัดสต็อก
     for (const item of items) {
       if (item.part_id && item.qty > 0) {
         const part = parts.find(p => p.id === item.part_id)
@@ -161,11 +160,12 @@ export default function ReceiptPage() {
       }
     }
 
-    setSaveMsg('บันทึกบิลสำเร็จ! (สาขา: ' + (branches.find(b => b.id === selectedBranch)?.name || 'ไม่ระบุ') + ')')
+    setSaveMsg('บันทึกบิลสำเร็จ!')
     setSaving(false)
   }
 
-  const branchName = branches.find(b => b.id === selectedBranch)?.name || ''
+  const selectedBranchName = branches.find(b => b.id === selectedBranch)?.name || 'สนามบิน'
+  const headerTitle = `รัษฎาแอร์ ${selectedBranchName}`
 
   return (
     <>
@@ -186,15 +186,13 @@ export default function ReceiptPage() {
         </div>
 
         <div className="text-center mb-2">
-          <h1 className="text-sm font-bold">รัษฎาแอร์ สนามบิน</h1>
+          <h1 className="text-sm font-bold">{headerTitle}</h1>
           <p className="text-[8px]">Tel. 099-4102559 , 076-602429</p>
-          {branchName && <p className="text-[8px] font-semibold">สาขา: {branchName}</p>}
         </div>
 
         <h2 className="text-base font-bold text-center mb-3">ใบเสร็จรับเงิน/Receipt</h2>
         <div className="text-right mb-2">{date}</div>
 
-        {/* เลือกสาขา */}
         <div className="mb-3 no-print">
           <select
             value={selectedBranch}
@@ -238,7 +236,6 @@ export default function ReceiptPage() {
         <div className="hidden print:block text-[9px] mb-2">
           <div>ลูกค้า: {customer || '-'} | โทร: {phone || '-'}</div>
           <div>รถ: {car || '-'} | ทะเบียน: {plate || '-'} | ไมล์: {mileage || '-'}</div>
-          {branchName && <div>สาขา: {branchName}</div>}
         </div>
 
         <table className="w-full border-collapse border border-black text-[9px]">
