@@ -88,21 +88,26 @@ export default function ReceiptPage() {
   }
 
   const searchItem = (index: number, q: string) => {
-    setItemSearch({ ...itemSearch, [index]: q })
+    setItemSearch(prev => ({ ...prev, [index]: q }))
     if (q.length < 1) {
-      setItemResults({ ...itemResults, [index]: [] })
+      setItemResults(prev => ({ ...prev, [index]: [] }))
       return
     }
     const filtered = parts.filter(p => p.name.toLowerCase().includes(q.toLowerCase())).slice(0, 5)
-    setItemResults({ ...itemResults, [index]: filtered })
+    setItemResults(prev => ({ ...prev, [index]: filtered }))
   }
 
   const selectItem = (index: number, part: any) => {
     const newItems = [...items]
-    newItems[index] = { ...newItems[index], name: part.name, price: part.price, part_id: part.id }
+    newItems[index] = { 
+      ...newItems[index], 
+      name: part.name, 
+      price: part.price, 
+      part_id: part.id 
+    }
     setItems(newItems)
-    setItemSearch({ ...itemSearch, [index]: '' })
-    setItemResults({ ...itemResults, [index]: [] })
+    setItemSearch(prev => ({ ...prev, [index]: '' }))
+    setItemResults(prev => ({ ...prev, [index]: [] }))
   }
 
   const addEmptyLine = () => {
@@ -170,9 +175,6 @@ export default function ReceiptPage() {
     setSaving(false)
   }
 
-  const selectedBranchName = branches.find(b => b.id === selectedBranch)?.name || 'สนามบิน'
-  const headerTitle = `รัษฎาแอร์ ${selectedBranchName}`
-
   return (
     <>
       <style jsx global>{`
@@ -200,7 +202,7 @@ export default function ReceiptPage() {
         </div>
 
         <div className="text-center mb-4">
-          <h1 className="text-base font-bold">{headerTitle}</h1>
+          <h1 className="text-base font-bold">รัษฎาแอร์</h1>
           <p className="text-[9px] text-gray-600">Tel. 099-4102559 , 076-602429</p>
         </div>
 
@@ -267,8 +269,11 @@ export default function ReceiptPage() {
                 <td className="border border-black p-1 relative">
                   <input 
                     type="text" 
-                    value={itemSearch[i] !== undefined ? itemSearch[i] : item.name} 
-                    onChange={(e) => { updateItem(i, 'name', e.target.value); searchItem(i, e.target.value) }} 
+                    value={itemSearch[i] !== undefined && itemSearch[i] !== '' ? itemSearch[i] : (item.name || '')} 
+                    onChange={(e) => { 
+                      updateItem(i, 'name', e.target.value)
+                      searchItem(i, e.target.value) 
+                    }} 
                     className="w-full no-print text-sm bg-white text-black" 
                   />
                   <span className="hidden print:inline">{item.name}</span>
