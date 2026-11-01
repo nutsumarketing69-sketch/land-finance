@@ -12,6 +12,7 @@ export default function HomePage() {
     { name: 'พนักงาน', desc: 'เพิ่ม ลบ จัดการพนักงาน', href: '/employees', icon: '👤' },
     { name: 'สาขา', desc: 'จัดการสาขา', href: '/branches', icon: '🏢' },
     { name: 'อัปโหลดรูป', desc: 'ถ่ายรูปรถเข้าสู่ระบบ', href: '/upload', icon: '📷' },
+    { name: 'แดชบอร์ด', desc: 'ภาพรวมระบบ', href: '/dashboard', icon: '🏠' },
   ]
 
   return (
