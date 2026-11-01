@@ -9,6 +9,7 @@ export default function HomePage() {
     { name: 'สาขา', desc: 'เลือกสาขา', href: '/branches', icon: '🏢' },
     { name: 'อัปโหลดรูป', desc: 'ถ่ายรูปรถ', href: '/upload', icon: '📷' },
     { name: 'รับประกัน', desc: 'ตรวจสอบการรับประกัน', href: '/warranty', icon: '🛡️' },
+    { name: 'ค้นหาขั้นสูง', desc: 'ค้นหาทุกอย่าง', href: '/search', icon: '🔍' },
   ]
 
   return (
