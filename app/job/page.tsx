@@ -1,16 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 
-export default function JobPage() {
+function JobContent() {
   const searchParams = useSearchParams()
   const plate = searchParams.get('plate') || ''
 
   const [vehicle, setVehicle] = useState<any>(null)
   const [mileage, setMileage] = useState('')
-  const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -22,7 +21,7 @@ export default function JobPage() {
         .from('vehicles')
         .select('*')
         .eq('license_plate', plate)
-        .single()
+        .maybeSingle()
       if (data) {
         setVehicle(data)
         setMileage(data.mileage?.toString() || '')
@@ -42,11 +41,7 @@ export default function JobPage() {
       status: 'in_progress',
     })
 
-    if (error) {
-      setMessage('บันทึกไม่สำเร็จ: ' + error.message)
-    } else {
-      setMessage('บันทึกงานสำเร็จ!')
-    }
+    setMessage(error ? 'บันทึกไม่สำเร็จ' : 'บันทึกงานสำเร็จ!')
     setSaving(false)
   }
 
@@ -56,11 +51,13 @@ export default function JobPage() {
     <div className="p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">บันทึกงานซ่อม</h1>
 
-      {vehicle && (
-        <div className="mb-6 p-4 border rounded bg-gray-50 text-black">
+      {vehicle ? (
+        <div className="mb-6 p-4 border rounded bg-white text-black">
           <p><strong>ป้ายทะเบียน:</strong> {vehicle.license_plate}</p>
           <p><strong>รถ:</strong> {vehicle.brand} {vehicle.model}</p>
         </div>
+      ) : (
+        <p>กำลังโหลดข้อมูลรถ...</p>
       )}
 
       <div className="space-y-4">
@@ -70,30 +67,28 @@ export default function JobPage() {
             type="number"
             value={mileage}
             onChange={(e) => setMileage(e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1">หมายเหตุ</label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="w-full border p-2 rounded"
-            rows={3}
+            className="w-full border p-2 rounded text-black"
           />
         </div>
 
         <button
           onClick={saveJob}
-          disabled={saving}
-          className="bg-green-600 text-white px-6 py-2 rounded"
+          disabled={saving || !vehicle}
+          className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50"
         >
           {saving ? 'กำลังบันทึก...' : 'บันทึกงาน'}
         </button>
 
-        {message && <p className="mt-4">{message}</p>}
+        {message && <p className="mt-4 font-medium">{message}</p>}
       </div>
     </div>
+  )
+}
+
+export default function JobPage() {
+  return (
+    <Suspense fallback={<div className="p-8">กำลังโหลด...</div>}>
+      <JobContent />
+    </Suspense>
   )
 }
