@@ -1,8 +1,8 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createBrowserClient } from '@supabase/ssr'
 
 export function createClient() {
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-  );
+    'https://jdtdnrxilcjsmozkrved.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkdGRucnhpbGNqc21vemtydmVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNzAwNTcsImV4cCI6MjEwODk0NjA1N30.JscNaZlrP_HVTg2utsj3YF8htkvdkwzSsvvuKWpuhFQ'
+  )
 }
