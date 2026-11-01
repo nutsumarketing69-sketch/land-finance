@@ -7,7 +7,6 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([])
   const [branches, setBranches] = useState<any[]>([])
   const [name, setName] = useState('')
-  const [code, setCode] = useState('')
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState('staff')
   const [branchId, setBranchId] = useState('')
@@ -28,21 +27,28 @@ export default function EmployeesPage() {
   }
 
   const addEmployee = async () => {
-    if (!name.trim()) return
+    if (!name.trim()) {
+      setMsg('กรุณากรอกชื่อ')
+      return
+    }
     const supabase = createClient()
+    
+    // สร้างรหัสพนักงานอัตโนมัติ
+    const nextCode = `EMP${String(employees.length + 1).padStart(3, '0')}`
+
     const { error } = await supabase.from('employees').insert({
       full_name: name,
-      employee_code: code || null,
+      employee_code: nextCode,
       phone: phone || null,
       role,
       branch_id: branchId || null,
     })
+
     if (error) {
-      setMsg('เพิ่มไม่สำเร็จ')
+      setMsg('เพิ่มไม่สำเร็จ: ' + error.message)
     } else {
       setMsg('เพิ่มสำเร็จ!')
       setName('')
-      setCode('')
       setPhone('')
       fetchData()
     }
@@ -61,12 +67,10 @@ export default function EmployeesPage() {
     <div className="p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">จัดการพนักงาน</h1>
 
-      {/* เพิ่มพนักงาน */}
       <div className="mb-6 p-4 border rounded">
         <h2 className="font-semibold mb-3">เพิ่มพนักงานใหม่</h2>
         <div className="space-y-2">
           <input type="text" placeholder="ชื่อ-นามสกุล" value={name} onChange={(e) => setName(e.target.value)} className="w-full border p-2 rounded text-black" />
-          <input type="text" placeholder="รหัสพนักงาน" value={code} onChange={(e) => setCode(e.target.value)} className="w-full border p-2 rounded text-black" />
           <input type="text" placeholder="เบอร์โทร" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border p-2 rounded text-black" />
           <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full border p-2 rounded text-black">
             <option value="staff">พนักงาน</option>
@@ -83,7 +87,6 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* รายชื่อพนักงาน */}
       <div className="space-y-3">
         {employees.map((emp) => (
           <div key={emp.id} className="border p-4 rounded flex justify-between items-center">
