@@ -5,22 +5,57 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function NewVehiclePage() {
   const [customers, setCustomers] = useState<any[]>([])
+  const [brands, setBrands] = useState<any[]>([])
+  const [models, setModels] = useState<any[]>([])
+  const [filteredBrands, setFilteredBrands] = useState<any[]>([])
+  const [filteredModels, setFilteredModels] = useState<any[]>([])
+  
   const [licensePlate, setLicensePlate] = useState('')
   const [brand, setBrand] = useState('')
   const [model, setModel] = useState('')
   const [color, setColor] = useState('')
   const [customerId, setCustomerId] = useState('')
+  const [selectedBrandId, setSelectedBrandId] = useState('')
+  
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [showBrandList, setShowBrandList] = useState(false)
+  const [showModelList, setShowModelList] = useState(false)
 
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchData = async () => {
       const supabase = createClient()
-      const { data } = await supabase.from('customers').select('id, full_name')
-      setCustomers(data || [])
+      const { data: cust } = await supabase.from('customers').select('id, full_name')
+      const { data: br } = await supabase.from('car_brands').select('*').order('name')
+      setCustomers(cust || [])
+      setBrands(br || [])
     }
-    fetchCustomers()
+    fetchData()
   }, [])
+
+  const onBrandChange = (value: string) => {
+    setBrand(value)
+    setFilteredBrands(brands.filter(b => b.name.toLowerCase().includes(value.toLowerCase())))
+    setShowBrandList(true)
+    setModel('')
+    setSelectedBrandId('')
+  }
+
+  const selectBrand = async (b: any) => {
+    setBrand(b.name)
+    setSelectedBrandId(b.id)
+    setShowBrandList(false)
+    const supabase = createClient()
+    const { data } = await supabase.from('car_models').select('*').eq('brand_id', b.id).order('name')
+    setModels(data || [])
+    setFilteredModels(data || [])
+  }
+
+  const onModelChange = (value: string) => {
+    setModel(value)
+    setFilteredModels(models.filter(m => m.name.toLowerCase().includes(value.toLowerCase())))
+    setShowModelList(true)
+  }
 
   const saveVehicle = async () => {
     if (!licensePlate.trim() || !brand.trim()) {
@@ -66,26 +101,57 @@ export default function NewVehiclePage() {
           />
         </div>
 
-        <div>
+        {/* ยี่ห้อ */}
+        <div className="relative">
           <label className="block mb-1">ยี่ห้อ *</label>
           <input
             type="text"
             value={brand}
-            onChange={(e) => setBrand(e.target.value)}
+            onChange={(e) => onBrandChange(e.target.value)}
+            onFocus={() => setShowBrandList(true)}
             className="w-full border p-2 rounded text-black"
-            placeholder="เช่น Toyota"
+            placeholder="พิมพ์เพื่อค้นหา เช่น Toy"
           />
+          {showBrandList && filteredBrands.length > 0 && (
+            <div className="absolute z-10 w-full bg-white border rounded mt-1 max-h-40 overflow-y-auto text-black">
+              {filteredBrands.map((b) => (
+                <div
+                  key={b.id}
+                  onClick={() => selectBrand(b)}
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  {b.name}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div>
+        {/* รุ่น */}
+        <div className="relative">
           <label className="block mb-1">รุ่น</label>
           <input
             type="text"
             value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="w-full border p-2 rounded text-black"
-            placeholder="เช่น Camry"
+            onChange={(e) => onModelChange(e.target.value)}
+            onFocus={() => setShowModelList(true)}
+            disabled={!selectedBrandId}
+            className="w-full border p-2 rounded text-black disabled:bg-gray-200"
+            placeholder={selectedBrandId ? "พิมพ์เพื่อค้นหา" : "เลือกยี่ห้อก่อน"}
           />
+          {showModelList && filteredModels.length > 0 && (
+            <div className="absolute z-10 w-full bg-white border rounded mt-1 max-h-40 overflow-y-auto text-black">
+              {filteredModels.map((m) => (
+                <div
+                  key={m.id}
+                  onClick={() => { setModel(m.name); setShowModelList(false) }}
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  {m.name}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
