@@ -8,6 +8,7 @@ export default function ReceiptPage() {
   const [billNo, setBillNo] = useState('')
   const [items, setItems] = useState<any[]>([])
   const [discount, setDiscount] = useState(0)
+  const [parts, setParts] = useState<any[]>([])
   
   const [customer, setCustomer] = useState('')
   const [phone, setPhone] = useState('')
@@ -20,6 +21,8 @@ export default function ReceiptPage() {
   const [searchPlate, setSearchPlate] = useState('')
   const [custResults, setCustResults] = useState<any[]>([])
   const [plateResults, setPlateResults] = useState<any[]>([])
+  const [itemSearch, setItemSearch] = useState<{[key: number]: string}>({})
+  const [itemResults, setItemResults] = useState<{[key: number]: any[]}>({})
 
   useEffect(() => {
     const now = new Date()
@@ -29,6 +32,13 @@ export default function ReceiptPage() {
 
     const saved = localStorage.getItem('selectedItems')
     if (saved) setItems(JSON.parse(saved))
+
+    const fetchParts = async () => {
+      const supabase = createClient()
+      const { data } = await supabase.from('parts_services').select('*')
+      setParts(data || [])
+    }
+    fetchParts()
   }, [])
 
   const searchCustomer = async (q: string) => {
@@ -64,6 +74,24 @@ export default function ReceiptPage() {
     }
     setSearchPlate('')
     setPlateResults([])
+  }
+
+  const searchItem = (index: number, q: string) => {
+    setItemSearch({ ...itemSearch, [index]: q })
+    if (q.length < 1) {
+      setItemResults({ ...itemResults, [index]: [] })
+      return
+    }
+    const filtered = parts.filter(p => p.name.toLowerCase().includes(q.toLowerCase())).slice(0, 5)
+    setItemResults({ ...itemResults, [index]: filtered })
+  }
+
+  const selectItem = (index: number, part: any) => {
+    const newItems = [...items]
+    newItems[index] = { ...newItems[index], name: part.name, price: part.price }
+    setItems(newItems)
+    setItemSearch({ ...itemSearch, [index]: '' })
+    setItemResults({ ...itemResults, [index]: [] })
   }
 
   const addEmptyLine = () => {
@@ -109,14 +137,13 @@ export default function ReceiptPage() {
         <h2 className="text-base font-bold text-center mb-3">ใบเสร็จรับเงิน/Receipt</h2>
         <div className="text-right mb-2">{date}</div>
 
-        {/* ค้นหาและกรอกข้อมูล */}
         <div className="grid grid-cols-2 gap-2 mb-3 no-print">
           <div className="relative">
             <input type="text" placeholder="ค้นหา/พิมพ์ชื่อลูกค้า" value={searchCust || customer} onChange={(e) => { setCustomer(e.target.value); searchCustomer(e.target.value) }} className="w-full border p-1" />
             {custResults.length > 0 && (
               <div className="absolute z-10 bg-white border w-full max-h-32 overflow-y-auto">
                 {custResults.map((c) => (
-                  <div key={c.id} onClick={() => selectCustomer(c)} className="p-1 hover:bg-gray-100 cursor-pointer">{c.full_name} - {c.phone}</div>
+                  <div key={c.id} onClick={() => selectCustomer(c)} className="p-1 hover:bg-gray-100 cursor-pointer">{c.full_name}</div>
                 ))}
               </div>
             )}
@@ -128,7 +155,7 @@ export default function ReceiptPage() {
             {plateResults.length > 0 && (
               <div className="absolute z-10 bg-white border w-full max-h-32 overflow-y-auto">
                 {plateResults.map((v) => (
-                  <div key={v.id} onClick={() => selectPlate(v)} className="p-1 hover:bg-gray-100 cursor-pointer">{v.license_plate} - {v.brand} {v.model}</div>
+                  <div key={v.id} onClick={() => selectPlate(v)} className="p-1 hover:bg-gray-100 cursor-pointer">{v.license_plate} - {v.brand}</div>
                 ))}
               </div>
             )}
@@ -142,7 +169,6 @@ export default function ReceiptPage() {
           <div>รถ: {car || '-'} | ทะเบียน: {plate || '-'} | ไมล์: {mileage || '-'}</div>
         </div>
 
-        {/* ตารางรายการ */}
         <table className="w-full border-collapse border border-black text-[9px]">
           <thead>
             <tr className="bg-gray-100">
@@ -156,9 +182,23 @@ export default function ReceiptPage() {
           <tbody>
             {items.map((item, i) => (
               <tr key={i}>
-                <td className="border border-black p-1">
-                  <input type="text" value={item.name} onChange={(e) => updateItem(i, 'name', e.target.value)} className="w-full no-print" />
+                <td className="border border-black p-1 relative">
+                  <input 
+                    type="text" 
+                    value={itemSearch[i] !== undefined ? itemSearch[i] : item.name} 
+                    onChange={(e) => { updateItem(i, 'name', e.target.value); searchItem(i, e.target.value) }} 
+                    className="w-full no-print" 
+                  />
                   <span className="hidden print:inline">{item.name}</span>
+                  {itemResults[i]?.length > 0 && (
+                    <div className="absolute z-20 bg-white border w-48 max-h-32 overflow-y-auto left-0 top-full">
+                      {itemResults[i].map((p) => (
+                        <div key={p.id} onClick={() => selectItem(i, p)} className="p-1 hover:bg-gray-100 cursor-pointer text-[8px]">
+                          {p.name} - {Number(p.price).toLocaleString()}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="border border-black p-1">
                   <input type="number" value={item.qty} onChange={(e) => updateItem(i, 'qty', Number(e.target.value))} className="w-full text-center no-print" />
@@ -183,7 +223,6 @@ export default function ReceiptPage() {
           <div className="flex justify-end gap-2 items-center">
             <span>ส่วนลด:</span>
             <input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className="border w-20 text-right no-print" />
-            <span className="hidden print:inline">{discount.toLocaleString()}</span>
           </div>
           <div className="font-bold text-sm mt-1">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
         </div>
