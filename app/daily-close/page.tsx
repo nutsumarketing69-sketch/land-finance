@@ -51,14 +51,14 @@ export default function DailyClosePage() {
     setBills(billRes.data || [])
     setPending(jobRes.data || [])
 
-    let partRes = await supabase.from('parts_services').select('name, stock, min_stock').order('stock', { ascending: true }).limit(40)
-    if (partRes.error) {
-      partRes = await supabase.from('parts_services').select('name, stock').order('stock', { ascending: true }).limit(40)
-    }
-    const lows = (partRes.data || []).filter((p: any) => {
-      const min = Number(p.min_stock ?? 0)
-      return Number(p.stock || 0) <= min
-    }).slice(0, 12)
+    const partRes = await supabase
+      .from('parts_services')
+      .select('name, stock, min_stock')
+      .order('stock', { ascending: true })
+      .limit(40)
+
+    const rows = partRes.error ? [] : partRes.data || []
+    const lows = rows.filter((p: any) => Number(p.stock || 0) <= Number(p.min_stock ?? 0)).slice(0, 12)
     setLowStock(lows)
     setLoaded(true)
     setLoading(false)
