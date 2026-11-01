@@ -35,13 +35,14 @@ export default function ReceiptPage() {
     const saved = localStorage.getItem('selectedItems')
     if (saved) setItems(JSON.parse(saved))
 
-    const fetchParts = async () => {
-      const supabase = createClient()
-      const { data } = await supabase.from('parts_services').select('*')
-      setParts(data || [])
-    }
     fetchParts()
   }, [])
+
+  const fetchParts = async () => {
+    const supabase = createClient()
+    const { data } = await supabase.from('parts_services').select('*')
+    setParts(data || [])
+  }
 
   const searchCustomer = async (q: string) => {
     setSearchCust(q)
@@ -90,7 +91,7 @@ export default function ReceiptPage() {
 
   const selectItem = (index: number, part: any) => {
     const newItems = [...items]
-    newItems[index] = { ...newItems[index], name: part.name, price: part.price }
+    newItems[index] = { ...newItems[index], name: part.name, price: part.price, part_id: part.id }
     setItems(newItems)
     setItemSearch({ ...itemSearch, [index]: '' })
     setItemResults({ ...itemResults, [index]: [] })
@@ -122,7 +123,9 @@ export default function ReceiptPage() {
     setSaveMsg('')
 
     const supabase = createClient()
-    const { error } = await supabase.from('bills').insert({
+
+    // บันทึกบิล
+    const { error: billError } = await supabase.from('bills').insert({
       bill_no: billNo,
       customer_name: customer || null,
       phone: phone || null,
@@ -135,8 +138,26 @@ export default function ReceiptPage() {
       note: note || null,
     })
 
-    setSaveMsg(error ? 'บันทึกไม่สำเร็จ' : 'บันทึกบิลสำเร็จ!')
+    if (billError) {
+      setSaveMsg('บันทึกบิลไม่สำเร็จ')
+      setSaving(false)
+      return
+    }
+
+    // ตัดสต็อก
+    for (const item of items) {
+      if (item.part_id && item.qty > 0) {
+        const part = parts.find(p => p.id === item.part_id)
+        if (part) {
+          const newStock = Math.max(0, (part.stock || 0) - item.qty)
+          await supabase.from('parts_services').update({ stock: newStock }).eq('id', item.part_id)
+        }
+      }
+    }
+
+    setSaveMsg('บันทึกบิลและตัดสต็อกสำเร็จ!')
     setSaving(false)
+    fetchParts() // อัปเดตข้อมูลสต็อกล่าสุด
   }
 
   return (
@@ -270,7 +291,7 @@ export default function ReceiptPage() {
             พิมพ์บิล A4
           </button>
           <button onClick={saveBill} disabled={saving} className="bg-green-600 text-white px-6 py-2 rounded disabled:opacity-50">
-            {saving ? 'กำลังบันทึก...' : 'บันทึกบิล'}
+            {saving ? 'กำลังบันทึก...' : 'บันทึกบิล + ตัดสต็อก'}
           </button>
         </div>
         {saveMsg && <p className="text-center mt-2 no-print">{saveMsg}</p>}
