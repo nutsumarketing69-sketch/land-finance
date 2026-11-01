@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation'
 function HistoryContent() {
   const searchParams = useSearchParams()
   const initialPlate = searchParams.get('plate') || ''
-  
+
   const [plate, setPlate] = useState(initialPlate)
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -41,6 +41,11 @@ function HistoryContent() {
     setLoading(false)
   }
 
+  const isUnderWarranty = (job: any) => {
+    if (!job.warranty_until) return false
+    return new Date(job.warranty_until) >= new Date()
+  }
+
   return (
     <div className="p-8 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">ประวัติงานซ่อม</h1>
@@ -65,10 +70,11 @@ function HistoryContent() {
 
       {vehicle && (
         <div className="mb-6 p-4 border rounded bg-white text-black">
-          <div className="font-bold">{vehicle.license_plate}</div>
+          <div className="font-bold text-lg">{vehicle.license_plate}</div>
           <div>{vehicle.brand} {vehicle.model}</div>
           <div className="text-sm text-gray-600">ลูกค้า: {vehicle.customers?.full_name || '-'}</div>
           <div className="text-sm text-gray-600">โทร: {vehicle.customers?.phone || '-'}</div>
+          <div className="text-sm text-gray-600">สี: {vehicle.color || '-'}</div>
         </div>
       )}
 
@@ -77,25 +83,54 @@ function HistoryContent() {
       )}
 
       {jobs.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <h2 className="font-semibold">ประวัติการเข้าซ่อม ({jobs.length} ครั้ง)</h2>
           {jobs.map((job) => (
-            <div key={job.id} className="border p-4 rounded">
-              <div className="flex justify-between">
+            <div key={job.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
+              <div className="flex justify-between items-start">
                 <div className="font-medium">
                   {new Date(job.created_at).toLocaleDateString('th-TH')}
                 </div>
-                <div className="text-sm bg-gray-700 px-2 py-1 rounded">{job.status}</div>
+                <div className="flex gap-2">
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    job.status === 'completed' ? 'bg-green-700' : 'bg-yellow-700'
+                  }`}>
+                    {job.status === 'completed' ? 'เสร็จสิ้น' : 'กำลังทำ'}
+                  </span>
+                  {job.warranty_until && (
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      isUnderWarranty(job) ? 'bg-blue-700' : 'bg-gray-700'
+                    }`}>
+                      {isUnderWarranty(job) ? 'อยู่ในประกัน' : 'หมดประกัน'}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="text-sm text-gray-400 mt-1">
-                ไมล์: {job.mileage?.toLocaleString() || '-'} km
+
+              <div className="text-sm text-gray-400 mt-2 space-y-1">
+                <div>ไมล์: {job.mileage?.toLocaleString() || '-'} km</div>
+                <div>พนักงาน: {job.employees?.full_name || '-'}</div>
+                <div>สาขา: {job.branches?.name || '-'}</div>
+                {job.warranty_months && (
+                  <div>รับประกัน: {job.warranty_months} เดือน (ถึง {new Date(job.warranty_until).toLocaleDateString('th-TH')})</div>
+                )}
               </div>
-              <div className="text-sm text-gray-400">
-                พนักงาน: {job.employees?.full_name || '-'}
-              </div>
-              <div className="text-sm text-gray-400">
-                สาขา: {job.branches?.name || '-'}
-              </div>
+
+              {job.symptom && (
+                <div className="mt-2 text-sm">
+                  <span className="text-gray-400">อาการ:</span> {job.symptom}
+                </div>
+              )}
+              {job.diagnosis && (
+                <div className="text-sm">
+                  <span className="text-gray-400">ตรวจพบ:</span> {job.diagnosis}
+                </div>
+              )}
+              {job.repair && (
+                <div className="text-sm">
+                  <span className="text-gray-400">ซ่อม:</span> {job.repair}
+                </div>
+              )}
             </div>
           ))}
         </div>
