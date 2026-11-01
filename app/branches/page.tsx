@@ -1,8 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export default async function BranchesPage() {
   const supabase = await createClient()
   
@@ -11,7 +8,7 @@ export default async function BranchesPage() {
     .select('*')
 
   if (error) {
-    return <div className="p-8">เกิดข้อผิดพลาด: {error.message}</div>
+    return <div className="p-8 text-red-500">เกิดข้อผิดพลาด: {error.message}</div>
   }
 
   return (
@@ -21,7 +18,7 @@ export default async function BranchesPage() {
         <p>ยังไม่มีข้อมูลสาขา</p>
       ) : (
         <div className="space-y-4">
-          {branches.map((branch) => (
+          {branches.map((branch: any) => (
             <div key={branch.id} className="border p-4 rounded-lg">
               <h2 className="font-semibold">{branch.name}</h2>
               <p className="text-gray-600">{branch.address || '-'}</p>
