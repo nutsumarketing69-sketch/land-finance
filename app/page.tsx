@@ -20,6 +20,7 @@ export default function HomePage() {
     { name: 'ยอดขายรายวัน', desc: 'สรุปบิลและยอดขาย', href: '/sales', icon: '💰' },
     { name: 'งานตามสาขา', desc: 'ดูงานแยกสาขา', href: '/jobs-by-branch', icon: '🏭' },
     { name: 'คิวพิมพ์บิล', desc: 'พิมพ์บิลที่สาขา', href: '/print-queue', icon: '🖨️' },
+    { name: 'ปิดยอดวัน', desc: 'สรุปก่อนเลิกงาน', href: '/daily-close', icon: '🌙' },
   ]
 
   return (
