@@ -1,58 +1,33 @@
-import { DeployButton } from "@/components/deploy-button";
-import { EnvVarWarning } from "@/components/env-var-warning";
-import { AuthButton } from "@/components/auth-button";
-import { Hero } from "@/components/hero";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { ConnectSupabaseSteps } from "@/components/tutorial/connect-supabase-steps";
-import { SignUpUserSteps } from "@/components/tutorial/sign-up-user-steps";
-import { hasEnvVars } from "@/lib/utils";
-import Link from "next/link";
-import { Suspense } from "react";
+export default function HomePage() {
+  const menus = [
+    { name: 'รับรถ / ค้นหาป้ายทะเบียน', href: '/receive', color: 'bg-blue-600' },
+    { name: 'เลือกอะไหล่ / บริการ', href: '/parts', color: 'bg-green-600' },
+    { name: 'ประวัติงานซ่อม', href: '/history', color: 'bg-purple-600' },
+    { name: 'รายชื่อพนักงาน', href: '/employees', color: 'bg-orange-600' },
+    { name: 'เลือกสาขา', href: '/branches', color: 'bg-teal-600' },
+    { name: 'อัปโหลดรูปรถ', href: '/upload', color: 'bg-pink-600' },
+    { name: 'ดูบิลตัวอย่าง', href: '/receipt', color: 'bg-red-600' },
+    { name: 'แดชบอร์ด', href: '/dashboard', color: 'bg-gray-600' },
+  ]
 
-export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-20 items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-            <div className="flex gap-5 items-center font-semibold">
-              <Link href={"/"}>Next.js Supabase Starter</Link>
-              <div className="flex items-center gap-2">
-                <DeployButton />
-              </div>
-            </div>
-            {!hasEnvVars ? (
-              <EnvVarWarning />
-            ) : (
-              <Suspense>
-                <AuthButton />
-              </Suspense>
-            )}
-          </div>
-        </nav>
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
-          <Hero />
-          <main className="flex-1 flex flex-col gap-6 px-4">
-            <h2 className="font-medium text-xl mb-4">Next steps</h2>
-            {hasEnvVars ? <SignUpUserSteps /> : <ConnectSupabaseSteps />}
-          </main>
-        </div>
+    <div className="min-h-screen p-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-center mb-2">ระบบร้านแอร์รถยนต์</h1>
+        <p className="text-center text-gray-400 mb-8">รัษฎาแอร์ สนามบิน</p>
 
-        <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
-          <p>
-            Powered by{" "}
+        <div className="grid md:grid-cols-2 gap-4">
+          {menus.map((menu) => (
             <a
-              href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-              target="_blank"
-              className="font-bold hover:underline"
-              rel="noreferrer"
+              key={menu.href}
+              href={menu.href}
+              className={`${menu.color} hover:opacity-90 text-white p-6 rounded-lg text-center font-medium transition`}
             >
-              Supabase
+              {menu.name}
             </a>
-          </p>
-          <ThemeSwitcher />
-        </footer>
+          ))}
+        </div>
       </div>
-    </main>
-  );
+    </div>
+  )
 }
