@@ -29,6 +29,11 @@ export default function PartsPage() {
 
   const total = selected.reduce((sum, item) => sum + Number(item.price) * item.qty, 0)
 
+  const goToReceipt = () => {
+    localStorage.setItem('selectedItems', JSON.stringify(selected))
+    window.location.href = '/receipt'
+  }
+
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">เลือกอะไหล่ / บริการ</h1>
@@ -73,6 +78,13 @@ export default function PartsPage() {
               <div className="font-bold text-lg mt-4 pt-3 border-t">
                 รวมทั้งสิ้น: {total.toLocaleString()} บาท
               </div>
+
+              <button
+                onClick={goToReceipt}
+                className="mt-4 w-full bg-green-600 text-white py-2 rounded"
+              >
+                นำไปออกบิล
+              </button>
             </div>
           )}
         </div>
