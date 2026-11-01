@@ -3,15 +3,9 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-function todayText() {
-  const now = new Date()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  return `${now.getFullYear()}-${m}-${d}`
-}
-
 export default function DailyClosePage() {
-  const [date, setDate] = useState(todayText())
+  const [date, setDate] = useState('')
+  const [dateLabel, setDateLabel] = useState('')
   const [branchId, setBranchId] = useState('')
   const [branches, setBranches] = useState<any[]>([])
   const [bills, setBills] = useState<any[]>([])
@@ -21,11 +15,24 @@ export default function DailyClosePage() {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    const now = new Date()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const d = String(now.getDate()).padStart(2, '0')
+    setDate(`${now.getFullYear()}-${m}-${d}`)
+    setDateLabel(now.toLocaleDateString('th-TH'))
+
     const supabase = createClient()
     supabase.from('branches').select('id, name').order('name').then(({ data }) => setBranches(data || []))
   }, [])
 
+  const onChangeDate = (value: string) => {
+    setDate(value)
+    const [y, m, d] = value.split('-').map(Number)
+    if (y && m && d) setDateLabel(new Date(y, m - 1, d).toLocaleDateString('th-TH'))
+  }
+
   const load = async () => {
+    if (!date) return
     setLoading(true)
     const supabase = createClient()
     const start = new Date(`${date}T00:00:00`)
@@ -94,7 +101,7 @@ export default function DailyClosePage() {
         <div className="no-print flex flex-wrap gap-3 items-end mb-6">
           <div>
             <label className="block text-sm text-gray-400 mb-1">วันที่</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
+            <input type="date" value={date} onChange={(e) => onChangeDate(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
           </div>
           <div>
             <label className="block text-sm text-gray-400 mb-1">สาขา</label>
@@ -103,7 +110,7 @@ export default function DailyClosePage() {
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </div>
-          <button onClick={load} disabled={loading} className="bg-blue-600 text-white px-5 py-2 rounded disabled:opacity-50">
+          <button onClick={load} disabled={loading || !date} className="bg-blue-600 text-white px-5 py-2 rounded disabled:opacity-50">
             {loading ? 'กำลังโหลด...' : 'ดูยอด'}
           </button>
           <button onClick={() => window.print()} className="bg-gray-700 text-white px-5 py-2 rounded">พิมพ์สรุป</button>
@@ -111,7 +118,7 @@ export default function DailyClosePage() {
 
         <h1 className="text-2xl font-bold">ปิดยอดประจำวัน</h1>
         <p className="text-sm text-gray-400 mb-5">
-          {new Date(date + 'T00:00:00').toLocaleDateString('th-TH')}
+          {dateLabel || '-'}
           {branchId ? ` — ${branches.find((b) => b.id === branchId)?.name}` : ' — ทุกสาขา'}
         </p>
 
