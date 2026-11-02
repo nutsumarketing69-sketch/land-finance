@@ -475,10 +475,9 @@ export default function ReceiptPage() {
         .chips button { background:#fff; color:#444; border:1px solid #ddd; border-radius:999px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; }
         .rowbtn { background:#fff; color:#111; border:1px solid #ddd; border-radius:6px; padding:4px 8px; cursor:pointer; }
         .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-        .sum { min-width:230px; color:#111; line-height:1.7; }
-        .sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; align-items:center; }
-        .sum-line .amt, .sum-line input { text-align:right; }
-        .sum-line input { width:78px; border:1px solid #ddd; border-radius:4px; padding:1px 4px; background:#fff; color:#111; }
+        .sum { text-align:right; min-width:210px; color:#111; line-height:1.7; }
+        .discount { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
+        .discount input { width:72px; text-align:right; border:1px solid #ddd; border-radius:4px; padding:1px 6px; background:#fff; color:#111; }
         .grand { font-size:16px; font-weight:700; }
         .words { font-size:12px; }
         .pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; color:#111; }
@@ -498,10 +497,8 @@ export default function ReceiptPage() {
         .only-print { display:none; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:10px 14px; cursor:pointer; }
-        @media screen and (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } .who-wrap { display:block; } .bill-meta { text-align:left; } }
+        @media (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } .who-wrap { display:block; } .bill-meta { text-align:left; } }
         @media print {
-          .who-wrap { display:flex !important; justify-content:space-between !important; align-items:flex-end !important; }
-          .bill-meta { text-align:right !important; }
           @page { size:A4 portrait; margin:8mm; }
           .no-print { display:none !important; }
           .page { background:#fff; padding:0; }
@@ -717,9 +714,12 @@ export default function ReceiptPage() {
             {warrantyText && <div className="warn">{warrantyText}</div>}
           </div>
           <div className="sum">
-            <div className="sum-line"><span>ยอดรวม</span><span className="amt">{subtotal.toLocaleString()}</span><span>บาท</span></div>
-            <div className="sum-line"><span>ส่วนลด</span><input className="amt" value={discount} onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} /><span>บาท</span></div>
-            <div className="sum-line grand"><span>รวมทั้งสิ้น</span><span className="amt">{total.toLocaleString()}</span><span>บาท</span></div>
+            <div>ยอดรวม {subtotal.toLocaleString()} บาท</div>
+            <div className="discount">
+              <span>ส่วนลด</span>
+              <input value={discount || ''} placeholder="0" onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} />
+            </div>
+            <div className="grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
             <div className="words">{bahtText(total)}</div>
           </div>
         </div>
