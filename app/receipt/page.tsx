@@ -282,11 +282,30 @@ export default function ReceiptPage() {
     return list.filter((name) => name.toLowerCase().includes(q) && name.toLowerCase() !== q).slice(0, 8)
   }, [brandKey, model])
 
-  const partHits = useMemo(() => {
-    const q = items[partFocus]?.name?.trim().toLowerCase() || ''
-    if (!q) return []
-    return parts.filter((part) => String(part.name || '').toLowerCase().includes(q) && String(part.name || '').toLowerCase() !== q).slice(0, 8)
-  }, [parts, items, partFocus])
+  const [partHits, setPartHits] = useState<any[]>([])
+
+useEffect(() => {
+  const q = items[partFocus]?.name?.trim() || ''
+  if (partFocus < 0 || !q) {
+    setPartHits([])
+    return
+  }
+  let stop = false
+  const timer = setTimeout(async () => {
+    const res = await createClient()
+      .from('parts_services')
+      .select('id, name, price, stock')
+      .ilike('name', `${q}%`)
+      .order('name')
+      .limit(1000)
+    if (stop) return
+    setPartHits((res.data || []).filter((part) => String(part.name || '').trim() !== q))
+  }, 120)
+  return () => {
+    stop = true
+    clearTimeout(timer)
+  }
+}, [items, partFocus])
 
   const searchCustomers = async (value: string) => {
     setCustomer(value)
@@ -391,7 +410,7 @@ export default function ReceiptPage() {
         th { background:#f5f5f5; color:#111; }
         .c { text-align:center; } .r { text-align:right; }
         .rel { position:relative; }
-        .menu { position:absolute; z-index:30; left:0; right:0; top:100%; background:#fff; border:1px solid #ddd; max-height:180px; overflow:auto; min-width:180px; }
+        .menu { position:absolute; z-index:40; left:0; top:100%; background:#fff; border:1px solid #ddd; max-height:320px; overflow:auto; min-width:280px; width:max-content; max-width:460px; }
         .menu button { display:block; width:100%; text-align:left; background:#fff; color:#111; border:0; border-bottom:1px solid #f1f1f1; padding:6px 8px; cursor:pointer; }
         .chips { display:flex; gap:4px; flex-wrap:wrap; margin:2px 0 4px; }
         .chips button { background:#fff; color:#444; border:1px solid #ddd; border-radius:999px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; }
