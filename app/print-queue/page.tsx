@@ -5,34 +5,54 @@ import { createClient } from '@/lib/supabase/client'
 
 const PROMPTPAY_ID = '0994102559'
 
-const STATUS_TEXT: Record<string, string> = {
-  pending: 'รอพิมพ์',
-  printing: 'กำลังพิมพ์',
-  printed: 'พิมพ์แล้ว',
-  failed: 'ไม่สำเร็จ',
+function asItems(raw: any) {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
 }
 
 export default function PrintQueuePage() {
-  const [jobs, setJobs] = useState<any[]>([])
+  const [bills, setBills] = useState<any[]>([])
   const [branches, setBranches] = useState<any[]>([])
   const [branchId, setBranchId] = useState('')
-  const [status, setStatus] = useState('all')
   const [q, setQ] = useState('')
   const [current, setCurrent] = useState<any | null>(null)
   const [targetBranch, setTargetBranch] = useState('')
   const [msg, setMsg] = useState('')
   const [sending, setSending] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const load = async () => {
+    setLoading(true)
     const supabase = createClient()
-    let query = supabase.from('print_jobs').select('*, branches(name)').order('created_at', { ascending: false }).limit(80)
-    if (branchId) query = query.eq('branch_id', branchId)
-    const [jobRes, branchRes] = await Promise.all([
-      query,
-      supabase.from('branches').select('id, name').order('name'),
-    ])
-    setJobs(jobRes.data || [])
+    const branchRes = await supabase.from('branches').select('id, name').order('name')
     setBranches(branchRes.data || [])
+
+    let query = supabase.from('bills').select('*, branches(name)').order('created_at', { ascending: false }).limit(100)
+    if (branchId) query = query.eq('branch_id', branchId)
+    let billRes = await query
+
+    if (billRes.error) {
+      let fallback = supabase.from('bills').select('*').order('created_at', { ascending: false }).limit(100)
+      if (branchId) fallback = fallback.eq('branch_id', branchId)
+      billRes = await fallback
+    }
+
+    if (billRes.error) {
+      setBills([])
+      setMsg('โหลดบิลไม่สำเร็จ: ' + billRes.error.message)
+    } else {
+      setBills(billRes.data || [])
+      setMsg('')
+    }
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -40,42 +60,30 @@ export default function PrintQueuePage() {
   }, [branchId])
 
   const shown = useMemo(() => {
-    return jobs.filter((job) => {
-      if (status !== 'all' && job.status !== status) return false
-      const p = job.payload || {}
-      const text = `${job.bill_no || ''} ${p.customer || ''} ${p.plate || ''} ${p.branchName || ''}`.toLowerCase()
+    return bills.filter((bill) => {
+      const text = `${bill.bill_no || ''} ${bill.customer_name || ''} ${bill.license_plate || ''}`.toLowerCase()
       if (q && !text.includes(q.toLowerCase())) return false
       return true
     })
-  }, [jobs, status, q])
+  }, [bills, q])
 
-  const openJob = (job: any) => {
-    setCurrent(job)
-    setTargetBranch(job.branch_id || '')
+  const openBill = (bill: any) => {
+    setCurrent(bill)
+    setTargetBranch(bill.branch_id || '')
     setMsg('')
   }
 
-  const payload = current?.payload || {}
-  const items = Array.isArray(payload.items) ? payload.items : []
-  const subtotal = Number(payload.subtotal ?? items.reduce((sum: number, item: any) => sum + Number(item.price || 0) * Number(item.qty || 1), 0))
-  const discount = Number(payload.discount || 0)
-  const total = Number(payload.total ?? Math.max(0, subtotal - discount))
-  const branchName = branches.find((b) => b.id === targetBranch)?.name || payload.branchName || current?.branches?.name || ''
-  const headerTitle = branchName ? `รัษฎาแอร์ ${branchName}` : payload.headerTitle || 'รัษฎาแอร์'
-  const qrUrl = total > 0 ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}` : ''
-
-  const markPrinted = async () => {
-    if (!current) return
-    const supabase = createClient()
-    await supabase.from('print_jobs').update({ status: 'printed' }).eq('id', current.id)
-    setCurrent({ ...current, status: 'printed' })
-    load()
-  }
-
-  const printHere = async () => {
-    window.print()
-    await markPrinted()
-  }
+  const items = asItems(current?.items)
+  const discount = Number(current?.discount || 0)
+  const lineSum = items.reduce((sum: number, item: any) => sum + Number(item.price || 0) * Number(item.qty || 1), 0)
+  const total = Number(current?.total ?? Math.max(0, lineSum - discount))
+  const subtotal = lineSum || total + discount
+  const branchName = branches.find((b) => b.id === targetBranch)?.name || current?.branches?.name || ''
+  const headerTitle = branchName ? `รัษฎาแอร์ ${branchName}` : 'รัษฎาแอร์'
+  const when = String(current?.created_at || '').replace('T', ' ').slice(0, 16)
+  const qrUrl = total > 0
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
+    : ''
 
   const sendToBranch = async () => {
     if (!current) return
@@ -90,18 +98,24 @@ export default function PrintQueuePage() {
       bill_no: current.bill_no,
       status: 'pending',
       payload: {
-        ...payload,
+        bill_no: current.bill_no,
+        date: when.slice(0, 10),
         headerTitle,
         branchName,
+        customer: current.customer_name || '',
+        phone: current.phone || '',
+        plate: current.license_plate || '',
+        car: current.car_info || '',
+        mileage: current.mileage || '',
+        items,
+        discount,
+        subtotal,
+        total,
+        note: current.note || '',
       },
     })
     setSending(false)
-    if (error) {
-      setMsg('ส่งพิมพ์ไม่สำเร็จ')
-      return
-    }
-    setMsg(`ส่งพิมพ์ไป${headerTitle} แล้ว เครื่องสาขาจะพิมพ์เอง`)
-    load()
+    setMsg(error ? 'ส่งพิมพ์ไม่สำเร็จ: ' + error.message : `ส่งพิมพ์ไป${headerTitle} แล้ว`)
   }
 
   return (
@@ -124,11 +138,7 @@ export default function PrintQueuePage() {
           border-radius: 2px;
         }
         .bill-table { width: 100%; border-collapse: collapse; }
-        .bill-table th, .bill-table td {
-          border: 1px solid #222;
-          padding: 4px 6px;
-          font-size: 12px;
-        }
+        .bill-table th, .bill-table td { border: 1px solid #222; padding: 4px 6px; font-size: 12px; }
         .bill-table th { background: #f3f3f3; font-weight: 600; }
         @media print {
           @page { size: A4 portrait; margin: 8mm 10mm; }
@@ -142,40 +152,29 @@ export default function PrintQueuePage() {
       {!current && (
         <div className="no-print p-6 max-w-5xl mx-auto">
           <h1 className="text-2xl font-bold mb-1">คิวพิมพ์บิล</h1>
-          <p className="text-sm text-gray-400 mb-4">เลือกบิลของสาขา แล้วพิมพ์ที่เครื่องนี้ หรือส่งไปเครื่องพิมพ์สาขา</p>
+          <p className="text-sm text-gray-400 mb-4">โหลดบิลที่บันทึกแล้วของแต่ละสาขา กดเข้าบิลแล้วพิมพ์ได้เลย</p>
           <div className="flex flex-wrap gap-2 mb-4">
             <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white">
               <option value="">ทุกสาขา</option>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white">
-              <option value="all">ทุกสถานะ</option>
-              <option value="pending">รอพิมพ์</option>
-              <option value="printing">กำลังพิมพ์</option>
-              <option value="printed">พิมพ์แล้ว</option>
-            </select>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นเลขบิล ชื่อลูกค้า ป้ายทะเบียน" className="flex-1 min-w-[220px] border border-gray-600 bg-gray-800 rounded p-2 text-white" />
-            <button onClick={load} className="bg-gray-700 text-white px-4 rounded">รีเฟรช</button>
+            <button onClick={load} className="bg-gray-700 text-white px-4 rounded">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</button>
           </div>
+          {msg && <p className="mb-3 text-sm text-amber-300">{msg}</p>}
           <div className="space-y-2">
-            {shown.map((job) => {
-              const p = job.payload || {}
-              return (
-                <button key={job.id} onClick={() => openJob(job)} className="w-full text-left border border-gray-700 rounded-lg px-4 py-3 bg-gray-900 hover:border-blue-500">
-                  <div className="flex justify-between gap-3">
-                    <div>
-                      <div className="font-semibold">{job.bill_no} — {p.customer || '-'} | {p.plate || '-'}</div>
-                      <div className="text-xs text-gray-400">{job.branches?.name || p.branchName || '-'} · {String(job.created_at || '').replace('T', ' ').slice(0, 16)}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold">{Number(p.total || 0).toLocaleString()}</div>
-                      <div className="text-xs text-amber-300">{STATUS_TEXT[job.status] || job.status}</div>
-                    </div>
+            {shown.map((bill) => (
+              <button key={bill.id} onClick={() => openBill(bill)} className="w-full text-left border border-gray-700 rounded-lg px-4 py-3 bg-gray-900 hover:border-blue-500">
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">{bill.bill_no} — {bill.customer_name || '-'} | {bill.license_plate || '-'}</div>
+                    <div className="text-xs text-gray-400">{bill.branches?.name || 'ไม่ได้เลือกสาขา'} · {String(bill.created_at || '').replace('T', ' ').slice(0, 16)}</div>
                   </div>
-                </button>
-              )
-            })}
-            {shown.length === 0 && <p className="text-gray-400">ไม่มีบิลในเงื่อนไขนี้</p>}
+                  <div className="font-semibold">{Number(bill.total || 0).toLocaleString()}</div>
+                </div>
+              </button>
+            ))}
+            {!loading && shown.length === 0 && <p className="text-gray-400">ไม่มีบิลในสาขานี้ ลองเลือกทุกสาขา</p>}
           </div>
         </div>
       )}
@@ -188,7 +187,7 @@ export default function PrintQueuePage() {
             </div>
             <div className="text-right text-[11px] leading-snug">
               <div>เลขที่ {current.bill_no}</div>
-              <div>{payload.date || String(current.created_at || '').slice(0, 10)}</div>
+              <div>{when}</div>
             </div>
           </div>
 
@@ -207,8 +206,8 @@ export default function PrintQueuePage() {
           </div>
 
           <div className="text-[11px] mb-2 leading-snug">
-            <div>ลูกค้า: {payload.customer || '-'} &nbsp;|&nbsp; โทร: {payload.phone || '-'}</div>
-            <div>รถ: {payload.car || '-'} &nbsp;|&nbsp; ทะเบียน: {payload.plate || '-'} &nbsp;|&nbsp; ไมล์: {payload.mileage || '-'}</div>
+            <div>ลูกค้า: {current.customer_name || '-'} &nbsp;|&nbsp; โทร: {current.phone || '-'}</div>
+            <div>รถ: {current.car_info || '-'} &nbsp;|&nbsp; ทะเบียน: {current.license_plate || '-'} &nbsp;|&nbsp; ไมล์: {current.mileage || '-'}</div>
           </div>
 
           <table className="bill-table">
@@ -229,6 +228,9 @@ export default function PrintQueuePage() {
                   <td className="text-right">{(Number(item.price || 0) * Number(item.qty || 1)).toLocaleString()}</td>
                 </tr>
               ))}
+              {items.length === 0 && (
+                <tr><td colSpan={4} className="text-center">ไม่มีรายการในบิลนี้</td></tr>
+              )}
             </tbody>
           </table>
 
@@ -249,14 +251,14 @@ export default function PrintQueuePage() {
             </div>
           </div>
 
-          {payload.note ? <div className="mt-2 text-[11px]">หมายเหตุ: {payload.note}</div> : null}
+          {current.note ? <div className="mt-2 text-[11px]">หมายเหตุ: {current.note}</div> : null}
 
           <div className="flex justify-between text-[10px] mt-8">
             <div className="text-center w-1/3">
               <div className="border-b border-black w-28 mx-auto mb-1 h-7"></div>
               ตรวจรับงานซ่อม
             </div>
-            <div className="text-center w-1/3 pt-5">ช่างซ่อม<br />{payload.date || ''}</div>
+            <div className="text-center w-1/3 pt-5">ช่างซ่อม<br />{when.slice(0, 10)}</div>
             <div className="text-center w-1/3">
               <div className="border-b border-black w-28 mx-auto mb-1 h-7"></div>
               ผู้รับเงิน
@@ -265,7 +267,7 @@ export default function PrintQueuePage() {
 
           <div className="text-center mt-5 no-print flex gap-3 justify-center flex-wrap">
             <button onClick={() => setCurrent(null)} className="bg-gray-200 text-black px-5 py-2 rounded text-sm">กลับไปรายการ</button>
-            <button onClick={printHere} className="bg-blue-600 text-white px-5 py-2 rounded text-sm">พิมพ์ที่เครื่องนี้</button>
+            <button onClick={() => window.print()} className="bg-blue-600 text-white px-5 py-2 rounded text-sm">พิมพ์ที่เครื่องนี้</button>
             <button onClick={sendToBranch} disabled={sending} className="bg-green-600 text-white px-5 py-2 rounded text-sm disabled:opacity-50">
               {sending ? 'กำลังส่ง...' : 'ส่งพิมพ์ไปสาขานี้'}
             </button>
