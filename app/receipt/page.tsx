@@ -65,7 +65,10 @@ function isoToday() {
 }
 
 function thaiDateOnly(date = new Date()) {
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear() + 543}`
+  const dd = String(date.getDate()).padStart(2, '0')
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const yy = date.getFullYear() + 543
+  return `${dd}/${mm}/${yy}`
 }
 
 function thaiFromIso(iso: string) {
@@ -93,7 +96,14 @@ function promptPay(id: string, amount: number) {
   const field = (tag: string, value: string) => tag + String(value.length).padStart(2, '0') + value
   const merchant = field('00', 'A000000677010111') + field(targetType, target)
   const amountText = amount > 0 ? amount.toFixed(2) : ''
-  const body = [field('00', '01'), field('01', amountText ? '12' : '11'), field('29', merchant), field('58', 'TH'), field('53', '764'), amountText ? field('54', amountText) : ''].join('')
+  const body = [
+    field('00', '01'),
+    field('01', amountText ? '12' : '11'),
+    field('29', merchant),
+    field('58', 'TH'),
+    field('53', '764'),
+    amountText ? field('54', amountText) : '',
+  ].join('')
   const data = body + '6304'
   return data + crc16(data)
 }
@@ -211,7 +221,11 @@ export default function ReceiptPage() {
         }
         const picked = JSON.parse(localStorage.getItem('selectedItems') || '[]')
         if (Array.isArray(picked) && picked.length) {
-          const lines = picked.slice(0, 16).map((item: any) => ({ name: String(item.name || ''), qty: Number(item.qty || 1), price: Number(item.price || 0) }))
+          const lines = picked.slice(0, 16).map((item: any) => ({
+            name: String(item.name || ''),
+            qty: Number(item.qty || 1),
+            price: Number(item.price || 0),
+          }))
           while (lines.length < 5) lines.push(blank())
           setItems(lines)
           localStorage.removeItem('selectedItems')
@@ -266,7 +280,9 @@ export default function ReceiptPage() {
   const warrantyText = warrantyMonths > 0 ? `รับประกันงาน ${warrantyMonths} เดือน` : ''
   const brandKey = Object.keys(BRANDS).find((name) => name.toLowerCase() === brand.trim().toLowerCase()) || ''
   const company = customerType === 'company'
-  const qrUrl = showQr ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}` : ''
+  const qrUrl = showQr
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}`
+    : ''
   const techNames = employees.map((item) => item.name || item.full_name || item.code).filter(Boolean)
 
   const brandHits = useMemo(() => {
@@ -302,7 +318,9 @@ export default function ReceiptPage() {
     if (value.trim().length < 1) { setPlateHits([]); return }
     const supabase = createClient()
     const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone)').ilike('license_plate', `%${value.trim()}%`).limit(8)
-    const plain = withCustomer.error ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8) : null
+    const plain = withCustomer.error
+      ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8)
+      : null
     setPlateHits((plain?.data || withCustomer.data || []) as any[])
   }
 
@@ -373,7 +391,9 @@ export default function ReceiptPage() {
       : await supabase.from('bills').insert(row).select('id')
     if (res.error && String(res.error.message).includes('mileage')) {
       delete row.mileage
-      res = savedId ? await supabase.from('bills').update(row).eq('id', savedId).select('id') : await supabase.from('bills').insert(row).select('id')
+      res = savedId
+        ? await supabase.from('bills').update(row).eq('id', savedId).select('id')
+        : await supabase.from('bills').insert(row).select('id')
     }
     if (!res.error && !savedId) {
       for (const line of lines) {
@@ -398,9 +418,24 @@ export default function ReceiptPage() {
     setDateText(thaiDateOnly())
     setSignDate(isoToday())
     setItems([blank(), blank(), blank(), blank(), blank()])
-    setCustomer(''); setPhone(''); setCustomerTax(''); setCustomerAddress(''); setCustomerHits([])
-    setPlate(''); setPlateHits([]); setBrand(''); setModel(''); setColor(''); setMileage('')
-    setDiscount(0); setNote(''); setWarrantyMonths(0); setChequeNo(''); setTechnician(''); setSavedId(''); setMsg('พร้อมออกบิลใหม่')
+    setCustomer('')
+    setPhone('')
+    setCustomerTax('')
+    setCustomerAddress('')
+    setCustomerHits([])
+    setPlate('')
+    setPlateHits([])
+    setBrand('')
+    setModel('')
+    setColor('')
+    setMileage('')
+    setDiscount(0)
+    setNote('')
+    setWarrantyMonths(0)
+    setChequeNo('')
+    setTechnician('')
+    setSavedId('')
+    setMsg('พร้อมออกบิลใหม่')
   }
 
   return (
@@ -417,56 +452,61 @@ export default function ReceiptPage() {
         .shop { flex:1; text-align:right; }
         .shop h1 { margin:0; font-size:22px; }
         .shop p { margin:0; font-size:11px; line-height:1.35; }
-        .doc { text-align:center; font-size:18px; margin:8px 0 6px; }
-        .who { font-size:13px; line-height:1.85; margin-bottom:6px; }
-        .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 14px; }
-        .who input { border:none; border-bottom:1px solid transparent; background:#fff; color:#111; font:inherit; padding:0 1px; }
-        .who input:focus { border-bottom-color:#ccc; outline:none; }
+        .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
+        .who-wrap { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:0 0 2px; }
+        .who { font-size:13px; line-height:1.55; flex:1; }
+        .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:1px 12px; }
+        .who input { border:none; background:transparent; color:#111; font:inherit; padding:0; }
+        .who input:focus { outline:none; }
         .co-name { font-weight:700; }
-        .bill-meta { text-align:right; font-size:13px; line-height:1.45; margin:4px 0 2px; }
-        .sheet textarea, .items input, .discount input, .sign-name, .sign-date { box-sizing:border-box; background:#fff; color:#111; border:1px solid #ccc; padding:2px 4px; font:inherit; }
-        .items input { width:100%; border:none; }
-        .sheet textarea { width:100%; border:none; border-bottom:1px solid #eee; }
-        .discount input { width:80px; text-align:right; border-radius:4px; }
-        table { width:100%; border-collapse:collapse; margin-top:4px; }
+        .bill-meta { text-align:right; font-size:13px; line-height:1.4; white-space:nowrap; }
+        .items input, .note, .discount input, .sign-name, .sign-date { box-sizing:border-box; background:#fff; color:#111; font:inherit; }
+        .items input { width:100%; border:none; padding:2px 4px; }
+        .note { width:100%; border:none; background:transparent; resize:none; padding:2px 0; color:#111; }
+        .note:focus { outline:none; }
+        table { width:100%; border-collapse:collapse; margin-top:0; }
         th, td { border:1px solid #222; padding:3px 5px; font-size:12px; vertical-align:middle; }
         th { background:#f5f5f5; color:#111; }
         .c { text-align:center; } .r { text-align:right; }
         .rel { position:relative; }
         .menu { position:absolute; z-index:30; left:0; right:0; top:100%; background:#fff; border:1px solid #ddd; max-height:180px; overflow:auto; min-width:180px; }
         .menu button { display:block; width:100%; text-align:left; background:#fff; color:#111; border:0; border-bottom:1px solid #f1f1f1; padding:6px 8px; cursor:pointer; }
-        .chips { display:flex; gap:4px; flex-wrap:wrap; margin:2px 0 6px; }
+        .chips { display:flex; gap:4px; flex-wrap:wrap; margin:2px 0 4px; }
         .chips button { background:#fff; color:#444; border:1px solid #ddd; border-radius:999px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; }
         .rowbtn { background:#fff; color:#111; border:1px solid #ddd; border-radius:6px; padding:4px 8px; cursor:pointer; }
         .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-        .sum { text-align:right; min-width:220px; color:#111; }
+        .sum { text-align:right; min-width:210px; color:#111; line-height:1.7; }
+        .discount { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
+        .discount input { width:72px; text-align:right; border:1px solid #ddd; border-radius:4px; padding:1px 6px; background:#fff; color:#111; }
         .grand { font-size:16px; font-weight:700; }
         .words { font-size:12px; }
-        .pp { width:168px; border:2px solid #0b3b8c; background:#fff; color:#111; }
-        .pp-logo { margin:6px; border:2px solid #0b3b8c; text-align:center; padding:4px; }
-        .pp-en { font-size:20px; font-weight:800; letter-spacing:-0.4px; line-height:1.1; }
-        .pp-en b { background:#0b3b8c; color:#fff; padding:0 3px 1px; }
+        .pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; color:#111; }
+        .pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
+        .pp-en { font-size:13px; font-weight:800; letter-spacing:-0.3px; line-height:1.1; }
+        .pp-en b { background:#0b3b8c; color:#fff; padding:0 2px; }
         .pp-en span { color:#0b3b8c; }
-        .pp img { display:block; width:140px; height:140px; margin:2px auto 6px; }
-        .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:11px; line-height:1.35; padding:6px 4px; }
+        .pp img { display:block; width:92px; height:92px; margin:2px auto 3px; }
+        .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:9px; line-height:1.3; padding:3px 2px; }
         .warn { color:#b00000; font-size:12px; margin-top:4px; }
-        .signs { display:flex; justify-content:space-between; margin-top:22px; text-align:center; font-size:12px; }
-        .signs i { display:block; width:150px; border-bottom:1px solid #111; height:6px; margin:4px auto 4px; }
-        .sign-name { width:150px; text-align:center; border:none; background:#fff; color:#111; }
-        .sign-date { margin-top:4px; background:#fff; color:#111; }
+        .signs { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:18px; text-align:center; font-size:12px; }
+        .sign-top { min-height:24px; display:flex; align-items:flex-end; justify-content:center; }
+        .signs i { display:block; width:150px; border-bottom:1px solid #111; height:0; margin:0 auto 4px; }
+        .sign-name { width:150px; text-align:center; text-align-last:center; border:none; background:transparent; color:#111; appearance:none; -webkit-appearance:none; -moz-appearance:none; }
+        .sign-name::-ms-expand { display:none; }
+        .sign-date { margin-top:3px; background:#fff; color:#111; border:1px solid #ddd; border-radius:4px; }
         .only-print { display:none; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:10px 14px; cursor:pointer; }
-        @media (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } }
+        @media (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } .who-wrap { display:block; } .bill-meta { text-align:left; } }
         @media print {
           @page { size:A4 portrait; margin:8mm; }
           .no-print { display:none !important; }
           .page { background:#fff; padding:0; }
           .sheet { box-shadow:none; border-top:0; max-width:none; padding:0; }
-          .who input, .sheet textarea, .items input, .discount input, .sign-name { border:none !important; background:transparent !important; color:#111 !important; }
+          .who input, .items input, .note, .discount input, .sign-name { border:none !important; background:transparent !important; color:#111 !important; outline:none !important; }
           .sign-date { display:none !important; }
           .only-print { display:block; }
-          .who input::placeholder, .sheet textarea::placeholder { color:transparent !important; }
+          .who input::placeholder, .note::placeholder { color:transparent !important; }
           .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
           tr.spare { display:none; }
         }
@@ -504,7 +544,11 @@ export default function ReceiptPage() {
             <option value={12}>12 เดือน</option>
           </select>
         </label>
-        {payType === 'cheque' && <label>เลขที่เช็ค<input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} /></label>}
+        {payType === 'cheque' && (
+          <label>เลขที่เช็ค
+            <input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} />
+          </label>
+        )}
         <div className="status" style={{ color: printerOn ? '#067a32' : '#9a3412' }}>{printerText}</div>
       </div>
 
@@ -519,67 +563,103 @@ export default function ReceiptPage() {
         </div>
         <h2 className="doc">{docTitle}</h2>
 
-        <div className="who">
-          {company ? (
-            <>
+        <div className="who-wrap">
+          <div className="who">
+            {company ? (
+              <>
+                <div className="row">
+                  <span className="rel co-name">
+                    <input value={customer} autoComplete="off" style={fit(customer, 16)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อบริษัท" />
+                    {customerHits.length > 0 && (
+                      <div className="menu no-print">
+                        {customerHits.map((item) => (
+                          <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>
+                        ))}
+                      </div>
+                    )}
+                  </span>
+                </div>
+                <div className="row">
+                  <span>ที่อยู่:</span>
+                  <input value={customerAddress} style={{ width: '70%' }} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่บริษัท" />
+                </div>
+                <div className="row">
+                  <span>เลขที่ผู้เสียภาษี</span>
+                  <input value={customerTax} style={fit(customerTax, 13)} onChange={(e) => setCustomerTax(e.target.value)} placeholder="เลขภาษีลูกค้า" />
+                  <span>โทร:</span>
+                  <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
+                </div>
+              </>
+            ) : (
               <div className="row">
-                <span className="rel co-name">
-                  <input value={customer} autoComplete="off" style={fit(customer, 16)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อบริษัท" />
-                  {customerHits.length > 0 && <div className="menu no-print">{customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}</div>}
+                <span>ลูกค้า:</span>
+                <span className="rel">
+                  <input value={customer} autoComplete="off" style={fit(customer, 6)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อ" />
+                  {customerHits.length > 0 && (
+                    <div className="menu no-print">
+                      {customerHits.map((item) => (
+                        <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>
+                      ))}
+                    </div>
+                  )}
                 </span>
-              </div>
-              <div className="row">
-                <span>ที่อยู่:</span>
-                <input value={customerAddress} style={{ width: '70%' }} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่บริษัท" />
-              </div>
-              <div className="row">
-                <span>เลขที่ผู้เสียภาษี</span>
-                <input value={customerTax} style={fit(customerTax, 13)} onChange={(e) => setCustomerTax(e.target.value)} placeholder="เลขภาษีลูกค้า" />
                 <span>โทร:</span>
                 <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
               </div>
-            </>
-          ) : (
+            )}
             <div className="row">
-              <span>ลูกค้า:</span>
+              <span>รุ่นรถ:</span>
               <span className="rel">
-                <input value={customer} autoComplete="off" style={fit(customer, 6)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อ" />
-                {customerHits.length > 0 && <div className="menu no-print">{customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}</div>}
+                <input value={brand} autoComplete="off" style={fit(brand, 6)} onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true); setSavedId('') }} placeholder="ยี่ห้อ" />
+                {brandOpen && brandHits.length > 0 && (
+                  <div className="menu no-print">
+                    {brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}
+                  </div>
+                )}
               </span>
-              <span>โทร:</span>
-              <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
+              <span className="rel">
+                <input value={model} autoComplete="off" style={fit(model, 6)} onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true); setSavedId('') }} placeholder="รุ่น" />
+                {modelOpen && modelHits.length > 0 && (
+                  <div className="menu no-print">
+                    {modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}
+                  </div>
+                )}
+              </span>
+              <span>ทะเบียน:</span>
+              <span className="rel">
+                <input value={plate} autoComplete="off" style={fit(plate, 6)} onChange={(e) => searchPlates(e.target.value)} placeholder="ป้าย" />
+                {plateHits.length > 0 && (
+                  <div className="menu no-print">
+                    {plateHits.map((item) => (
+                      <button key={item.id} onClick={() => { setPlate(item.license_plate || ''); setBrand(item.brand || ''); setModel(item.model || model); setColor(item.color || ''); setMileage(item.mileage ? String(item.mileage) : mileage); setCustomer(item.customers?.full_name || customer); setPhone(item.customers?.phone || phone); setPlateHits([]) }}>
+                        {item.license_plate} {item.brand} {item.model}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </span>
+              <span>เลขที่ไมล์:</span>
+              <span>
+                <input value={mileage} style={fit(mileage, 4)} onChange={(e) => setMileage(e.target.value)} placeholder="ไมล์" /> km.
+              </span>
+              <span className={color.trim() ? '' : 'no-print'}>
+                สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" />
+              </span>
             </div>
-          )}
-          <div className="row">
-            <span>รุ่นรถ:</span>
-            <span className="rel">
-              <input value={brand} autoComplete="off" style={fit(brand, 6)} onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true); setSavedId('') }} placeholder="ยี่ห้อ" />
-              {brandOpen && brandHits.length > 0 && <div className="menu no-print">{brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}</div>}
-            </span>
-            <span className="rel">
-              <input value={model} autoComplete="off" style={fit(model, 6)} onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true); setSavedId('') }} placeholder="รุ่น" />
-              {modelOpen && modelHits.length > 0 && <div className="menu no-print">{modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}</div>}
-            </span>
-            <span>ทะเบียน:</span>
-            <span className="rel">
-              <input value={plate} autoComplete="off" style={fit(plate, 6)} onChange={(e) => searchPlates(e.target.value)} placeholder="ป้าย" />
-              {plateHits.length > 0 && <div className="menu no-print">{plateHits.map((item) => <button key={item.id} onClick={() => { setPlate(item.license_plate || ''); setBrand(item.brand || ''); setModel(item.model || model); setColor(item.color || ''); setMileage(item.mileage ? String(item.mileage) : mileage); setCustomer(item.customers?.full_name || customer); setPhone(item.customers?.phone || phone); setPlateHits([]) }}>{item.license_plate} {item.brand} {item.model}</button>)}</div>}
-            </span>
-            <span>เลขที่ไมล์:</span>
-            <span><input value={mileage} style={fit(mileage, 4)} onChange={(e) => setMileage(e.target.value)} placeholder="ไมล์" /> km.</span>
-            <span className={color.trim() ? '' : 'no-print'}>สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" /></span>
+            <div className="row">
+              <span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span>
+            </div>
           </div>
-          <div className="row">
-            <span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span>
+          <div className="bill-meta">
+            <div>เลขที่ {billNo}</div>
+            <div>วันที่ {dateText}</div>
           </div>
-        </div>
-        <div className="chips no-print">
-          {COLORS.map((item) => <button key={item} onClick={() => setColor(item)} style={{ background: color === item ? '#111' : '#fff', color: color === item ? '#fff' : '#444' }}>{item}</button>)}
         </div>
 
-        <div className="bill-meta">
-          <div>เลขที่ {billNo}</div>
-          <div>วันที่ {dateText}</div>
+        <div className="chips no-print">
+          {COLORS.map((item) => (
+            <button key={item} onClick={() => setColor(item)} style={{ background: color === item ? '#111' : '#fff', color: color === item ? '#fff' : '#444' }}>{item}</button>
+          ))}
         </div>
 
         <table className="items">
@@ -618,6 +698,7 @@ export default function ReceiptPage() {
           </tbody>
         </table>
         {items.length < 16 && <button className="rowbtn no-print" style={{ marginTop: 6 }} onClick={() => setItems([...items, blank()])}>เพิ่มรายการ</button>}
+
         <div className="foot">
           <div>
             {qrUrl && (
@@ -629,30 +710,44 @@ export default function ReceiptPage() {
                 <div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div>
               </div>
             )}
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="หมายเหตุ" />
+            <textarea className="note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="หมายเหตุ" />
             {warrantyText && <div className="warn">{warrantyText}</div>}
           </div>
           <div className="sum">
             <div>ยอดรวม {subtotal.toLocaleString()} บาท</div>
-            <div className="discount">ส่วนลด {Number(discount || 0).toLocaleString()} บาท <input value={discount} onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} /></div>
+            <div className="discount">
+              <span>ส่วนลด</span>
+              <input value={discount || ''} placeholder="0" onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} />
+            </div>
             <div className="grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
             <div className="words">{bahtText(total)}</div>
           </div>
         </div>
+
         <div className="signs">
-          <div><i></i>ตรวจรับงานซ่อม</div>
           <div>
-            <select className="sign-name" value={technician} onChange={(e) => setTechnician(e.target.value)}>
-              <option value="">เลือกช่าง</option>
-              {technician && !techNames.includes(technician) && <option value={technician}>{technician}</option>}
-              {techNames.map((name) => <option key={name} value={name}>{name}</option>)}
-            </select>
+            <div className="sign-top"></div>
+            <i></i>
+            ตรวจรับงานซ่อม
+          </div>
+          <div>
+            <div className="sign-top">
+              <select className="sign-name" value={technician} onChange={(e) => setTechnician(e.target.value)}>
+                <option value="">เลือกช่าง</option>
+                {technician && !techNames.includes(technician) && <option value={technician}>{technician}</option>}
+                {techNames.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </div>
             <i></i>
             <div>ช่างซ่อม</div>
             <input className="sign-date" type="date" value={signDate} onChange={(e) => setSignDate(e.target.value)} />
             <div className="only-print">{thaiFromIso(signDate)}</div>
           </div>
-          <div><i></i>ผู้รับเงิน</div>
+          <div>
+            <div className="sign-top"></div>
+            <i></i>
+            ผู้รับเงิน
+          </div>
         </div>
       </div>
 
