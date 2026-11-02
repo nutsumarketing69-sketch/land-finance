@@ -200,6 +200,7 @@ export default function PartsPage() {
   const [price, setPrice] = useState('')
   const [stock, setStock] = useState('0')
   const [category, setCategory] = useState('ทั่วไป')
+  const [itemType, setItemType] = useState('อะไหล่')
 
   const load = async () => {
     const supabase = createClient()
@@ -235,11 +236,17 @@ export default function PartsPage() {
       return
     }
 
+    const known = Array.from(new Set(parts.map((p) => p.type).filter(Boolean))) as string[]
+    const partType = known.find((t) => /part|อะไหล่|สินค้า/i.test(String(t))) || known[0] || 'อะไหล่'
+    const serviceType = known.find((t) => /service|บริการ|labor|ค่าแรง/i.test(String(t))) || 'บริการ'
+
+    const typeOf = (r: Row, mode: 'split' | 'part') => (mode === 'part' ? partType : r.track ? partType : serviceType)
+
     const shapes = [
-      (r: Row) => ({ name: r.name, price: r.price, stock: r.stock, min_stock: r.min, category: r.cat }),
-      (r: Row) => ({ name: r.name, price: r.price, stock: r.stock, min_stock: r.min }),
-      (r: Row) => ({ name: r.name, price: r.price, stock: r.stock }),
-      (r: Row) => ({ name: r.name, price: r.price }),
+      (r: Row) => ({ name: r.name, price: r.price, stock: r.stock, min_stock: r.min, category: r.cat, type: typeOf(r, 'split') }),
+      (r: Row) => ({ name: r.name, price: r.price, stock: r.stock, min_stock: r.min, category: r.cat, type: typeOf(r, 'part') }),
+      (r: Row) => ({ name: r.name, price: r.price, stock: r.stock, min_stock: r.min, type: typeOf(r, 'part') }),
+      (r: Row) => ({ name: r.name, price: r.price, stock: r.stock, type: typeOf(r, 'part') }),
     ]
 
     let shape = 0
@@ -282,18 +289,21 @@ export default function PartsPage() {
       return
     }
     const supabase = createClient()
-    let { error } = await supabase.from('parts_services').insert({
+    const row = {
       name: name.trim(),
       price: Number(price),
       stock: Number(stock) || 0,
       min_stock: 0,
       category,
-    })
+      type: itemType,
+    }
+    let { error } = await supabase.from('parts_services').insert(row)
     if (error) {
       const retry = await supabase.from('parts_services').insert({
-        name: name.trim(),
-        price: Number(price),
-        stock: Number(stock) || 0,
+        name: row.name,
+        price: row.price,
+        stock: row.stock,
+        type: itemType,
       })
       error = retry.error
     }
@@ -331,7 +341,7 @@ export default function PartsPage() {
       name: p.name,
       price: Number(p.price) || 0,
       qty: qty[p.id] || 1,
-      part_id: SERVICE_NAMES.has(p.name) || catOf(p) === 'บริการ' ? null : p.id,
+      part_id: SERVICE_NAMES.has(p.name) || catOf(p) === 'บริการ' || p.type === 'บริการ' || p.type === 'service' ? null : p.id,
     }))
     localStorage.setItem('selectedItems', JSON.stringify(items))
     window.location.href = '/receipt'
@@ -355,9 +365,13 @@ export default function PartsPage() {
 
       {msg && <p className="mb-3 text-sm text-amber-300">{msg}</p>}
 
-      <div className="grid md:grid-cols-5 gap-2 mb-4">
+      <div className="grid md:grid-cols-6 gap-2 mb-4">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ชื่อรายการใหม่" className="md:col-span-2 border border-gray-600 bg-gray-800 rounded p-2 text-white" />
         <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="หมวด" className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
+        <select value={itemType} onChange={(e) => setItemType(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white">
+          <option value="อะไหล่">อะไหล่</option>
+          <option value="บริการ">บริการ</option>
+        </select>
         <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="ราคา" className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
         <div className="flex gap-2">
           <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="สต็อก" className="w-24 border border-gray-600 bg-gray-800 rounded p-2 text-white" />
@@ -381,7 +395,7 @@ export default function PartsPage() {
             <input type="checkbox" checked={!!selected[p.id]} onChange={(e) => setSelected((s) => ({ ...s, [p.id]: e.target.checked }))} />
             <div className="flex-1 min-w-[220px]">
               <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-gray-500">{catOf(p)}{SERVICE_NAMES.has(p.name) || catOf(p) === 'บริการ' ? ' · ไม่ตัดสต็อก' : ''}</div>
+              <div className="text-xs text-gray-500">{catOf(p)} · {p.type || '-'}{SERVICE_NAMES.has(p.name) || catOf(p) === 'บริการ' ? ' · ไม่ตัดสต็อก' : ''}</div>
             </div>
             <label className="text-xs text-gray-400">
               ราคา
