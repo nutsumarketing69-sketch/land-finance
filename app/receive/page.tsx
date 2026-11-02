@@ -86,8 +86,8 @@ export default function ReceivePage() {
   const [jobs, setJobs] = useState<any[]>([])
   const [bills, setBills] = useState<any[]>([])
   const [shots, setShots] = useState<Record<string, Shot>>({})
-  const [sendingPhotos, setSendingPhotos] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [done, setDone] = useState(false)
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
@@ -99,6 +99,8 @@ export default function ReceivePage() {
     supabase.from('branches').select('id, name').order('name').then(({ data }) => setBranches(data || []))
     supabase.from('employees').select('*').order('name').then(({ data }) => setEmployees(data || []))
   }, [])
+
+  const ready = KINDS.every(([kind]) => shots[kind])
 
   const brandHits = useMemo(() => {
     const q = brand.trim().toLowerCase()
@@ -159,6 +161,7 @@ export default function ReceivePage() {
       setMsg('ใส่ป้ายทะเบียนก่อนถ่ายรูป จะได้ค้นรูปในกลุ่มเจอ')
       return
     }
+    setDone(false)
     setShots((prev) => ({
       ...prev,
       [kind]: { url: URL.createObjectURL(file), kind, file, status: 'ready', note: 'พร้อมส่ง' },
@@ -166,13 +169,7 @@ export default function ReceivePage() {
   }
 
   const sendAlbum = async () => {
-    const ready = KINDS.map(([kind]) => shots[kind]).filter(Boolean)
-    if (ready.length < 3) {
-      setMsg('ถ่ายให้ครบ หน้ารถ หลังรถ และเลขไมล์ แล้วค่อยส่งครั้งเดียว')
-      return
-    }
-    setSendingPhotos(true)
-    setMsg('')
+    const photos = KINDS.map(([kind]) => shots[kind])
     const tech = employees.find((e) => e.id === employeeId)
     const branchName = branches.find((b) => b.id === branchId)?.name || 'ไม่ระบุสาขา'
     const caption = [
@@ -187,38 +184,27 @@ export default function ReceivePage() {
       `อาการ: ${symptom || '-'}`,
       `เวลา: ${stamp()}`,
     ].join('\n')
-    try {
-      const body = new FormData()
-      for (let i = 0; i < ready.length; i++) {
-        body.append(`photo${i}`, await shrink(ready[i].file), `car${i}.jpg`)
-      }
-      body.append('caption', caption)
-      const res = await fetch('/telegram', { method: 'POST', body })
-      const text = await res.text()
-      let data: any = {}
-      try { data = JSON.parse(text) } catch { data = { ok: false, message: text.slice(0, 180) || `HTTP ${res.status}` } }
-      const note = data.ok ? 'ส่งเข้ากลุ่มแล้ว' : (data.message || `ส่งไม่สำเร็จ ${res.status}`)
-      setShots((prev) => {
-        const next = { ...prev }
-        KINDS.forEach(([kind]) => {
-          if (next[kind]) next[kind] = { ...next[kind], status: data.ok ? 'sent' : 'failed', note }
-        })
-        return next
-      })
-      setMsg(data.ok ? 'ส่งรูปทั้งชุดเข้ากลุ่มแล้ว' : 'ส่งรูปไม่สำเร็จ: ' + note)
-    } catch (err: any) {
-      setMsg('ส่งรูปไม่สำเร็จ: ' + (err?.message || 'ส่งไม่สำเร็จ'))
+    const body = new FormData()
+    for (let i = 0; i < photos.length; i++) {
+      body.append(`photo${i}`, await shrink(photos[i].file), `car${i}.jpg`)
     }
-    setSendingPhotos(false)
+    body.append('caption', caption)
+    const res = await fetch('/telegram', { method: 'POST', body })
+    const text = await res.text()
+    let data: any = {}
+    try { data = JSON.parse(text) } catch { data = { ok: false, message: text.slice(0, 180) || `HTTP ${res.status}` } }
+    const note = data.ok ? 'ส่งเข้ากลุ่มแล้ว' : (data.message || `ส่งไม่สำเร็จ ${res.status}`)
+    setShots((prev) => {
+      const next = { ...prev }
+      KINDS.forEach(([kind]) => {
+        if (next[kind]) next[kind] = { ...next[kind], status: data.ok ? 'sent' : 'failed', note }
+      })
+      return next
+    })
+    return data.ok ? '' : note
   }
 
-  const save = async () => {
-    if (!plate.trim()) {
-      setMsg('ใส่ป้ายทะเบียนก่อน')
-      return
-    }
-    setSaving(true)
-    setMsg('')
+  const saveJob = async () => {
     const supabase = createClient()
     let cid = customerId
     if (customerName.trim()) {
@@ -226,11 +212,7 @@ export default function ReceivePage() {
         await supabase.from('customers').update({ full_name: customerName.trim(), phone: phone || null }).eq('id', cid)
       } else {
         const created = await supabase.from('customers').insert({ full_name: customerName.trim(), phone: phone || null }).select('id')
-        if (created.error) {
-          setMsg('บันทึกลูกค้าไม่สำเร็จ: ' + created.error.message)
-          setSaving(false)
-          return
-        }
+        if (created.error) return 'บันทึกลูกค้าไม่สำเร็จ: ' + created.error.message
         cid = created.data?.[0]?.id || ''
         setCustomerId(cid)
       }
@@ -266,11 +248,7 @@ export default function ReceivePage() {
       }
       vehicleError = res.error?.message || vehicleError
     }
-    if (!savedId) {
-      setMsg('บันทึกรถไม่สำเร็จ: ' + (vehicleError || 'ไม่พบรหัสรถ'))
-      setSaving(false)
-      return
-    }
+    if (!savedId) return 'บันทึกรถไม่สำเร็จ: ' + (vehicleError || 'ไม่พบรหัสรถ')
     vid = savedId
     setVehicleId(vid)
 
@@ -317,15 +295,41 @@ export default function ReceivePage() {
       note: symptom,
     }))
     await loadHistory(vid, plate.trim())
-    setMsg(jobError ? 'บันทึกรถแล้ว แต่งานซ่อมไม่เข้า: ' + jobError : 'รับรถสำเร็จ')
-    setSaving(false)
+    return jobError ? 'บันทึกรถแล้ว แต่งานซ่อมไม่เข้า: ' + jobError : ''
+  }
+
+  const finish = async () => {
+    if (!plate.trim()) {
+      setMsg('ใส่ป้ายทะเบียนก่อน')
+      return
+    }
+    if (!ready) {
+      setMsg('ถ่ายให้ครบ หน้ารถ หลังรถ และเลขไมล์')
+      return
+    }
+    setWorking(true)
+    setMsg('')
+    let photoError = ''
+    try {
+      photoError = await sendAlbum()
+    } catch (err: any) {
+      photoError = err?.message || 'ส่งรูปไม่สำเร็จ'
+    }
+    const saveError = await saveJob()
+    setWorking(false)
+    if (!photoError && !saveError) {
+      setDone(true)
+      setMsg('เสร็จแล้ว บันทึกและส่งรูปทั้งชุดเข้ากลุ่ม')
+    } else {
+      setMsg([photoError && ('ส่งรูปไม่สำเร็จ: ' + photoError), saveError].filter(Boolean).join(' | '))
+    }
   }
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto pb-24">
       <a href="/" className="inline-block mb-4 border border-gray-600 rounded-full px-4 py-2 text-sm">กลับหน้าหลัก</a>
       <h1 className="text-2xl font-bold">รับรถเข้าซ่อม</h1>
-      <p className="text-sm text-gray-400 mb-4">ถ่ายหน้ารถ หลังรถ และเลขไมล์ ให้ครบ แล้วกดส่งครั้งเดียว ข้อความจะไปกับรูปชุดนี้ชุดเดียว</p>
+      <p className="text-sm text-gray-400 mb-4">ถ่ายให้ครบ 3 รูป แล้วกดปุ่มเดียว จบทั้งบันทึกและส่งเข้ากลุ่ม</p>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <label className="block text-sm text-gray-400">สาขา
@@ -405,7 +409,6 @@ export default function ReceivePage() {
         </select>
       </label>
 
-      <p className="text-sm text-gray-400 mb-2">เลือกสาขาและช่างก่อนถ่าย แล้วกดส่งรูปทั้งชุดครั้งเดียว</p>
       <div className="grid grid-cols-3 gap-2 mb-3">
         {KINDS.map(([kind, label]) => (
           <label key={kind} className="border border-dashed border-gray-600 rounded-lg p-3 text-center text-sm cursor-pointer">
@@ -414,7 +417,7 @@ export default function ReceivePage() {
           </label>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-4">
         {KINDS.map(([kind, label]) => (
           <div key={kind}>
             {shots[kind] ? <img src={shots[kind].url} alt={label} className="w-full h-24 object-cover rounded" /> : <div className="w-full h-24 rounded bg-gray-800" />}
@@ -422,11 +425,15 @@ export default function ReceivePage() {
           </div>
         ))}
       </div>
-      <button onClick={sendAlbum} disabled={sendingPhotos} className="w-full bg-emerald-600 text-white rounded py-3 mb-3 disabled:opacity-50">{sendingPhotos ? 'กำลังส่งทั้งชุด...' : 'ส่งรูปทั้งชุดเข้ากลุ่ม'}</button>
 
+      {!ready && <p className="text-center text-gray-400 mb-4">ถ่ายหน้ารถ หลังรถ และเลขไมล์ ให้ครบ ปุ่มบันทึกจะขึ้น</p>}
+      {ready && !done && (
+        <button onClick={finish} disabled={working} className="w-full bg-blue-600 text-white rounded py-3 mb-3 disabled:opacity-50">
+          {working ? 'กำลังบันทึกและส่งรูป...' : 'บันทึกและส่งรูป'}
+        </button>
+      )}
       {msg && <p className="mb-3 text-amber-300">{msg}</p>}
-      <button onClick={save} disabled={saving} className="w-full bg-blue-600 text-white rounded py-3 mb-4 disabled:opacity-50">{saving ? 'กำลังบันทึก...' : 'บันทึกรับรถ'}</button>
-      <a href="/" className="block text-center border border-gray-600 rounded py-3 mb-8">กลับหน้าหลัก โดยไม่บันทึกซ้ำ</a>
+      <a href="/" className="block text-center border border-gray-600 rounded py-3 mb-8">กลับหน้าหลัก</a>
 
       <h2 className="font-semibold mb-2">ประวัติรถคันนี้</h2>
       {jobs.length === 0 && bills.length === 0 && <p className="text-gray-500 text-sm mb-4">ยังไม่มีประวัติ</p>}
