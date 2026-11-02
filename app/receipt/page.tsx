@@ -22,6 +22,7 @@ export default function ReceiptPage() {
   const [sending, setSending] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [printerOnline, setPrinterOnline] = useState(false)
+  const [printerAge, setPrinterAge] = useState<number | null>(null)
 
   const [searchCust, setSearchCust] = useState('')
   const [searchPlate, setSearchPlate] = useState('')
@@ -48,22 +49,27 @@ export default function ReceiptPage() {
   useEffect(() => {
     if (!selectedBranch) {
       setPrinterOnline(false)
+      setPrinterAge(null)
       return
     }
     let stop = false
     const check = async () => {
       const supabase = createClient()
-      const { data } = await supabase
-        .from('printer_heartbeats')
-        .select('last_seen')
-        .eq('branch_id', selectedBranch)
-        .maybeSingle()
-      if (stop) return
-      if (!data?.last_seen) {
-        setPrinterOnline(false)
-        return
+      const rpc = await supabase.rpc('printer_age', { bid: selectedBranch })
+      let age: number | null = null
+      if (!rpc.error && rpc.data !== null && rpc.data !== undefined) {
+        age = Number(rpc.data)
+      } else {
+        const { data } = await supabase
+          .from('printer_heartbeats')
+          .select('last_seen')
+          .eq('branch_id', selectedBranch)
+          .maybeSingle()
+        if (data?.last_seen) age = (Date.now() - new Date(data.last_seen).getTime()) / 1000
       }
-      setPrinterOnline(Date.now() - new Date(data.last_seen).getTime() < 20000)
+      if (stop) return
+      setPrinterAge(age)
+      setPrinterOnline(age !== null && age < 90 && age > -300)
     }
     check()
     const timer = setInterval(check, 5000)
@@ -270,6 +276,11 @@ export default function ReceiptPage() {
     setSending(false)
   }
 
+  const ageText =
+    printerAge === null
+      ? ' (ยังไม่มีสัญญาณ)'
+      : ` (สัญญาณ ${Math.max(0, Math.round(printerAge))} วินาทีที่แล้ว)`
+
   return (
     <>
       <style jsx global>{`
@@ -353,6 +364,7 @@ export default function ReceiptPage() {
               {printerOnline
                 ? `เครื่องพิมพ์${headerTitle} พร้อม ใบนี้จะออกที่สาขาทันที`
                 : `คอม${headerTitle} ยังไม่ได้เปิดหน้าพิมพ์ บิลจะค้างในคิว พอเปิดแล้วพิมพ์เอง`}
+              {ageText}
             </p>
           )}
         </div>
