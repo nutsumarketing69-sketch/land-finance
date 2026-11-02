@@ -32,17 +32,33 @@ function stamp() {
   return new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })
 }
 
-async function shrink(file: File) {
-  const img = await createImageBitmap(file)
-  const scale = Math.min(1, 1280 / img.width)
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(img.width * scale)
-  canvas.height = Math.round(img.height * scale)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return file
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.72))
-  return blob || file
+function shrink(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const scale = Math.min(1, 1280 / (img.width || 1280))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(img.width * scale))
+      canvas.height = Math.max(1, Math.round(img.height * scale))
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        URL.revokeObjectURL(url)
+        resolve(file)
+        return
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url)
+        resolve(blob || file)
+      }, 'image/jpeg', 0.72)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(file)
+    }
+    img.src = url
+  })
 }
 
 export default function ReceivePage() {
@@ -92,7 +108,7 @@ export default function ReceivePage() {
     return list.filter((item) => item.toLowerCase().includes(q) && item.toLowerCase() !== q).slice(0, 8)
   }, [brand, model])
 
-    const loadHistory = async (id: string, plateNo: string) => {
+  const loadHistory = async (id: string, plateNo: string) => {
     const supabase = createClient()
     const first = await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until, branches(name)').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
     const second = first.error
@@ -111,7 +127,7 @@ export default function ReceivePage() {
       return
     }
     const supabase = createClient()
-        const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone)').ilike('license_plate', `%${value.trim()}%`).limit(8)
+    const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone)').ilike('license_plate', `%${value.trim()}%`).limit(8)
     const plain = withCustomer.error
       ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8)
       : null
@@ -163,12 +179,20 @@ export default function ReceivePage() {
       body.append('photo', small, 'car.jpg')
       body.append('caption', caption)
       const res = await fetch('/api/telegram', { method: 'POST', body })
-      const data = await res.json()
-      setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: data.ok ? 'sent' : 'failed', note: data.ok ? 'ส่งเข้ากลุ่มแล้ว' : (data.message || 'ส่งไม่สำเร็จ') } : shot))
-      if (!data.ok) setMsg(data.message || 'ส่งรูปไม่สำเร็จ')
-    } catch {
-      setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: 'failed', note: 'ส่งไม่สำเร็จ' } : shot))
-      setMsg('ส่งรูปไม่สำเร็จ')
+      const text = await res.text()
+      let data: any = {}
+      try {
+        data = JSON.parse(text)
+      } catch {
+        data = { ok: false, message: text.slice(0, 180) || `HTTP ${res.status}` }
+      }
+      const note = data.ok ? 'ส่งเข้ากลุ่มแล้ว' : (data.message || `ส่งไม่สำเร็จ ${res.status}`)
+      setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: data.ok ? 'sent' : 'failed', note } : shot))
+      if (!data.ok) setMsg('ส่งรูปไม่สำเร็จ: ' + note)
+    } catch (err: any) {
+      const note = err?.message || 'ส่งไม่สำเร็จ'
+      setShots((prev) => prev.map((shot, i) => i === index ? { ...shot, status: 'failed', note } : shot))
+      setMsg('ส่งรูปไม่สำเร็จ: ' + note)
     }
   }
 
@@ -185,13 +209,13 @@ export default function ReceivePage() {
       if (cid) {
         await supabase.from('customers').update({ full_name: customerName.trim(), phone: phone || null }).eq('id', cid)
       } else {
-        const created = await supabase.from('customers').insert({ full_name: customerName.trim(), phone: phone || null }).select('id').single()
+        const created = await supabase.from('customers').insert({ full_name: customerName.trim(), phone: phone || null }).select('id')
         if (created.error) {
           setMsg('บันทึกลูกค้าไม่สำเร็จ: ' + created.error.message)
           setSaving(false)
           return
         }
-        cid = created.data.id
+        cid = created.data?.[0]?.id || ''
         setCustomerId(cid)
       }
     }
@@ -209,21 +233,36 @@ export default function ReceivePage() {
       const found = await supabase.from('vehicles').select('id').ilike('license_plate', plate.trim()).limit(1)
       vid = found.data?.[0]?.id || ''
     }
-    const payloads = [vehicleRow, { ...vehicleRow, color: undefined }, { license_plate: vehicleRow.license_plate, brand: vehicleRow.brand, model: vehicleRow.model, customer_id: vehicleRow.customer_id }]
+
+    const payloads = [
+      vehicleRow,
+      { license_plate: vehicleRow.license_plate, brand: vehicleRow.brand, model: vehicleRow.model, mileage: vehicleRow.mileage, customer_id: vehicleRow.customer_id },
+      { license_plate: vehicleRow.license_plate, brand: vehicleRow.brand, model: vehicleRow.model, customer_id: vehicleRow.customer_id },
+    ]
     let savedId = ''
     let vehicleError = ''
     for (const row of payloads) {
       const res = vid
-        ? await supabase.from('vehicles').update(row).eq('id', vid).select('id').single()
-        : await supabase.from('vehicles').insert(row).select('id').single()
-      if (!res.error && res.data?.id) {
-        savedId = res.data.id
-        break
+        ? await supabase.from('vehicles').update(row).eq('id', vid).select('id')
+        : await supabase.from('vehicles').insert(row).select('id')
+      if (!res.error) {
+        savedId = res.data?.[0]?.id || vid
+        if (savedId) break
       }
       vehicleError = res.error?.message || vehicleError
+      if (res.error?.message?.includes('coerce') || res.error?.message?.includes('0 rows')) {
+        const blind = vid
+          ? await supabase.from('vehicles').update(row).eq('id', vid)
+          : await supabase.from('vehicles').insert(row)
+        if (!blind.error) {
+          const again = await supabase.from('vehicles').select('id').ilike('license_plate', plate.trim()).limit(1)
+          savedId = again.data?.[0]?.id || vid
+          if (savedId) break
+        }
+      }
     }
     if (!savedId) {
-      setMsg('บันทึกรถไม่สำเร็จ: ' + vehicleError)
+      setMsg('บันทึกรถไม่สำเร็จ: ' + (vehicleError || 'ไม่พบรหัสรถ'))
       setSaving(false)
       return
     }
@@ -251,13 +290,13 @@ export default function ReceivePage() {
     let jobId = ''
     let jobError = ''
     for (let i = 0; i < 6; i++) {
-      const res = await supabase.from('jobs').insert(jobPayload).select('id').single()
-      if (!res.error && res.data?.id) {
-        jobId = res.data.id
+      const res = await supabase.from('jobs').insert(jobPayload).select('id')
+      if (!res.error) {
+        jobId = res.data?.[0]?.id || 'saved'
         jobError = ''
         break
       }
-      jobError = res.error?.message || 'บันทึกงานไม่สำเร็จ'
+      jobError = res.error.message || 'บันทึกงานไม่สำเร็จ'
       if (jobError.includes('employee_id')) delete jobPayload.employee_id
       else if (jobError.includes('mileage')) delete jobPayload.mileage
       else if (jobError.includes('warranty')) delete jobPayload.warranty_until
@@ -275,7 +314,7 @@ export default function ReceivePage() {
       note: symptom,
     }))
     await loadHistory(vid, plate.trim())
-    setMsg(jobId ? 'รับรถสำเร็จ รูปอยู่ที่กลุ่มเทเลแกรม' : 'บันทึกรถแล้ว แต่งานซ่อมไม่เข้า: ' + jobError)
+    setMsg(jobError ? 'บันทึกรถแล้ว แต่งานซ่อมไม่เข้า: ' + jobError : 'รับรถสำเร็จ รูปอยู่ที่กลุ่มเทเลแกรม')
     setSaving(false)
   }
 
@@ -347,7 +386,7 @@ export default function ReceivePage() {
 
       <div className="flex gap-2 overflow-x-auto pb-2 mb-2">
         {SYMPTOMS.map((s) => (
-          <button key={s} onClick={() => setSymptom((old) => old ? `${old}, ${s}` : s)} className="shrink-0 px-3 py-1 rounded-full border border-gray-600 text-sm">{s}</button>
+          <button key={s} onClick={() => setSymptom((old) => (old ? `${old}, ${s}` : s))} className="shrink-0 px-3 py-1 rounded-full border border-gray-600 text-sm">{s}</button>
         ))}
       </div>
       <textarea value={symptom} onChange={(e) => setSymptom(e.target.value)} placeholder="อาการที่ลูกค้าแจ้ง" rows={3} className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white mb-3" />
