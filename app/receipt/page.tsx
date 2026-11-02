@@ -59,13 +59,19 @@ function fit(value: string, min = 4) {
   return { width: `${Math.max(min, value.length + 1)}ch` }
 }
 
-function thaiStamp(date = new Date()) {
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const yy = date.getFullYear() + 543
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mi = String(date.getMinutes()).padStart(2, '0')
-  return `${dd}/${mm}/${yy} ${hh}:${mi}`
+function isoToday() {
+  const date = new Date()
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function thaiDateOnly(date = new Date()) {
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear() + 543}`
+}
+
+function thaiFromIso(iso: string) {
+  if (!iso || iso.length < 10) return ''
+  const [year, month, day] = iso.split('-')
+  return `${day}/${month}/${Number(year) + 543}`
 }
 
 function crc16(data: string) {
@@ -150,6 +156,7 @@ export default function ReceiptPage() {
   const [payType, setPayType] = useState('cash')
   const [chequeNo, setChequeNo] = useState('')
   const [technician, setTechnician] = useState('')
+  const [signDate, setSignDate] = useState('')
   const [warrantyMonths, setWarrantyMonths] = useState(0)
   const [billNo, setBillNo] = useState('')
   const [dateText, setDateText] = useState('')
@@ -190,7 +197,8 @@ export default function ReceiptPage() {
       setEmployees(employeeRes.data || [])
       setParts(partRes.data || [])
       setBillNo(number)
-      setDateText(thaiStamp())
+      setDateText(thaiDateOnly())
+      setSignDate(isoToday())
       try {
         const draft = JSON.parse(localStorage.getItem('receiveDraft') || 'null')
         if (draft) {
@@ -259,6 +267,7 @@ export default function ReceiptPage() {
   const brandKey = Object.keys(BRANDS).find((name) => name.toLowerCase() === brand.trim().toLowerCase()) || ''
   const company = customerType === 'company'
   const qrUrl = showQr ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}` : ''
+  const techNames = employees.map((item) => item.name || item.full_name || item.code).filter(Boolean)
 
   const brandHits = useMemo(() => {
     const q = brand.trim().toLowerCase()
@@ -327,6 +336,7 @@ export default function ReceiptPage() {
     car_info: `${brand} ${model} ${color}`.trim(),
     mileage,
     technician,
+    signDate: thaiFromIso(signDate),
     payType,
     payLabel,
     chequeNo,
@@ -343,7 +353,7 @@ export default function ReceiptPage() {
   const save = async () => {
     if (!lines.length) { setMsg('ใส่รายการก่อนบันทึก'); return }
     setSaving(true)
-    const meta = { docType, customerType, customerTax, customerAddress, payType, payLabel, chequeNo, technician, brand, model, color, warrantyMonths, title, address: info?.address || '' }
+    const meta = { docType, customerType, customerTax, customerAddress, payType, payLabel, chequeNo, technician, signDate, brand, model, color, warrantyMonths, title, address: info?.address || '' }
     const row: any = {
       bill_no: billNo,
       customer_name: customer || null,
@@ -385,11 +395,12 @@ export default function ReceiptPage() {
 
   const fresh = async () => {
     setBillNo(await nextBillNo(createClient()))
-    setDateText(thaiStamp())
+    setDateText(thaiDateOnly())
+    setSignDate(isoToday())
     setItems([blank(), blank(), blank(), blank(), blank()])
     setCustomer(''); setPhone(''); setCustomerTax(''); setCustomerAddress(''); setCustomerHits([])
     setPlate(''); setPlateHits([]); setBrand(''); setModel(''); setColor(''); setMileage('')
-    setDiscount(0); setNote(''); setWarrantyMonths(0); setChequeNo(''); setSavedId(''); setMsg('พร้อมออกบิลใหม่')
+    setDiscount(0); setNote(''); setWarrantyMonths(0); setChequeNo(''); setTechnician(''); setSavedId(''); setMsg('พร้อมออกบิลใหม่')
   }
 
   return (
@@ -409,14 +420,17 @@ export default function ReceiptPage() {
         .doc { text-align:center; font-size:18px; margin:8px 0 6px; }
         .who { font-size:13px; line-height:1.85; margin-bottom:6px; }
         .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 14px; }
-        .who input { border:none; border-bottom:1px solid transparent; background:transparent; color:#111; font:inherit; padding:0 1px; }
+        .who input { border:none; border-bottom:1px solid transparent; background:#fff; color:#111; font:inherit; padding:0 1px; }
         .who input:focus { border-bottom-color:#ccc; outline:none; }
         .co-name { font-weight:700; }
-        .sheet textarea, .items input { width:100%; box-sizing:border-box; background:transparent; color:#111; border:none; padding:2px 4px; font:inherit; }
-        .sheet textarea { border-bottom:1px solid #eee; }
-        table { width:100%; border-collapse:collapse; margin-top:8px; }
+        .bill-meta { text-align:right; font-size:13px; line-height:1.45; margin:4px 0 2px; }
+        .sheet textarea, .items input, .discount input, .sign-name, .sign-date { box-sizing:border-box; background:#fff; color:#111; border:1px solid #ccc; padding:2px 4px; font:inherit; }
+        .items input { width:100%; border:none; }
+        .sheet textarea { width:100%; border:none; border-bottom:1px solid #eee; }
+        .discount input { width:80px; text-align:right; border-radius:4px; }
+        table { width:100%; border-collapse:collapse; margin-top:4px; }
         th, td { border:1px solid #222; padding:3px 5px; font-size:12px; vertical-align:middle; }
-        th { background:#f5f5f5; }
+        th { background:#f5f5f5; color:#111; }
         .c { text-align:center; } .r { text-align:right; }
         .rel { position:relative; }
         .menu { position:absolute; z-index:30; left:0; right:0; top:100%; background:#fff; border:1px solid #ddd; max-height:180px; overflow:auto; min-width:180px; }
@@ -425,20 +439,22 @@ export default function ReceiptPage() {
         .chips button { background:#fff; color:#444; border:1px solid #ddd; border-radius:999px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; }
         .rowbtn { background:#fff; color:#111; border:1px solid #ddd; border-radius:6px; padding:4px 8px; cursor:pointer; }
         .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-        .sum { text-align:right; min-width:210px; }
+        .sum { text-align:right; min-width:220px; color:#111; }
         .grand { font-size:16px; font-weight:700; }
         .words { font-size:12px; }
         .pp { width:168px; border:2px solid #0b3b8c; background:#fff; color:#111; }
-        .pp-logo { margin:6px; border:2px solid #0b3b8c; text-align:center; padding:3px 4px 4px; }
-        .pp-th { color:#0b3b8c; font-size:11px; font-weight:700; line-height:1; }
+        .pp-logo { margin:6px; border:2px solid #0b3b8c; text-align:center; padding:4px; }
         .pp-en { font-size:20px; font-weight:800; letter-spacing:-0.4px; line-height:1.1; }
         .pp-en b { background:#0b3b8c; color:#fff; padding:0 3px 1px; }
         .pp-en span { color:#0b3b8c; }
         .pp img { display:block; width:140px; height:140px; margin:2px auto 6px; }
         .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:11px; line-height:1.35; padding:6px 4px; }
         .warn { color:#b00000; font-size:12px; margin-top:4px; }
-        .signs { display:flex; justify-content:space-between; margin-top:18px; text-align:center; font-size:12px; }
-        .signs i { display:block; width:130px; border-bottom:1px solid #111; height:26px; margin:0 auto 4px; }
+        .signs { display:flex; justify-content:space-between; margin-top:22px; text-align:center; font-size:12px; }
+        .signs i { display:block; width:150px; border-bottom:1px solid #111; height:6px; margin:4px auto 4px; }
+        .sign-name { width:150px; text-align:center; border:none; background:#fff; color:#111; }
+        .sign-date { margin-top:4px; background:#fff; color:#111; }
+        .only-print { display:none; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:10px 14px; cursor:pointer; }
         @media (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } }
@@ -447,7 +463,9 @@ export default function ReceiptPage() {
           .no-print { display:none !important; }
           .page { background:#fff; padding:0; }
           .sheet { box-shadow:none; border-top:0; max-width:none; padding:0; }
-          .who input, .sheet textarea, .items input { border:none !important; }
+          .who input, .sheet textarea, .items input, .discount input, .sign-name { border:none !important; background:transparent !important; color:#111 !important; }
+          .sign-date { display:none !important; }
+          .only-print { display:block; }
           .who input::placeholder, .sheet textarea::placeholder { color:transparent !important; }
           .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
           tr.spare { display:none; }
@@ -476,10 +494,6 @@ export default function ReceiptPage() {
           <select value={payType} onChange={(e) => setPayType(e.target.value)}>
             {PAY_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
-        </label>
-        <label>ชื่อช่าง
-          <input list="techs" value={technician} onChange={(e) => setTechnician(e.target.value)} placeholder="เลือกหรือพิมพ์ชื่อช่าง" />
-          <datalist id="techs">{employees.map((item) => <option key={item.id} value={item.name || item.full_name || item.code} />)}</datalist>
         </label>
         <label>รับประกัน
           <select value={warrantyMonths} onChange={(e) => setWarrantyMonths(Number(e.target.value))}>
@@ -556,14 +570,16 @@ export default function ReceiptPage() {
             <span className={color.trim() ? '' : 'no-print'}>สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" /></span>
           </div>
           <div className="row">
-            <span>เลขที่ {billNo}</span>
-            <span>วันที่ {dateText}</span>
             <span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span>
-            <span>ช่าง: <input value={technician} style={fit(technician, 4)} onChange={(e) => setTechnician(e.target.value)} placeholder="ชื่อช่าง" /></span>
           </div>
         </div>
         <div className="chips no-print">
           {COLORS.map((item) => <button key={item} onClick={() => setColor(item)} style={{ background: color === item ? '#111' : '#fff', color: color === item ? '#fff' : '#444' }}>{item}</button>)}
+        </div>
+
+        <div className="bill-meta">
+          <div>เลขที่ {billNo}</div>
+          <div>วันที่ {dateText}</div>
         </div>
 
         <table className="items">
@@ -607,7 +623,6 @@ export default function ReceiptPage() {
             {qrUrl && (
               <div className="pp">
                 <div className="pp-logo">
-                  <div className="pp-th">พร้อมเพย์</div>
                   <div className="pp-en"><b>Prompt</b><span>Pay</span></div>
                 </div>
                 <img src={qrUrl} alt="PromptPay" />
@@ -619,14 +634,24 @@ export default function ReceiptPage() {
           </div>
           <div className="sum">
             <div>ยอดรวม {subtotal.toLocaleString()} บาท</div>
-            <div>ส่วนลด {Number(discount || 0).toLocaleString()} บาท <input className="no-print" style={{ width: 80, textAlign: 'right' }} value={discount} onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} /></div>
+            <div className="discount">ส่วนลด {Number(discount || 0).toLocaleString()} บาท <input value={discount} onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} /></div>
             <div className="grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
             <div className="words">{bahtText(total)}</div>
           </div>
         </div>
         <div className="signs">
           <div><i></i>ตรวจรับงานซ่อม</div>
-          <div><i></i>ช่างซ่อม<br />{technician}</div>
+          <div>
+            <select className="sign-name" value={technician} onChange={(e) => setTechnician(e.target.value)}>
+              <option value="">เลือกช่าง</option>
+              {technician && !techNames.includes(technician) && <option value={technician}>{technician}</option>}
+              {techNames.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+            <i></i>
+            <div>ช่างซ่อม</div>
+            <input className="sign-date" type="date" value={signDate} onChange={(e) => setSignDate(e.target.value)} />
+            <div className="only-print">{thaiFromIso(signDate)}</div>
+          </div>
           <div><i></i>ผู้รับเงิน</div>
         </div>
       </div>
