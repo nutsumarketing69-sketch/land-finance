@@ -8,14 +8,12 @@ type Line = { name: string; qty: number; price: number }
 const SHOP_TAX = '3101701714063'
 const PROMPTPAY_ID = '0994102559'
 const PROMPTPAY_TEXT = '099-410-2559'
-
 const BRANCH_BOOK = [
   { key: 'เจ้าฟ้า', title: 'รัษฎาแอร์ เจ้าฟ้าสวนหลวง', address: 'ถนนเจ้าฟ้าสวนหลวง ตำบลวิชิต อำเภอเมืองภูเก็ต จังหวัดภูเก็ต', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
   { key: 'ท่าเรือ', title: 'รัษฎาแอร์ ท่าเรือ', address: '56/6 หมู่ที่ 5 ถนนเทพกระษัตรี ตำบลศรีสุนทร อำเภอถลาง จังหวัดภูเก็ต 83110', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
   { key: 'สนามบิน', title: 'รัษฎาแอร์ สนามบิน', address: '201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
   { key: 'กู้กู', title: 'รัษฎาแอร์ กู้กู', address: '63/20 หมู่ที่ 3 ถนนร่วมพัฒนา ตำบลรัษฎา อำเภอเมือง จังหวัดภูเก็ต 83000', phone: '099-4102559 , 084-3057559', email: 'ratsada_air@hotmail.com' },
 ]
-
 const DOC_TYPES = [
   { id: 'receipt', title: 'ใบเสร็จรับเงิน/Receipt' },
   { id: 'delivery', title: 'ใบส่งของ/Delivery Bill' },
@@ -27,36 +25,27 @@ function crc16(data: string) {
   let crc = 0xffff
   for (let i = 0; i < data.length; i++) {
     crc ^= data.charCodeAt(i) << 8
-    for (let j = 0; j < 8; j++) {
-      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1)
-      crc &= 0xffff
-    }
+    for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1); crc &= 0xffff }
   }
   return crc.toString(16).toUpperCase().padStart(4, '0')
 }
-
 function promptPay(id: string, amount: number) {
   const numbers = id.replace(/\D/g, '')
   const target = numbers.length >= 13 ? numbers : ('0000000000000' + numbers.replace(/^0/, '66')).slice(-13)
   const targetType = numbers.length >= 15 ? '03' : numbers.length >= 13 ? '02' : '01'
   const field = (tag: string, value: string) => tag + String(value.length).padStart(2, '0') + value
-  const merchant = field('00', 'A000000677010111') + field(targetType, target)
   const amountText = amount > 0 ? amount.toFixed(2) : ''
-  const body = [field('00', '01'), field('01', amountText ? '12' : '11'), field('29', merchant), field('58', 'TH'), field('53', '764'), amountText ? field('54', amountText) : ''].join('')
-  const data = body + '6304'
-  return data + crc16(data)
+  const body = [field('00', '01'), field('01', amountText ? '12' : '11'), field('29', field('00', 'A000000677010111') + field(targetType, target)), field('58', 'TH'), field('53', '764'), amountText ? field('54', amountText) : ''].join('')
+  return body + '6304' + crc16(body + '6304')
 }
-
 function bahtText(amount: number) {
   const digits = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
   const units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน']
   const group = (num: number): string => {
     if (num >= 1000000) return group(Math.floor(num / 1000000)) + 'ล้าน' + group(num % 1000000)
-    const s = String(num)
-    let out = ''
+    const s = String(num); let out = ''
     for (let i = 0; i < s.length; i++) {
-      const d = Number(s[i])
-      const p = s.length - i - 1
+      const d = Number(s[i]); const p = s.length - i - 1
       if (!d) continue
       if (p === 1 && d === 1) out += 'สิบ'
       else if (p === 1 && d === 2) out += 'ยี่สิบ'
@@ -66,12 +55,10 @@ function bahtText(amount: number) {
     return out
   }
   const n = Math.round(Math.abs(Number(amount || 0)) * 100)
-  const baht = Math.floor(n / 100)
-  const satang = n % 100
+  const baht = Math.floor(n / 100); const satang = n % 100
   if (!baht && !satang) return 'ศูนย์บาทถ้วน'
   return `${baht ? group(baht) + 'บาท' : ''}${satang ? group(satang) + 'สตางค์' : 'ถ้วน'}`
 }
-
 function thaiFromDate(value: string) {
   if (!value) return ''
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value
@@ -79,33 +66,20 @@ function thaiFromDate(value: string) {
   if (Number.isNaN(date.getTime())) return value
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear() + 543}`
 }
-
 function readItems(value: any): Line[] {
   let raw = value
-  if (typeof raw === 'string') {
-    try { raw = JSON.parse(raw) } catch { raw = [] }
-  }
+  if (typeof raw === 'string') { try { raw = JSON.parse(raw) } catch { raw = [] } }
   if (!Array.isArray(raw)) return []
-  return raw
-    .filter((item) => item && String(item.name || item.item || '').trim())
-    .map((item) => ({ name: String(item.name || item.item || ''), qty: Number(item.qty || 1), price: Number(item.price || 0) }))
+  return raw.filter((item) => item && String(item.name || '').trim()).map((item) => ({ name: String(item.name), qty: Number(item.qty || 1), price: Number(item.price || 0) }))
 }
-
 function readMeta(note: string) {
   const text = String(note || '')
   const mark = text.indexOf('[[meta]]')
   let meta: any = {}
   let body = text
-  if (mark >= 0) {
-    body = text.slice(0, mark)
-    try { meta = JSON.parse(text.slice(mark + 8).trim()) } catch { meta = {} }
-  }
+  if (mark >= 0) { body = text.slice(0, mark); try { meta = JSON.parse(text.slice(mark + 8).trim()) } catch { meta = {} } }
   const rows = body.split('\n').map((line) => line.trim()).filter(Boolean)
-  return {
-    meta,
-    warranty: rows.find((line) => line.startsWith('รับประกัน')) || '',
-    note: rows.filter((line) => !line.startsWith('รับประกัน') && !line.startsWith('ชำระโดย') && !line.startsWith('ช่าง:') && !line.startsWith('[[meta]]')).join('\n'),
-  }
+  return { meta, warranty: rows.find((line) => line.startsWith('รับประกัน')) || '', note: rows.filter((line) => !line.startsWith('รับประกัน') && !line.startsWith('ชำระโดย') && !line.startsWith('ช่าง:')).join('\n') }
 }
 
 export default function BranchPrinterPage() {
@@ -126,12 +100,12 @@ export default function BranchPrinterPage() {
     localStorage.setItem('branchPrinterId', branchId)
     let stop = false
     const beat = async () => {
-      const supabase = createClient()
       const now = new Date().toISOString()
+      const supabase = createClient()
       const up = await supabase.from('printer_heartbeats').upsert({ branch_id: branchId, last_seen: now }, { onConflict: 'branch_id' })
       if (up.error) {
-        const updated = await supabase.from('printer_heartbeats').update({ last_seen: now }).eq('branch_id', branchId)
-        if (updated.error || !updated.data) await supabase.from('printer_heartbeats').insert({ branch_id: branchId, last_seen: now })
+        await supabase.from('printer_heartbeats').update({ last_seen: now }).eq('branch_id', branchId)
+        await supabase.from('printer_heartbeats').insert({ branch_id: branchId, last_seen: now })
       }
       if (!stop && !job) setStatus('เครื่องสาขาออนไลน์ รอรับบิล')
     }
@@ -159,18 +133,18 @@ export default function BranchPrinterPage() {
     if (!job) return
     let stop = false
     const run = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      await new Promise((resolve) => setTimeout(resolve, 300))
       const img = document.querySelector('.pp img') as HTMLImageElement | null
       if (img && !(img.complete && img.naturalWidth > 0)) {
         await new Promise((resolve) => {
           img.onload = () => resolve(true)
           img.onerror = () => resolve(true)
-          setTimeout(resolve, 2500)
+          setTimeout(resolve, 3000)
         })
       }
       if (stop) return
       window.print()
-      await new Promise((resolve) => setTimeout(resolve, 1200))
+      await new Promise((resolve) => setTimeout(resolve, 1500))
       await createClient().from('print_jobs').update({ status: 'printed' }).eq('id', job.id)
       if (!stop) setJob(null)
     }
@@ -179,148 +153,80 @@ export default function BranchPrinterPage() {
   }, [job])
 
   const payload = job?.payload || {}
-  const parsed = readMeta(payload.note || job?.note || '')
+  const parsed = readMeta(payload.note || '')
   const meta = { ...parsed.meta, ...payload }
   const branch = branches.find((item) => item.id === (job?.branch_id || branchId))
   const info = BRANCH_BOOK.find((item) => String(meta.title || meta.headerTitle || branch?.name || '').includes(item.key)) || null
   const title = info?.title || meta.title || meta.headerTitle || branch?.name || 'รัษฎาแอร์'
   const company = meta.customerType === 'company' || meta.showShopTax === true
   const docTitle = meta.docTitle || DOC_TYPES.find((item) => item.id === meta.docType)?.title || 'ใบเสร็จรับเงิน/Receipt'
-  const items = readItems(meta.items || payload.items)
+  const items = readItems(meta.items)
   const subtotal = Number(meta.subtotal ?? items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0))
   const discount = Number(meta.discount || 0)
   const total = Number(meta.total ?? Math.max(0, subtotal - discount))
-  const payLabel = meta.payLabel || 'เงินสด'
   const showQr = meta.showQr !== false && meta.payType !== 'credit' && meta.payType !== 'cheque' && meta.docType !== 'delivery' && meta.docType !== 'quotation' && total > 0
-  const qrData = meta.promptpay || (showQr ? promptPay(PROMPTPAY_ID, total) : '')
-  const qrUrl = qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=16&ecc=M&data=${encodeURIComponent(qrData)}` : ''
-  const customer = meta.customer || meta.customer_name || ''
-  const phone = meta.phone || meta.customerPhone || ''
-  const plate = meta.plate || meta.license_plate || ''
+  const qrCode = meta.promptpay || (showQr ? promptPay(PROMPTPAY_ID, total) : '')
+  const qrUrl = qrCode ? `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=20&ecc=M&data=${encodeURIComponent(qrCode)}` : ''
   const dateText = thaiFromDate(meta.dateText || meta.date || '')
   const signDate = thaiFromDate(meta.signDate || '')
   const warrantyText = meta.warrantyText || (meta.warrantyMonths > 0 ? `รับประกันงาน ${meta.warrantyMonths} เดือน` : parsed.warranty)
 
   return (
-    <div className="page">
+    <div style={{ background: '#fff', minHeight: '100vh', padding: 12, fontFamily: '"Leelawadee UI",Tahoma,sans-serif', color: '#111' }}>
       <style>{`
-        .page { background:#fff; color:#111; min-height:100vh; padding:12px; font-family:"Leelawadee UI",Tahoma,sans-serif; }
-        .toolbar { max-width:210mm; margin:0 auto 12px; display:flex; gap:12px; align-items:end; }
-        .toolbar select { background:#fff; color:#111; border:1px solid #ccc; border-radius:8px; padding:8px; }
-        .wait { max-width:210mm; margin:40px auto; font-size:18px; }
         .sheet { max-width:210mm; margin:0 auto; }
         .head { display:flex; gap:12px; align-items:center; }
-        .logo { width:190px; height:auto; object-fit:contain; }
-        .shop { flex:1; text-align:right; }
-        .shop h1 { margin:0; font-size:22px; }
-        .shop p { margin:0; font-size:11px; line-height:1.35; }
+        .logo { width:190px; height:auto; }
+        .shop { flex:1; text-align:right; } .shop h1 { margin:0; font-size:22px; } .shop p { margin:0; font-size:11px; line-height:1.35; }
         .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
-        .who-wrap { position:relative; padding-right:46mm; margin:0 0 6px; }
-        .who { font-size:13px; line-height:1.55; }
+        .who-wrap { position:relative; padding-right:46mm; margin-bottom:6px; } .who { font-size:13px; line-height:1.55; }
         .bill-meta { position:absolute; right:0; bottom:0; width:44mm; text-align:right; font-size:13px; line-height:1.4; }
-        table { width:100%; border-collapse:collapse; }
-        th, td { border:1px solid #222; padding:3px 5px; font-size:12px; }
-        th { background:#f5f5f5; }
+        table { width:100%; border-collapse:collapse; } th, td { border:1px solid #222; padding:3px 5px; font-size:12px; } th { background:#f5f5f5; }
         .c { text-align:center; } .r { text-align:right; }
         .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; }
-        .sum { min-width:230px; line-height:1.7; }
-        .sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; align-items:center; }
-        .sum-line .amt { text-align:right; }
-        .grand { font-size:16px; font-weight:700; }
-        .words { font-size:12px; text-align:right; }
-        .pp { width:136px; border:1.5px solid #0b3b8c; background:#fff; }
-        .pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
-        .pp-en { font-size:14px; font-weight:800; letter-spacing:-0.3px; line-height:1.1; }
-        .pp-en b { background:#0b3b8c; color:#fff; padding:0 2px; }
-        .pp-en span { color:#0b3b8c; }
-        .pp img { display:block; width:116px; height:116px; margin:3px auto 4px; }
-        .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:10px; line-height:1.3; padding:3px 2px; }
-        .note { white-space:pre-wrap; font-size:12px; margin-top:4px; }
-        .warn { color:#b00000; font-size:12px; margin-top:4px; }
+        .sum { min-width:230px; line-height:1.7; } .sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; } .sum-line .amt { text-align:right; }
+        .grand { font-size:16px; font-weight:700; } .words { text-align:right; font-size:12px; }
+        .pp { width:112px; border:1.5px solid #0b3b8c; } .pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
+        .pp-en { font-size:13px; font-weight:800; } .pp-en b { background:#0b3b8c; color:#fff; padding:0 2px; } .pp-en span { color:#0b3b8c; }
+        .pp img { display:block; width:92px; height:92px; margin:2px auto 3px; }
+        .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:9px; line-height:1.3; padding:3px 2px; }
+        .note { white-space:pre-wrap; font-size:12px; margin-top:4px; } .warn { color:#b00000; font-size:12px; }
         .signs { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:18px; text-align:center; font-size:12px; }
-        .sign-top { min-height:24px; }
-        .signs i { display:block; width:150px; border-bottom:1px solid #111; height:0; margin:0 auto 4px; }
-        @media print {
-          @page { size:A4 portrait; margin:8mm; }
-          .no-print { display:none !important; }
-          .page { padding:0; }
-          .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-        }
+        .sign-top { min-height:24px; } .signs i { display:block; width:150px; border-bottom:1px solid #111; margin:0 auto 4px; }
+        @media print { @page { size:A4 portrait; margin:8mm; } .no-print { display:none !important; } .pp,.pp-foot,.pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
       `}</style>
-
-      <div className="toolbar no-print">
+      <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto 12px', display: 'flex', gap: 12, alignItems: 'end' }}>
         <label>สาขาของเครื่องนี้
-          <select value={branchId} onChange={(e) => { setBranchId(e.target.value); setJob(null) }}>
+          <select value={branchId} onChange={(e) => { setBranchId(e.target.value); setJob(null) }} style={{ display: 'block', marginTop: 4, padding: 8 }}>
             <option value="">เลือกสาขา</option>
             {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
         <b>{status}</b>
       </div>
-
-      {!job && <div className="wait no-print">{branchId ? 'รอรับบิลจากผู้จัดการ...' : 'เลือกสาขาครั้งแรก ครั้งต่อไปจำสาขานี้ไว้'}</div>}
-
+      {!job && <p className="no-print">{branchId ? 'รอรับบิลจากผู้จัดการ...' : 'เลือกสาขาครั้งแรก ครั้งต่อไปจำไว้ให้'}</p>}
       {job && (
         <div className="sheet">
           <div className="head">
             {logoOk && <img src="/ratsada-logo.png" alt="RATSADA" className="logo" onError={() => setLogoOk(false)} />}
-            <div className="shop">
-              <h1>{title}</h1>
-              {info && <p>{info.address}</p>}
-              {info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}
-            </div>
+            <div className="shop"><h1>{title}</h1>{info && <p>{info.address}</p>}{info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}</div>
           </div>
           <h2 className="doc">{docTitle}</h2>
           <div className="who-wrap">
             <div className="who">
-              {company ? (
-                <>
-                  <div>{customer}</div>
-                  {meta.customerAddress && <div>ที่อยู่: {meta.customerAddress}</div>}
-                  <div>เลขที่ผู้เสียภาษี {meta.customerTax || ''} โทร: {phone}</div>
-                </>
-              ) : (
-                <div>ลูกค้า: {customer} โทร: {phone}</div>
-              )}
-              <div>รุ่นรถ: {meta.brand || ''} {meta.model || meta.car_info || ''} ทะเบียน: {plate} เลขที่ไมล์: {meta.mileage || ''} km.{meta.color ? ` สี: ${meta.color}` : ''}</div>
-              <div>ชำระโดย: {payLabel}{meta.chequeNo ? ` ${meta.chequeNo}` : ''}</div>
+              {company ? (<><div>{meta.customer || meta.customer_name}</div>{meta.customerAddress && <div>ที่อยู่: {meta.customerAddress}</div>}<div>เลขที่ผู้เสียภาษี {meta.customerTax || ''} โทร: {meta.phone || meta.customerPhone || ''}</div></>) : (<div>ลูกค้า: {meta.customer || meta.customer_name || ''} โทร: {meta.phone || meta.customerPhone || ''}</div>)}
+              <div>รุ่นรถ: {meta.brand || ''} {meta.model || meta.car_info || ''} ทะเบียน: {meta.plate || meta.license_plate || ''} เลขที่ไมล์: {meta.mileage || ''} km.{meta.color ? ` สี: ${meta.color}` : ''}</div>
+              <div>ชำระโดย: {meta.payLabel || 'เงินสด'}{meta.chequeNo ? ` ${meta.chequeNo}` : ''}</div>
             </div>
-            <div className="bill-meta">
-              <div>เลขที่ {meta.billNo || meta.bill_no || job.bill_no}</div>
-              <div>วันที่ {dateText}</div>
-            </div>
+            <div className="bill-meta"><div>เลขที่ {meta.billNo || meta.bill_no || job.bill_no}</div><div>วันที่ {dateText}</div></div>
           </div>
           <table>
-            <thead>
-              <tr>
-                <th className="c" style={{ width: 36 }}>ลำดับ</th>
-                <th>รายการ</th>
-                <th className="c" style={{ width: 70 }}>จำนวน</th>
-                <th className="r" style={{ width: 90 }}>ราคา/หน่วย</th>
-                <th className="r" style={{ width: 100 }}>จำนวนเงิน</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr key={`${item.name}-${index}`}>
-                  <td className="c">{index + 1}</td>
-                  <td>{item.name}</td>
-                  <td className="c">{item.qty}</td>
-                  <td className="r">{Number(item.price || 0).toLocaleString()}</td>
-                  <td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
+            <thead><tr><th className="c">ลำดับ</th><th>รายการ</th><th className="c">จำนวน</th><th className="r">ราคา/หน่วย</th><th className="r">จำนวนเงิน</th></tr></thead>
+            <tbody>{items.map((item, index) => <tr key={`${item.name}-${index}`}><td className="c">{index + 1}</td><td>{item.name}</td><td className="c">{item.qty}</td><td className="r">{Number(item.price || 0).toLocaleString()}</td><td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td></tr>)}</tbody>
           </table>
           <div className="foot">
             <div>
-              {qrUrl && (
-                <div className="pp">
-                  <div className="pp-logo"><div className="pp-en"><b>Prompt</b><span>Pay</span></div></div>
-                  <img src={qrUrl} alt="PromptPay" />
-                  <div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div>
-                </div>
-              )}
+              {qrUrl && <div className="pp"><div className="pp-logo"><div className="pp-en"><b>Prompt</b><span>Pay</span></div></div><img src={qrUrl} alt="PromptPay" /><div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div></div>}
               {parsed.note && <div className="note">{parsed.note}</div>}
               {warrantyText && <div className="warn">{warrantyText}</div>}
             </div>
