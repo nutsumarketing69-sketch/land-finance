@@ -377,18 +377,22 @@ export default function ReceiptPage() {
         .shop h1 { margin:0; font-size:22px; }
         .shop p { margin:0; font-size:11px; line-height:1.35; }
         .doc { text-align:center; font-size:18px; margin:8px 0; }
-        .grid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:6px; }
         .sheet input, .sheet textarea { width:100%; box-sizing:border-box; background:#fff; color:#111; border:1px solid #e6e6e6; border-radius:4px; padding:5px 6px; font:inherit; }
         table { width:100%; border-collapse:collapse; margin-top:8px; }
-        th, td { border:1px solid #222; padding:3px 5px; font-size:12px; vertical-align:top; }
+        th, td { border:1px solid #222; padding:3px 5px; font-size:12px; vertical-align:middle; }
         th { background:#f5f5f5; }
+        table.meta { margin-top:4px; }
+        table.meta th { width:78px; text-align:left; font-weight:600; background:#f7f7f7; white-space:nowrap; }
+        table.meta td { background:#fff; }
+        table.meta input { border:none; padding:2px 4px; background:transparent; }
         .c { text-align:center; } .r { text-align:right; }
         .rel { position:relative; }
+        .pair { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
         .menu { position:absolute; z-index:30; left:0; right:0; background:#fff; border:1px solid #ddd; max-height:180px; overflow:auto; }
         .menu button, .chips button, .rowbtn { background:#fff; color:#111; border:1px solid #ddd; border-radius:6px; padding:4px 8px; cursor:pointer; }
         .chips { display:flex; gap:4px; flex-wrap:wrap; margin:4px 0; }
         .foot { display:flex; justify-content:space-between; gap:12px; margin-top:8px; }
-        .sum { text-align:right; min-width:180px; }
+        .sum { text-align:right; min-width:210px; }
         .grand { font-size:16px; font-weight:700; }
         .words { font-size:12px; }
         .qr { display:flex; gap:8px; align-items:center; font-size:11px; }
@@ -398,13 +402,14 @@ export default function ReceiptPage() {
         .signs i { display:block; width:130px; border-bottom:1px solid #111; height:26px; margin:0 auto 4px; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:10px 14px; cursor:pointer; }
-        @media (max-width:800px) { .toolbar, .grid { grid-template-columns:1fr 1fr; } }
+        @media (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } }
         @media print {
           @page { size:A4 portrait; margin:8mm; }
           .no-print { display:none !important; }
           .page { background:#fff; padding:0; }
           .sheet { box-shadow:none; border-top:0; max-width:none; padding:0; }
           .sheet input, .sheet textarea { border:none !important; padding:0 !important; background:transparent !important; }
+          .sheet input::placeholder, .sheet textarea::placeholder { color:transparent !important; }
           tr.spare { display:none; }
         }
       `}</style>
@@ -460,51 +465,87 @@ export default function ReceiptPage() {
           </div>
         </div>
         <h2 className="doc">{docTitle}</h2>
-        <div className="grid">
-          <div className="rel">
-            <input value={customer} autoComplete="off" onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อลูกค้า / ชื่อบริษัท" />
-            {customerHits.length > 0 && (
-              <div className="menu no-print">
-                {customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}
-              </div>
+
+        <table className="meta">
+          <tbody>
+            <tr>
+              <th>ลูกค้า</th>
+              <td className="rel">
+                <input value={customer} autoComplete="off" onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อลูกค้า / ชื่อบริษัท" />
+                {customerHits.length > 0 && (
+                  <div className="menu no-print">
+                    {customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}
+                  </div>
+                )}
+              </td>
+              <th>เลขที่</th>
+              <td>{billNo}</td>
+            </tr>
+            <tr>
+              <th>โทร</th>
+              <td><input value={phone} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" /></td>
+              <th>วันที่</th>
+              <td>{dateText}</td>
+            </tr>
+            {customerType === 'company' && (
+              <tr>
+                <th>เลขภาษี</th>
+                <td><input value={customerTax} onChange={(e) => setCustomerTax(e.target.value)} placeholder="เลขผู้เสียภาษีลูกค้า" /></td>
+                <th>ประเภท</th>
+                <td>บริษัท</td>
+              </tr>
             )}
-          </div>
-          <input value={phone} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
-          <input value={customerType === 'company' ? customerTax : ''} disabled={customerType !== 'company'} onChange={(e) => setCustomerTax(e.target.value)} placeholder={customerType === 'company' ? 'เลขผู้เสียภาษีลูกค้า' : 'ลูกค้าทั่วไป'} />
-          <input style={{ gridColumn: '1 / -1' }} value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่ลูกค้า ถ้าเป็นบริษัท" />
-          <div className="rel">
-            <input value={plate} autoComplete="off" onChange={(e) => searchPlates(e.target.value)} placeholder="ป้ายทะเบียน" />
-            {plateHits.length > 0 && (
-              <div className="menu no-print">
-                {plateHits.map((item) => (
-                  <button key={item.id} onClick={() => { setPlate(item.license_plate || ''); setBrand(item.brand || ''); setModel(item.model || model); setColor(item.color || ''); setMileage(item.mileage ? String(item.mileage) : mileage); setCustomer(item.customers?.full_name || customer); setPhone(item.customers?.phone || phone); setPlateHits([]) }}>
-                    {item.license_plate} {item.brand} {item.model}
-                  </button>
-                ))}
-              </div>
+            {customerType === 'company' && (
+              <tr>
+                <th>ที่อยู่</th>
+                <td colSpan={3}><input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่บริษัท" /></td>
+              </tr>
             )}
-          </div>
-          <div className="rel">
-            <input value={brand} autoComplete="off" onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true); setSavedId('') }} placeholder="ยี่ห้อ เช่น T" />
-            {brandOpen && brandHits.length > 0 && <div className="menu no-print">{brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}</div>}
-          </div>
-          <div className="rel">
-            <input value={model} autoComplete="off" onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true); setSavedId('') }} placeholder="รุ่น เช่น y" />
-            {modelOpen && modelHits.length > 0 && <div className="menu no-print">{modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}</div>}
-          </div>
-        </div>
+            <tr>
+              <th>ทะเบียน</th>
+              <td className="rel">
+                <input value={plate} autoComplete="off" onChange={(e) => searchPlates(e.target.value)} placeholder="ป้ายทะเบียน" />
+                {plateHits.length > 0 && (
+                  <div className="menu no-print">
+                    {plateHits.map((item) => (
+                      <button key={item.id} onClick={() => { setPlate(item.license_plate || ''); setBrand(item.brand || ''); setModel(item.model || model); setColor(item.color || ''); setMileage(item.mileage ? String(item.mileage) : mileage); setCustomer(item.customers?.full_name || customer); setPhone(item.customers?.phone || phone); setPlateHits([]) }}>
+                        {item.license_plate} {item.brand} {item.model}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </td>
+              <th>ชำระโดย</th>
+              <td>{payLabel}{chequeNo ? ` ${chequeNo}` : ''}</td>
+            </tr>
+            <tr>
+              <th>ยี่ห้อ</th>
+              <td className="rel">
+                <input value={brand} autoComplete="off" onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true); setSavedId('') }} placeholder="เช่น T" />
+                {brandOpen && brandHits.length > 0 && <div className="menu no-print">{brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}</div>}
+              </td>
+              <th>รุ่น</th>
+              <td className="rel">
+                <input value={model} autoComplete="off" onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true); setSavedId('') }} placeholder="เช่น y" />
+                {modelOpen && modelHits.length > 0 && <div className="menu no-print">{modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}</div>}
+              </td>
+            </tr>
+            <tr>
+              <th>สี</th>
+              <td><input value={color} onChange={(e) => setColor(e.target.value)} placeholder="สีรถ" /></td>
+              <th>เลขไมล์</th>
+              <td><input value={mileage} onChange={(e) => setMileage(e.target.value)} placeholder="เลขไมล์" /></td>
+            </tr>
+            <tr>
+              <th>ช่าง</th>
+              <td colSpan={3}><input value={technician} onChange={(e) => setTechnician(e.target.value)} placeholder="ช่างผู้ปฏิบัติ" /></td>
+            </tr>
+          </tbody>
+        </table>
         <div className="chips no-print">
           {COLORS.map((item) => <button key={item} onClick={() => setColor(item)} style={{ background: color === item ? '#111' : '#fff', color: color === item ? '#fff' : '#111' }}>{item}</button>)}
         </div>
-        <div className="grid">
-          <input value={color} onChange={(e) => setColor(e.target.value)} placeholder="สีรถ" />
-          <input value={mileage} onChange={(e) => setMileage(e.target.value)} placeholder="เลขไมล์" />
-          <input value={technician} onChange={(e) => setTechnician(e.target.value)} placeholder="ช่างผู้ปฏิบัติ" />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12 }}>
-          <div>ชำระโดย: {payLabel}{chequeNo ? ` เลขที่ ${chequeNo}` : ''}</div>
-          <div>เลขที่ {billNo}<br />วันที่ {dateText}</div>
-        </div>
+
         <table>
           <thead>
             <tr>
@@ -549,7 +590,7 @@ export default function ReceiptPage() {
           </div>
           <div className="sum">
             <div>ยอดรวม {subtotal.toLocaleString()} บาท</div>
-            <div className="no-print">ส่วนลด <input style={{ width: 90, textAlign: 'right' }} value={discount} onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} /></div>
+            <div>ส่วนลด {Number(discount || 0).toLocaleString()} บาท <input className="no-print" style={{ width: 80, textAlign: 'right' }} value={discount} onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} /></div>
             <div className="grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
             <div className="words">{bahtText(total)}</div>
           </div>
