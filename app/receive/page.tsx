@@ -178,7 +178,7 @@ export default function ReceivePage() {
       const body = new FormData()
       body.append('photo', small, 'car.jpg')
       body.append('caption', caption)
-      const res = await fetch('/api/telegram', { method: 'POST', body })
+      const res = await fetch('/telegram', { method: 'POST', body })
       const text = await res.text()
       let data: any = {}
       try {
