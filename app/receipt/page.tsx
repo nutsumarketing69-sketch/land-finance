@@ -270,7 +270,7 @@ export default function ReceiptPage() {
     headerTitle: title,
     title,
     address: info?.address || '',
-    phone: info?.phone || '',
+    shopPhone: info?.phone || '',
     email: info?.email || '',
     showShopTax: customerType === 'company',
     shopTax: customerType === 'company' ? SHOP_TAX : '',
