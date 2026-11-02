@@ -7,6 +7,7 @@ type Line = { name: string; qty: number; price: number }
 
 const SHOP_TAX = '3101701714063'
 const PROMPTPAY_ID = '0994102559'
+const PROMPTPAY_TEXT = '099-410-2559'
 
 const BRANCH_BOOK = [
   { key: 'เจ้าฟ้า', title: 'รัษฎาแอร์ เจ้าฟ้าสวนหลวง', address: 'ถนนเจ้าฟ้าสวนหลวง ตำบลวิชิต อำเภอเมืองภูเก็ต จังหวัดภูเก็ต', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
@@ -256,7 +257,8 @@ export default function ReceiptPage() {
   const showQr = (docType === 'receipt' || docType === 'deposit') && payType !== 'credit' && payType !== 'cheque' && total > 0
   const warrantyText = warrantyMonths > 0 ? `รับประกันงาน ${warrantyMonths} เดือน` : ''
   const brandKey = Object.keys(BRANDS).find((name) => name.toLowerCase() === brand.trim().toLowerCase()) || ''
-  const qrUrl = showQr ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=12&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}` : ''
+  const company = customerType === 'company'
+  const qrUrl = showQr ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}` : ''
 
   const brandHits = useMemo(() => {
     const q = brand.trim().toLowerCase()
@@ -301,8 +303,8 @@ export default function ReceiptPage() {
     address: info?.address || '',
     shopPhone: info?.phone || '',
     email: info?.email || '',
-    showShopTax: customerType === 'company',
-    shopTax: customerType === 'company' ? SHOP_TAX : '',
+    showShopTax: company,
+    shopTax: company ? SHOP_TAX : '',
     docType,
     docTitle,
     billNo,
@@ -314,7 +316,7 @@ export default function ReceiptPage() {
     customer_name: customer,
     customerPhone: phone,
     phone,
-    customerTax: customerType === 'company' ? customerTax : '',
+    customerTax: company ? customerTax : '',
     customerAddress,
     plate,
     license_plate: plate,
@@ -406,10 +408,10 @@ export default function ReceiptPage() {
         .shop p { margin:0; font-size:11px; line-height:1.35; }
         .doc { text-align:center; font-size:18px; margin:8px 0 6px; }
         .who { font-size:13px; line-height:1.85; margin-bottom:6px; }
-        .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; }
+        .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 14px; }
         .who input { border:none; border-bottom:1px solid transparent; background:transparent; color:#111; font:inherit; padding:0 1px; }
         .who input:focus { border-bottom-color:#ccc; outline:none; }
-        .sep { color:#888; }
+        .co-name { font-weight:700; }
         .sheet textarea, .items input { width:100%; box-sizing:border-box; background:transparent; color:#111; border:none; padding:2px 4px; font:inherit; }
         .sheet textarea { border-bottom:1px solid #eee; }
         table { width:100%; border-collapse:collapse; margin-top:8px; }
@@ -426,8 +428,14 @@ export default function ReceiptPage() {
         .sum { text-align:right; min-width:210px; }
         .grand { font-size:16px; font-weight:700; }
         .words { font-size:12px; }
-        .qr { display:flex; gap:8px; align-items:center; font-size:12px; }
-        .qr img { width:148px; height:148px; background:#fff; }
+        .pp { width:168px; border:2px solid #0b3b8c; background:#fff; color:#111; }
+        .pp-logo { margin:6px; border:2px solid #0b3b8c; text-align:center; padding:3px 4px 4px; }
+        .pp-th { color:#0b3b8c; font-size:11px; font-weight:700; line-height:1; }
+        .pp-en { font-size:20px; font-weight:800; letter-spacing:-0.4px; line-height:1.1; }
+        .pp-en b { background:#0b3b8c; color:#fff; padding:0 3px 1px; }
+        .pp-en span { color:#0b3b8c; }
+        .pp img { display:block; width:140px; height:140px; margin:2px auto 6px; }
+        .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:11px; line-height:1.35; padding:6px 4px; }
         .warn { color:#b00000; font-size:12px; margin-top:4px; }
         .signs { display:flex; justify-content:space-between; margin-top:18px; text-align:center; font-size:12px; }
         .signs i { display:block; width:130px; border-bottom:1px solid #111; height:26px; margin:0 auto 4px; }
@@ -441,6 +449,7 @@ export default function ReceiptPage() {
           .sheet { box-shadow:none; border-top:0; max-width:none; padding:0; }
           .who input, .sheet textarea, .items input { border:none !important; }
           .who input::placeholder, .sheet textarea::placeholder { color:transparent !important; }
+          .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
           tr.spare { display:none; }
         }
       `}</style>
@@ -491,36 +500,44 @@ export default function ReceiptPage() {
           <div className="shop">
             <h1>{title}</h1>
             {info && <p>{info.address}</p>}
-            {info && <p>Tel. {info.phone} Email. {info.email}</p>}
-            {customerType === 'company' && <p>เลขประจำตัวผู้เสียภาษีอากร {SHOP_TAX}</p>}
+            {info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}
           </div>
         </div>
         <h2 className="doc">{docTitle}</h2>
 
         <div className="who">
-          <div className="row">
-            <span>ลูกค้า:</span>
-            <span className="rel">
-              <input value={customer} autoComplete="off" style={fit(customer, 6)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อ" />
-              {customerHits.length > 0 && <div className="menu no-print">{customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}</div>}
-            </span>
-            <span className="sep">|</span>
-            <span>โทร:</span>
-            <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
-            {customerType === 'company' && <>
-              <span className="sep">|</span>
-              <span>เลขภาษี:</span>
-              <input value={customerTax} style={fit(customerTax, 8)} onChange={(e) => setCustomerTax(e.target.value)} placeholder="เลขภาษีลูกค้า" />
-            </>}
-          </div>
-          {customerType === 'company' && (
+          {company ? (
+            <>
+              <div className="row">
+                <span className="rel co-name">
+                  <input value={customer} autoComplete="off" style={fit(customer, 16)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อบริษัท" />
+                  {customerHits.length > 0 && <div className="menu no-print">{customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}</div>}
+                </span>
+              </div>
+              <div className="row">
+                <span>ที่อยู่:</span>
+                <input value={customerAddress} style={{ width: '70%' }} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่บริษัท" />
+              </div>
+              <div className="row">
+                <span>เลขที่ผู้เสียภาษี</span>
+                <input value={customerTax} style={fit(customerTax, 13)} onChange={(e) => setCustomerTax(e.target.value)} placeholder="เลขภาษีลูกค้า" />
+                <span>โทร:</span>
+                <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
+              </div>
+            </>
+          ) : (
             <div className="row">
-              <span>ที่อยู่:</span>
-              <input value={customerAddress} style={{ width: '70%' }} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่บริษัท" />
+              <span>ลูกค้า:</span>
+              <span className="rel">
+                <input value={customer} autoComplete="off" style={fit(customer, 6)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อ" />
+                {customerHits.length > 0 && <div className="menu no-print">{customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}</div>}
+              </span>
+              <span>โทร:</span>
+              <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
             </div>
           )}
           <div className="row">
-            <span>รถ:</span>
+            <span>รุ่นรถ:</span>
             <span className="rel">
               <input value={brand} autoComplete="off" style={fit(brand, 6)} onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true); setSavedId('') }} placeholder="ยี่ห้อ" />
               {brandOpen && brandHits.length > 0 && <div className="menu no-print">{brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}</div>}
@@ -529,26 +546,20 @@ export default function ReceiptPage() {
               <input value={model} autoComplete="off" style={fit(model, 6)} onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true); setSavedId('') }} placeholder="รุ่น" />
               {modelOpen && modelHits.length > 0 && <div className="menu no-print">{modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}</div>}
             </span>
-            <span className="sep">|</span>
             <span>ทะเบียน:</span>
             <span className="rel">
               <input value={plate} autoComplete="off" style={fit(plate, 6)} onChange={(e) => searchPlates(e.target.value)} placeholder="ป้าย" />
               {plateHits.length > 0 && <div className="menu no-print">{plateHits.map((item) => <button key={item.id} onClick={() => { setPlate(item.license_plate || ''); setBrand(item.brand || ''); setModel(item.model || model); setColor(item.color || ''); setMileage(item.mileage ? String(item.mileage) : mileage); setCustomer(item.customers?.full_name || customer); setPhone(item.customers?.phone || phone); setPlateHits([]) }}>{item.license_plate} {item.brand} {item.model}</button>)}</div>}
             </span>
-            <span className="sep">|</span>
-            <span>ไมล์:</span>
-            <input value={mileage} style={fit(mileage, 4)} onChange={(e) => setMileage(e.target.value)} placeholder="ไมล์" />
-            <span className={color.trim() ? '' : 'no-print'}><span className="sep">|</span> สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" /></span>
+            <span>เลขที่ไมล์:</span>
+            <span><input value={mileage} style={fit(mileage, 4)} onChange={(e) => setMileage(e.target.value)} placeholder="ไมล์" /> km.</span>
+            <span className={color.trim() ? '' : 'no-print'}>สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" /></span>
           </div>
           <div className="row">
             <span>เลขที่ {billNo}</span>
-            <span className="sep">|</span>
             <span>วันที่ {dateText}</span>
-            <span className="sep">|</span>
             <span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span>
-            <span className="sep">|</span>
-            <span>ช่าง:</span>
-            <input value={technician} style={fit(technician, 4)} onChange={(e) => setTechnician(e.target.value)} placeholder="ชื่อช่าง" />
+            <span>ช่าง: <input value={technician} style={fit(technician, 4)} onChange={(e) => setTechnician(e.target.value)} placeholder="ชื่อช่าง" /></span>
           </div>
         </div>
         <div className="chips no-print">
@@ -593,7 +604,16 @@ export default function ReceiptPage() {
         {items.length < 16 && <button className="rowbtn no-print" style={{ marginTop: 6 }} onClick={() => setItems([...items, blank()])}>เพิ่มรายการ</button>}
         <div className="foot">
           <div>
-            {qrUrl && <div className="qr"><img src={qrUrl} alt="PromptPay" /><div>พร้อมเพย์<br />099-410-2559<br />{total.toLocaleString()} บาท</div></div>}
+            {qrUrl && (
+              <div className="pp">
+                <div className="pp-logo">
+                  <div className="pp-th">พร้อมเพย์</div>
+                  <div className="pp-en"><b>Prompt</b><span>Pay</span></div>
+                </div>
+                <img src={qrUrl} alt="PromptPay" />
+                <div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div>
+              </div>
+            )}
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="หมายเหตุ" />
             {warrantyText && <div className="warn">{warrantyText}</div>}
           </div>
@@ -605,8 +625,8 @@ export default function ReceiptPage() {
           </div>
         </div>
         <div className="signs">
-          <div><i></i>ผู้รับบริการ</div>
-          <div><i></i>ช่างผู้ปฏิบัติ<br />{technician}</div>
+          <div><i></i>ตรวจรับงานซ่อม</div>
+          <div><i></i>ช่างซ่อม<br />{technician}</div>
           <div><i></i>ผู้รับเงิน</div>
         </div>
       </div>
