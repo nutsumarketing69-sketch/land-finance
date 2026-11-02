@@ -43,8 +43,7 @@ function promptPay(id: string, amount: number) {
   const merchant = field('00', 'A000000677010111') + field(targetType, target)
   const amountText = amount > 0 ? amount.toFixed(2) : ''
   const body = [field('00', '01'), field('01', amountText ? '12' : '11'), field('29', merchant), field('58', 'TH'), field('53', '764'), amountText ? field('54', amountText) : ''].join('')
-  const data = body + '6304'
-  return data + crc16(data)
+  return body + '6304' + crc16(body + '6304')
 }
 
 function bahtText(amount: number) {
@@ -86,9 +85,11 @@ function readItems(value: any): Line[] {
     try { raw = JSON.parse(raw) } catch { raw = [] }
   }
   if (!Array.isArray(raw)) return []
-  return raw
-    .filter((item) => item && String(item.name || item.item || '').trim())
-    .map((item) => ({ name: String(item.name || item.item || ''), qty: Number(item.qty || 1), price: Number(item.price || 0) }))
+  return raw.filter((item) => item && String(item.name || '').trim()).map((item) => ({
+    name: String(item.name),
+    qty: Number(item.qty || 1),
+    price: Number(item.price || 0),
+  }))
 }
 
 function readMeta(note: string) {
@@ -108,6 +109,63 @@ function readMeta(note: string) {
   }
 }
 
+async function waitQr() {
+  const img = document.querySelector('.pp img') as HTMLImageElement | null
+  if (!img) return
+  if (img.complete && img.naturalWidth > 0) return
+  await new Promise((resolve) => {
+    img.onload = () => resolve(true)
+    img.onerror = () => resolve(true)
+    setTimeout(resolve, 3000)
+  })
+}
+
+const BILL_CSS = `
+.sheet { max-width:210mm; margin:0 auto; background:#fff; color:#111; padding:12px 14px 16px; border-top:4px solid #d00000; }
+.head { display:flex; gap:12px; align-items:center; }
+.logo { width:190px; height:auto; object-fit:contain; }
+.shop { flex:1; text-align:right; }
+.shop h1 { margin:0; font-size:22px; }
+.shop p { margin:0; font-size:11px; line-height:1.35; }
+.doc { text-align:center; font-size:18px; margin:6px 0 2px; }
+.who-wrap { position:relative; display:block; padding-right:46mm; margin:0 0 6px; }
+.who { font-size:13px; line-height:1.55; }
+.bill-meta { position:absolute; right:0; bottom:0; width:44mm; text-align:right; font-size:13px; line-height:1.4; }
+table { width:100%; border-collapse:collapse; }
+th, td { border:1px solid #222; padding:3px 5px; font-size:12px; }
+th { background:#f5f5f5; color:#111; }
+.c { text-align:center; } .r { text-align:right; }
+.foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
+.sum { min-width:230px; line-height:1.7; }
+.sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; align-items:center; }
+.sum-line .amt { text-align:right; }
+.grand { font-size:16px; font-weight:700; }
+.words { font-size:12px; text-align:right; }
+.pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; }
+.pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
+.pp-en { font-size:13px; font-weight:800; letter-spacing:-0.3px; line-height:1.1; }
+.pp-en b { background:#0b3b8c; color:#fff; padding:0 2px; }
+.pp-en span { color:#0b3b8c; }
+.pp img { display:block; width:92px; height:92px; margin:2px auto 3px; }
+.pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:9px; line-height:1.3; padding:3px 2px; }
+.note { white-space:pre-wrap; font-size:12px; margin-top:4px; }
+.warn { color:#b00000; font-size:12px; margin-top:4px; }
+.signs { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:18px; text-align:center; font-size:12px; }
+.sign-top { min-height:24px; }
+.signs i { display:block; width:150px; border-bottom:1px solid #111; height:0; margin:0 auto 4px; }
+.actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; justify-content:center; }
+.actions button, .actions a { border:0; border-radius:8px; color:#fff; padding:10px 14px; text-decoration:none; cursor:pointer; }
+@media print {
+  @page { size:A4 portrait; margin:8mm; }
+  .no-print { display:none !important; }
+  .page { background:#fff; padding:0; }
+  .sheet { border-top:0; max-width:none; padding:0; }
+  .who-wrap { position:relative !important; padding-right:46mm !important; }
+  .bill-meta { position:absolute !important; right:0 !important; bottom:0 !important; left:auto !important; text-align:right !important; }
+  .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}
+`
+
 export default function PrintQueuePage() {
   const [branches, setBranches] = useState<any[]>([])
   const [branchId, setBranchId] = useState('')
@@ -117,8 +175,7 @@ export default function PrintQueuePage() {
   const [msg, setMsg] = useState('')
 
   const loadList = async (nextBranch = branchId) => {
-    const supabase = createClient()
-    let query = supabase.from('bills').select('*').limit(80)
+    let query = createClient().from('bills').select('*').limit(80)
     if (nextBranch) query = query.eq('branch_id', nextBranch)
     const res = await query
     const data = res.data || []
@@ -138,198 +195,95 @@ export default function PrintQueuePage() {
   }
 
   useEffect(() => {
-    const run = async () => {
-      const supabase = createClient()
-      const branchRes = await supabase.from('branches').select('*').order('name')
-      setBranches(branchRes.data || [])
-      const id = new URLSearchParams(window.location.search).get('id')
-      if (id) await openBill(id, false)
-      else await loadList('')
-    }
-    run()
+    createClient().from('branches').select('*').order('name').then((res) => setBranches(res.data || []))
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (id) openBill(id, false)
+    else loadList('')
     const onPop = () => {
-      const id = new URLSearchParams(window.location.search).get('id')
-      if (id) openBill(id, false)
+      const next = new URLSearchParams(window.location.search).get('id')
+      if (next) openBill(next, false)
       else setBill(null)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  const sendBranch = async () => {
-    if (!bill?.branch_id) { setMsg('บิลนี้ยังไม่มีสาขา'); return }
-    const parsed = readMeta(bill.note)
-    const res = await createClient().from('print_jobs').insert({
-      branch_id: bill.branch_id,
-      bill_no: bill.bill_no,
-      status: 'pending',
-      payload: { ...bill, ...parsed.meta, items: readItems(bill.items), note: parsed.note },
-    })
-    setMsg(res.error ? res.error.message : 'ส่งพิมพ์ไปสาขาแล้ว')
-  }
-
-  const parsed = bill ? readMeta(bill.note) : { meta: {}, warranty: '', note: '' }
+  const parsed = bill ? readMeta(bill.note) : { meta: {}, note: '', warranty: '' }
   const meta = parsed.meta || {}
   const branch = branches.find((item) => item.id === bill?.branch_id)
-  const info = BRANCH_BOOK.find((item) => String(branch?.name || meta.title || '').includes(item.key)) || BRANCH_BOOK.find((item) => String(meta.title || '').includes(item.key)) || null
+  const info = BRANCH_BOOK.find((item) => String(branch?.name || meta.title || '').includes(item.key)) || null
   const title = info?.title || meta.title || branch?.name || 'รัษฎาแอร์'
   const company = meta.customerType === 'company'
-  const docTitle = DOC_TYPES.find((item) => item.id === meta.docType)?.title || 'ใบเสร็จรับเงิน/Receipt'
+  const docTitle = DOC_TYPES.find((item) => item.id === meta.docType)?.title || meta.docTitle || 'ใบเสร็จรับเงิน/Receipt'
   const items = bill ? readItems(bill.items) : []
   const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0)
   const discount = Number(bill?.discount || 0)
   const total = Number(bill?.total ?? Math.max(0, subtotal - discount))
   const payLabel = meta.payLabel || 'เงินสด'
   const showQr = (meta.docType || 'receipt') !== 'delivery' && (meta.docType || 'receipt') !== 'quotation' && meta.payType !== 'credit' && meta.payType !== 'cheque' && total > 0
-  const qrUrl = showQr ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}` : ''
+  const qrCode = meta.promptpay || (showQr ? promptPay(PROMPTPAY_ID, total) : '')
+  const qrUrl = qrCode ? `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=20&ecc=M&data=${encodeURIComponent(qrCode)}` : ''
   const dateText = thaiFromDate(meta.dateText || bill?.created_at || '')
   const signDate = thaiFromDate(meta.signDate || bill?.created_at || '')
-  const brand = meta.brand || ''
-  const model = meta.model || bill?.car_info || ''
-  const color = meta.color || ''
-  const technician = meta.technician || ''
-  const warrantyText = meta.warrantyMonths > 0 ? `รับประกันงาน ${meta.warrantyMonths} เดือน` : parsed.warranty
+  const warrantyText = meta.warrantyText || (meta.warrantyMonths > 0 ? `รับประกันงาน ${meta.warrantyMonths} เดือน` : parsed.warranty)
+
+  const printBill = async () => { await waitQr(); window.print() }
+  const sendBranch = async () => {
+    if (!bill?.branch_id) { setMsg('บิลนี้ยังไม่มีสาขา'); return }
+    await waitQr()
+    const res = await createClient().from('print_jobs').insert({
+      branch_id: bill.branch_id, bill_no: bill.bill_no, status: 'pending',
+      payload: { ...meta, ...bill, items, note: parsed.note, title, docTitle, dateText, payLabel, promptpay: qrCode, showQr: Boolean(qrCode), warrantyText, total, subtotal, discount },
+    })
+    setMsg(res.error ? res.error.message : 'ส่งพิมพ์ไปสาขาแล้ว')
+  }
 
   return (
-    <div className="page">
-      <style>{`
-        .page { background:#ececec; color:#111; min-height:100vh; padding:16px; font-family:"Leelawadee UI",Tahoma,sans-serif; }
-        .toolbar { max-width:210mm; margin:0 auto 10px; display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
-        .toolbar label { font-size:12px; color:#333; }
-        .toolbar select { display:block; margin-top:3px; background:#fff; color:#111; border:1px solid #ccc; border-radius:8px; padding:8px; }
-        .list { max-width:210mm; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; }
-        .list button { display:grid; grid-template-columns:140px 1fr 120px 90px; gap:8px; width:100%; text-align:left; background:#fff; color:#111; border:0; border-bottom:1px solid #eee; padding:10px 12px; cursor:pointer; }
-        .sheet { max-width:210mm; margin:0 auto; background:#fff; color:#111; padding:12px 14px 16px; border-top:4px solid #d00000; box-shadow:0 8px 24px rgba(0,0,0,.08); }
-        .head { display:flex; gap:12px; align-items:center; }
-        .logo { width:190px; height:auto; object-fit:contain; }
-        .shop { flex:1; text-align:right; }
-        .shop h1 { margin:0; font-size:22px; }
-        .shop p { margin:0; font-size:11px; line-height:1.35; }
-        .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
-        .who-wrap { position:relative; display:block; padding-right:46mm; margin:0 0 6px; }
-        .who { font-size:13px; line-height:1.55; }
-        .bill-meta { position:absolute; right:0; bottom:0; width:44mm; text-align:right; font-size:13px; line-height:1.4; }
-        table { width:100%; border-collapse:collapse; }
-        th, td { border:1px solid #222; padding:3px 5px; font-size:12px; }
-        th { background:#f5f5f5; }
-        .c { text-align:center; } .r { text-align:right; }
-        .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-        .sum { min-width:230px; line-height:1.7; }
-        .sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; align-items:center; }
-        .sum-line .amt { text-align:right; }
-        .grand { font-size:16px; font-weight:700; }
-        .words { font-size:12px; text-align:right; }
-        .pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; }
-        .pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
-        .pp-en { font-size:13px; font-weight:800; letter-spacing:-0.3px; line-height:1.1; }
-        .pp-en b { background:#0b3b8c; color:#fff; padding:0 2px; }
-        .pp-en span { color:#0b3b8c; }
-        .pp img { display:block; width:92px; height:92px; margin:2px auto 3px; }
-        .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:9px; line-height:1.3; padding:3px 2px; }
-        .note { white-space:pre-wrap; font-size:12px; margin-top:4px; }
-        .warn { color:#b00000; font-size:12px; margin-top:4px; }
-        .signs { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:18px; text-align:center; font-size:12px; }
-        .sign-top { min-height:24px; }
-        .signs i { display:block; width:150px; border-bottom:1px solid #111; height:0; margin:0 auto 4px; }
-        .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-        .actions button, .actions a { border:0; border-radius:8px; color:#fff; padding:10px 14px; cursor:pointer; text-decoration:none; }
-        @media print {
-          @page { size:A4 portrait; margin:8mm; }
-          .no-print { display:none !important; }
-          .page { background:#fff; padding:0; }
-          .sheet { box-shadow:none; border-top:0; max-width:none; padding:0; }
-          .who-wrap { position:relative !important; padding-right:46mm !important; }
-          .bill-meta { position:absolute !important; right:0 !important; bottom:0 !important; left:auto !important; width:44mm !important; text-align:right !important; }
-          .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-        }
-      `}</style>
-
+    <div className="page" style={{ background: '#ececec', minHeight: '100vh', padding: 16, fontFamily: '"Leelawadee UI",Tahoma,sans-serif' }}>
+      <style>{BILL_CSS}</style>
       {!bill && (
-        <div className="no-print">
-          <div className="toolbar">
-            <label>สาขา
-              <select value={branchId} onChange={(e) => { setBranchId(e.target.value); loadList(e.target.value) }}>
-                <option value="">ทุกสาขา</option>
-                {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </label>
-          </div>
-          <div className="list">
+        <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto' }}>
+          <label>สาขา
+            <select value={branchId} onChange={(e) => { setBranchId(e.target.value); loadList(e.target.value) }} style={{ display: 'block', margin: '6px 0 12px', padding: 8 }}>
+              <option value="">ทุกสาขา</option>
+              {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <div style={{ background: '#fff', borderRadius: 12 }}>
             {rows.map((item) => (
-              <button key={item.id || item.bill_no} onClick={() => openBill(item.id || item.bill_no)}>
-                <b>{item.bill_no}</b>
-                <span>{item.customer_name || '-'} {item.license_plate || ''}</span>
-                <span>{thaiFromDate(item.created_at || '')}</span>
-                <span>{Number(item.total || 0).toLocaleString()}</span>
+              <button key={item.id || item.bill_no} onClick={() => openBill(item.id || item.bill_no)} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 120px 90px', gap: 8, width: '100%', textAlign: 'left', background: '#fff', border: 0, borderBottom: '1px solid #eee', padding: 12, cursor: 'pointer' }}>
+                <b>{item.bill_no}</b><span>{item.customer_name || '-'} {item.license_plate || ''}</span><span>{thaiFromDate(item.created_at || '')}</span><span>{Number(item.total || 0).toLocaleString()}</span>
               </button>
             ))}
             {rows.length === 0 && <p style={{ padding: 16 }}>ยังไม่มีบิล</p>}
           </div>
         </div>
       )}
-
       {bill && (
         <>
           <div className="sheet">
             <div className="head">
               {logoOk && <img src="/ratsada-logo.png" alt="RATSADA" className="logo" onError={() => setLogoOk(false)} />}
-              <div className="shop">
-                <h1>{title}</h1>
-                {info && <p>{info.address}</p>}
-                {info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}
-              </div>
+              <div className="shop"><h1>{title}</h1>{info && <p>{info.address}</p>}{info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}</div>
             </div>
             <h2 className="doc">{docTitle}</h2>
             <div className="who-wrap">
               <div className="who">
-                {company ? (
-                  <>
-                    <div>{bill.customer_name}</div>
-                    {meta.customerAddress && <div>ที่อยู่: {meta.customerAddress}</div>}
-                    <div>เลขที่ผู้เสียภาษี {meta.customerTax || ''} โทร: {bill.phone || ''}</div>
-                  </>
-                ) : (
-                  <div>ลูกค้า: {bill.customer_name || ''} โทร: {bill.phone || ''}</div>
-                )}
-                <div>รุ่นรถ: {brand} {model} ทะเบียน: {bill.license_plate || ''} เลขที่ไมล์: {bill.mileage || ''} km.{color ? ` สี: ${color}` : ''}</div>
+                {company ? (<><div>{bill.customer_name}</div>{meta.customerAddress && <div>ที่อยู่: {meta.customerAddress}</div>}<div>เลขที่ผู้เสียภาษี {meta.customerTax || ''} โทร: {bill.phone || ''}</div></>) : (<div>ลูกค้า: {bill.customer_name || ''} โทร: {bill.phone || ''}</div>)}
+                <div>รุ่นรถ: {meta.brand || ''} {meta.model || bill.car_info || ''} ทะเบียน: {bill.license_plate || ''} เลขที่ไมล์: {bill.mileage || ''} km.{meta.color ? ` สี: ${meta.color}` : ''}</div>
                 <div>ชำระโดย: {payLabel}{meta.chequeNo ? ` ${meta.chequeNo}` : ''}</div>
               </div>
-              <div className="bill-meta">
-                <div>เลขที่ {bill.bill_no}</div>
-                <div>วันที่ {dateText}</div>
-              </div>
+              <div className="bill-meta"><div>เลขที่ {bill.bill_no}</div><div>วันที่ {dateText}</div></div>
             </div>
             <table>
-              <thead>
-                <tr>
-                  <th className="c" style={{ width: 36 }}>ลำดับ</th>
-                  <th>รายการ</th>
-                  <th className="c" style={{ width: 70 }}>จำนวน</th>
-                  <th className="r" style={{ width: 90 }}>ราคา/หน่วย</th>
-                  <th className="r" style={{ width: 100 }}>จำนวนเงิน</th>
-                </tr>
-              </thead>
+              <thead><tr><th className="c" style={{ width: 36 }}>ลำดับ</th><th>รายการ</th><th className="c" style={{ width: 70 }}>จำนวน</th><th className="r" style={{ width: 90 }}>ราคา/หน่วย</th><th className="r" style={{ width: 100 }}>จำนวนเงิน</th></tr></thead>
               <tbody>
-                {items.map((item, index) => (
-                  <tr key={`${item.name}-${index}`}>
-                    <td className="c">{index + 1}</td>
-                    <td>{item.name}</td>
-                    <td className="c">{item.qty}</td>
-                    <td className="r">{Number(item.price || 0).toLocaleString()}</td>
-                    <td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td>
-                  </tr>
-                ))}
+                {items.map((item, index) => <tr key={`${item.name}-${index}`}><td className="c">{index + 1}</td><td>{item.name}</td><td className="c">{item.qty}</td><td className="r">{Number(item.price || 0).toLocaleString()}</td><td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td></tr>)}
               </tbody>
             </table>
             <div className="foot">
               <div>
-                {qrUrl && (
-                  <div className="pp">
-                    <div className="pp-logo"><div className="pp-en"><b>Prompt</b><span>Pay</span></div></div>
-                    <img src={qrUrl} alt="PromptPay" />
-                    <div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div>
-                  </div>
-                )}
+                {qrUrl && <div className="pp"><div className="pp-logo"><div className="pp-en"><b>Prompt</b><span>Pay</span></div></div><img src={qrUrl} alt="PromptPay" /><div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div></div>}
                 {parsed.note && <div className="note">{parsed.note}</div>}
                 {warrantyText && <div className="warn">{warrantyText}</div>}
               </div>
@@ -342,18 +296,18 @@ export default function PrintQueuePage() {
             </div>
             <div className="signs">
               <div><div className="sign-top"></div><i></i>ตรวจรับงานซ่อม</div>
-              <div><div className="sign-top">{technician}</div><i></i><div>ช่างซ่อม</div><div>{signDate}</div></div>
+              <div><div className="sign-top">{meta.technician || ''}</div><i></i><div>ช่างซ่อม</div><div>{signDate}</div></div>
               <div><div className="sign-top"></div><i></i>ผู้รับเงิน</div>
             </div>
           </div>
           <div className="actions no-print">
             <a href="/print-queue" style={{ background: '#4b5563' }} onClick={(e) => { e.preventDefault(); setBill(null); window.history.pushState({}, '', '/print-queue'); loadList(branchId) }}>กลับไปรายการ</a>
-            <button style={{ background: '#1d4ed8' }} onClick={() => window.print()}>พิมพ์ที่เครื่องนี้</button>
+            <button style={{ background: '#1d4ed8' }} onClick={printBill}>พิมพ์ที่เครื่องนี้</button>
             <button style={{ background: '#067a32' }} onClick={sendBranch}>ส่งพิมพ์ไปสาขานี้</button>
           </div>
         </>
       )}
-      {msg && <p className="no-print" style={{ maxWidth: '210mm', margin: '8px auto', color: '#9a3412' }}>{msg}</p>}
+      {msg && <p className="no-print" style={{ maxWidth: '210mm', margin: '8px auto' }}>{msg}</p>}
     </div>
   )
 }
