@@ -92,12 +92,14 @@ export default function ReceivePage() {
     return list.filter((item) => item.toLowerCase().includes(q) && item.toLowerCase() !== q).slice(0, 8)
   }, [brand, model])
 
-  const loadHistory = async (id: string, plateNo: string) => {
+    const loadHistory = async (id: string, plateNo: string) => {
     const supabase = createClient()
-    let jobRes = await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until, branches(name)').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
-    if (jobRes.error) jobRes = await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
+    const first = await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until, branches(name)').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
+    const second = first.error
+      ? await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
+      : null
     const billRes = await supabase.from('bills').select('id, bill_no, total, created_at, customer_name').ilike('license_plate', plateNo).order('created_at', { ascending: false }).limit(20)
-    setJobs(jobRes.data || [])
+    setJobs((second?.data || first.data || []) as any[])
     setBills(billRes.data || [])
   }
 
@@ -109,9 +111,11 @@ export default function ReceivePage() {
       return
     }
     const supabase = createClient()
-    let res = await supabase.from('vehicles').select('*, customers(full_name, phone)').ilike('license_plate', `%${value.trim()}%`).limit(8)
-    if (res.error) res = await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8)
-    setPlateHits(res.data || [])
+        const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone)').ilike('license_plate', `%${value.trim()}%`).limit(8)
+    const plain = withCustomer.error
+      ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8)
+      : null
+    setPlateHits((plain?.data || withCustomer.data || []) as any[])
   }
 
   const pickVehicle = async (v: any) => {
