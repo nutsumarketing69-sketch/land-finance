@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
-import BackHome from './components/BackHome'
+import BackHome from "./components/BackHome";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -20,7 +20,6 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-<BackHome />
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,6 +34,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <BackHome />
           {children}
         </ThemeProvider>
       </body>
