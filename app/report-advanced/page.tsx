@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 function localDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 export default function AdvancedReportPage() {
+  const { showPrice } = useAccess()
+  const money = (value: number) => (showPrice ? Number(value || 0).toLocaleString() : '—')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [loading, setLoading] = useState(false)
@@ -109,7 +112,7 @@ export default function AdvancedReportPage() {
           <div className="text-sm text-gray-400 mt-1">จำนวนบิล</div>
         </div>
         <div className="border border-gray-700 rounded-lg p-4 text-center bg-gray-900">
-          <div className="text-xl sm:text-2xl font-bold text-green-400 break-words">{summary.total.toLocaleString()}</div>
+          <div className="text-xl sm:text-2xl font-bold text-green-400 break-words">{money(summary.total)}</div>
           <div className="text-sm text-gray-400 mt-1">ยอดสุทธิ</div>
         </div>
       </div>
@@ -120,7 +123,7 @@ export default function AdvancedReportPage() {
           Object.entries(summary.byBranch).map(([name, amount]) => (
             <div key={name} className="flex justify-between gap-3 text-sm py-1">
               <span className="break-words">{name}</span>
-              <span className="font-medium">{amount.toLocaleString()}</span>
+              <span className="font-medium">{money(amount)}</span>
             </div>
           ))
         )}
@@ -131,7 +134,7 @@ export default function AdvancedReportPage() {
         {summary.items.length === 0 ? <p className="text-gray-500 text-sm">-</p> : summary.items.map((item) => (
           <div key={item.name} className="flex justify-between gap-3 text-sm py-1">
             <span className="break-words">{item.name} · {item.qty}</span>
-            <span className="shrink-0">{item.total.toLocaleString()}</span>
+            <span className="shrink-0">{money(item.total)}</span>
           </div>
         ))}
       </div>
@@ -143,7 +146,7 @@ export default function AdvancedReportPage() {
             <a key={bill.id} href={`/history?plate=${encodeURIComponent(bill.license_plate || '')}`} className="block border border-gray-700 rounded p-3 text-sm bg-gray-900">
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <div className="font-medium break-words">{bill.license_plate || '-'} · {bill.customer_name || '-'}</div>
-                <div>{Number(bill.total || 0).toLocaleString()} บาท</div>
+                <div>{money(Number(bill.total || 0))} บาท</div>
               </div>
               <div className="text-gray-400">{bill.branches?.name || '-'} · {(bill.created_at || '').slice(0, 10)}</div>
             </a>
