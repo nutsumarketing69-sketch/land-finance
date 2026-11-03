@@ -2,8 +2,10 @@
 
 import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 export default function SearchPage() {
+  const { showPrice } = useAccess()
   const [keyword, setKeyword] = useState('')
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -62,12 +64,12 @@ export default function SearchPage() {
     <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
       <a href="/" className="inline-block mb-4 border border-gray-600 rounded-full px-4 py-2 text-sm">กลับหน้าหลัก</a>
       <h1 className="text-2xl font-bold mb-2">ค้นหาขั้นสูง</h1>
-      <p className="text-sm text-gray-400 mb-4">พิมพ์ตัวเดียวก็ขึ้น ทั้งป้าย ชื่อ เบอร์ ยี่ห้อ และบิล</p>
+      <p className="text-sm text-gray-400 mb-4">พิมพ์ตัวเดียวก็ขึ้น ทั้งป้าย ชื่อ เบอร์ ยี่ห้อ และเลขที่บิล เช่น 69-031</p>
 
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <input
           type="text"
-          placeholder="เช่น ก หรือ 1 หรือ ชื่อลูกค้า"
+          placeholder="ป้าย ชื่อ หรือเลขที่บิล 69-031"
           value={keyword}
           onChange={(e) => {
             const value = e.target.value
@@ -134,7 +136,7 @@ export default function SearchPage() {
                 {b.voided_at && <span className="text-xs bg-red-700 px-2 py-0.5 rounded ml-2">ยกเลิก</span>}
                 <div className="font-semibold mt-1 break-words">{b.license_plate || '-'} {b.customer_name || ''}</div>
                 <div className="text-sm text-gray-400 break-words">{b.car_info || ''}</div>
-                <div className="text-sm mt-1">{Number(b.total || 0).toLocaleString()} บาท</div>
+                <div className="text-sm mt-1">{showPrice ? `${Number(b.total || 0).toLocaleString()} บาท` : '—'}</div>
                 <div className="text-xs text-gray-500 mt-1">{(b.created_at || '').slice(0, 10)} · {b.bill_no || ''}</div>
               </a>
             )
