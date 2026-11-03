@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 function localDate() {
   const date = new Date()
@@ -9,6 +10,8 @@ function localDate() {
 }
 
 export default function ReportPage() {
+  const { showPrice } = useAccess()
+  const money = (value: number) => (showPrice ? Number(value || 0).toLocaleString() : '—')
   const [date, setDate] = useState('')
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -73,7 +76,7 @@ export default function ReportPage() {
           <div className="text-sm text-gray-400">จำนวนบิล</div>
         </div>
         <div className="p-4 border border-gray-700 rounded text-center bg-gray-900">
-          <div className="text-xl sm:text-2xl font-bold text-green-400 break-words">{total.toLocaleString()}</div>
+          <div className="text-xl sm:text-2xl font-bold text-green-400 break-words">{money(total)}</div>
           <div className="text-sm text-gray-400">ยอดสุทธิ</div>
         </div>
       </div>
@@ -83,7 +86,7 @@ export default function ReportPage() {
           {Object.entries(byBranch).map(([name, amount]) => (
             <div key={name} className="flex justify-between gap-3 text-sm py-1">
               <span className="break-words">{name}</span>
-              <span>{amount.toLocaleString()}</span>
+              <span>{money(amount)}</span>
             </div>
           ))}
         </div>
@@ -97,7 +100,7 @@ export default function ReportPage() {
             <a key={bill.id} href={`/history?plate=${encodeURIComponent(bill.license_plate || '')}`} className="block border border-gray-700 rounded p-4 bg-gray-900">
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <div className="font-medium break-words">{bill.license_plate || '-'} · {bill.customer_name || '-'}</div>
-                <div className="font-semibold">{Number(bill.total || 0).toLocaleString()} บาท</div>
+                <div className="font-semibold">{money(Number(bill.total || 0))} บาท</div>
               </div>
               <div className="text-sm text-gray-400 break-words">{bill.car_info || ''}</div>
               <div className="text-sm text-gray-400">{bill.branches?.name || '-'} · {bill.bill_no}</div>
