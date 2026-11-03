@@ -13,6 +13,17 @@ export default function LoginPage() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [savedNote, setSavedNote] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("ratsada-saved-login") || "null");
+      if (saved?.username) setUsername(String(saved.username));
+      if (saved?.password) setPassword(String(saved.password));
+    } catch {
+      localStorage.removeItem("ratsada-saved-login");
+    }
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -64,7 +75,7 @@ export default function LoginPage() {
     <AuthFrame title="รัษฎาแอร์" subtitle="เข้าสู่ระบบพนักงาน">
       <form onSubmit={submit} className="space-y-4">
         <label className="block text-sm font-medium text-gray-700">
-          ชื่อผู้ใช้
+          ชื่อผู้ใช้ USER
           <input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
@@ -74,7 +85,7 @@ export default function LoginPage() {
             spellCheck={false}
             required
             className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
-            placeholder="เช่น admin"
+            placeholder="ภาษาอังกฤษเท่านั้น"
           />
         </label>
         <label className="block text-sm font-medium text-gray-700">
@@ -97,6 +108,27 @@ export default function LoginPage() {
             </button>
           </span>
         </label>
+        <button
+          type="button"
+          onClick={() => {
+            const nameError = usernameError(username);
+            if (nameError) {
+              setError(nameError);
+              return;
+            }
+            if (!password) {
+              setError("ใส่รหัสผ่านก่อนกด Save User/pass");
+              return;
+            }
+            localStorage.setItem("ratsada-saved-login", JSON.stringify({ username: username.trim(), password }));
+            setError("");
+            setSavedNote("บันทึกในเครื่องนี้แล้ว ครั้งต่อไปไม่ต้องพิมพ์ใหม่");
+          }}
+          className="w-full rounded-xl border border-gray-300 py-3 text-base font-semibold text-gray-800"
+        >
+          Save User/pass
+        </button>
+        {savedNote && <p className="text-center text-sm text-green-700">{savedNote}</p>}
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         <button
           type="submit"
@@ -118,3 +150,4 @@ export default function LoginPage() {
     </AuthFrame>
   );
 }
+// saved login stays on this device
