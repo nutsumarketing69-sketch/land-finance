@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
-import { useStaff } from '@/app/components/AuthShell'
+import { useAccess } from '@/app/components/AuthShell'
 import { voidBill } from '@/lib/void-bill'
 
 type Line = { name: string; qty: number; price: number }
@@ -30,6 +31,7 @@ const PAY_TYPES = [
   { id: 'transfer', label: 'โอน' },
   { id: 'cheque', label: 'เช็ค' },
   { id: 'credit', label: 'ลูกหนี้เครดิต' },
+  { id: 'unspecified', label: 'ไม่ระบุ' },
 ]
 
 const BRANDS: Record<string, string[]> = {
@@ -146,18 +148,6 @@ function promptPay(id: string, amount: number) {
   return data + crc16(data)
 }
 
-async function nextBillNo(supabase: any) {
-  const now = new Date()
-  const prefix = `${String(now.getFullYear() + 543).slice(-2)}-${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-`
-  const res = await supabase.from('bills').select('bill_no').ilike('bill_no', `${prefix}%`).limit(200)
-  let max = 0
-  for (const row of res.data || []) {
-    const n = Number(String(row.bill_no || '').split('-').pop())
-    if (Number.isFinite(n) && n > max) max = n
-  }
-  return prefix + String(max + 1).padStart(3, '0')
-}
-
 function bahtText(amount: number) {
   const digits = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
   const units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน']
@@ -195,8 +185,11 @@ function readAge(data: any): number | null {
 }
 
 export default function ReceiptPage() {
-  const { account } = useStaff()
-  const canVoid = account?.status === 'approved' && (account.role === 'admin' || account.role === 'manager')
+  const { can, showPrice } = useAccess()
+  const canManage = can('print_remote')
+  const canVoid = can('void_bill')
+  const canEdit = can('receipt_edit')
+  const billNoRef = useRef('')
   const [branches, setBranches] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [parts, setParts] = useState<any[]>([])
@@ -264,7 +257,8 @@ export default function ReceiptPage() {
         const bill = opened.data
         if (!bill) {
           setMsg('ไม่พบบิลที่เลือก')
-          setBillNo(await nextBillNo(supabase))
+          billNoRef.current = ''
+          setBillNo('')
           setDateText(thaiDateOnly())
           setSignDate(isoToday())
           return
@@ -284,6 +278,7 @@ export default function ReceiptPage() {
         setBillCreatedAt(bill.created_at || '')
         setVoidedAt(bill.voided_at || '')
         setVoidReason(bill.void_reason || '')
+        billNoRef.current = bill.bill_no || ''
         setBillNo(bill.bill_no || '')
         setDateText(day.thai)
         setSignDate(/^\d{4}-\d{2}-\d{2}$/.test(String(meta.signDate || '')) ? String(meta.signDate) : day.iso)
@@ -315,9 +310,9 @@ export default function ReceiptPage() {
         if (bill.voided_at) setMsg('บิลนี้ถูกยกเลิกแล้ว ยังพิมพ์ดูได้ แต่แก้หรือบันทึกทับไม่ได้')
         return
       }
-      const number = await nextBillNo(supabase)
       if (!alive) return
-      setBillNo(number)
+      billNoRef.current = ''
+      setBillNo('')
       setDateText(thaiDateOnly())
       setSignDate(isoToday())
       try {
@@ -501,9 +496,29 @@ export default function ReceiptPage() {
     words: bahtText(total),
   })
 
+  const ensureBillNo = async () => {
+    if (billNoRef.current) return billNoRef.current
+    if (!branchId) {
+      setMsg('เลือกสาขาก่อน เลขที่บิลจะออกเมื่อบันทึก พิมพ์ที่เครื่องนี้ หรือส่งพิมพ์ไปสาขานี้')
+      return ''
+    }
+    const res = await createClient().rpc('next_branch_bill_no', { p_branch: branchId })
+    if (res.error || !res.data) {
+      setMsg(res.error?.message || 'ออกเลขที่บิลไม่สำเร็จ')
+      return ''
+    }
+    const number = String(res.data)
+    billNoRef.current = number
+    flushSync(() => setBillNo(number))
+    return number
+  }
+
   const save = async () => {
+    if (!canEdit) { setMsg('บัญชีนี้ดูบิลได้ แต่บันทึกบิลไม่ได้'); return }
     if (voidedAt) { setMsg('บิลนี้ถูกยกเลิกแล้ว ออกใบใหม่ได้'); return }
     if (!lines.length) { setMsg('ใส่รายการก่อนบันทึก'); return }
+    const number = await ensureBillNo()
+    if (!number) return
     setSaving(true)
     const supabase = createClient()
     if (savedId) {
@@ -515,9 +530,10 @@ export default function ReceiptPage() {
         return
       }
     }
-    const meta = { docType, customerType, customerTax, customerAddress, payType, payLabel, chequeNo, technician, signDate, brand, model, color, warrantyMonths, title, address: info?.address || '' }
+    const meta = { docType, customerType, customerTax, customerAddress, payType, payLabel: payType === 'unspecified' ? '' : payLabel, chequeNo, technician, signDate, brand, model, color, warrantyMonths, title, address: info?.address || '' }
+    const payLine = payType === 'unspecified' ? '' : `ชำระโดย: ${payLabel}`
     const row: any = {
-      bill_no: billNo,
+      bill_no: number,
       customer_name: customer || null,
       phone: phone || null,
       license_plate: plate || null,
@@ -526,7 +542,7 @@ export default function ReceiptPage() {
       items: lines,
       discount: Number(discount || 0),
       total,
-      note: [warrantyText, note, `ชำระโดย: ${payLabel}`, technician ? `ช่าง: ${technician}` : ''].filter(Boolean).join('\n') + `\n[[meta]]${JSON.stringify(meta)}`,
+      note: [warrantyText, note, payLine, technician ? `ช่าง: ${technician}` : ''].filter(Boolean).join('\n') + `\n[[meta]]${JSON.stringify(meta)}`,
       branch_id: branchId || null,
     }
     let res = savedId
@@ -582,6 +598,8 @@ export default function ReceiptPage() {
   }
 
   const printHere = async () => {
+    const number = await ensureBillNo()
+    if (!number) return
     await waitImage(document.querySelector('.sheet .pp img'))
     window.print()
   }
@@ -589,22 +607,23 @@ export default function ReceiptPage() {
   const sendBranch = async () => {
     if (voidedAt) { setMsg('บิลที่ยกเลิกแล้วส่งพิมพ์ไปสาขาไม่ได้'); return }
     if (!branchId) { setMsg('เลือกสาขาก่อนส่งพิมพ์'); return }
-    const sender = employees.find((item) => {
-      const name = item.full_name || item.name || ''
-      const label = item.nickname ? `${name} (${item.nickname})` : name
-      return technician && (technician === label || technician === name)
-    })
-    if (!sender || (sender.role !== 'manager' && sender.role !== 'admin')) {
-      setMsg('สั่งพิมพ์ไปสาขาได้เฉพาะแอดมินหรือผู้จัดการสาขา เลือกชื่อในช่องช่างก่อน')
+    if (!canManage) {
+      setMsg('สั่งพิมพ์ไปสาขาได้เฉพาะบัญชีที่ล็อกอินเป็นผู้ดูแลระบบหรือผู้จัดการสาขา ช่องช่างเป็นแค่ชื่อบนบิล')
       return
     }
-    const res = await createClient().from('print_jobs').insert({ branch_id: branchId, bill_no: billNo, status: 'pending', payload: payload() })
-    setMsg(res.error ? res.error.message : `ส่งพิมพ์ไป ${title} แล้ว`)
+    const number = await ensureBillNo()
+    if (!number) return
+    const body = payload()
+    body.billNo = number
+    body.bill_no = number
+    const res = await createClient().from('print_jobs').insert({ branch_id: branchId, bill_no: number, status: 'pending', payload: body })
+    setMsg(res.error ? res.error.message : `ส่งพิมพ์ไป ${title} แล้ว เลขที่ ${number}`)
   }
 
   const fresh = async () => {
     if (window.location.search.includes('bill=')) window.history.replaceState(null, '', '/receipt')
-    setBillNo(await nextBillNo(createClient()))
+    billNoRef.current = ''
+    setBillNo('')
     setDateText(thaiDateOnly())
     setSignDate(isoToday())
     setItems([blank(), blank(), blank(), blank(), blank()])
@@ -645,6 +664,8 @@ export default function ReceiptPage() {
         .shop { flex:1; text-align:right; }
         .shop h1 { margin:0; font-size:22px; }
         .shop p { margin:0; font-size:11px; line-height:1.35; }
+        .bill-no { font-size:18px; font-weight:700; line-height:1.2; margin:0 0 2px; }
+        .sheet.hide-money .money-col, .sheet.hide-money .sum, .sheet.hide-money .pp { display:none !important; }
         .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
         .who-wrap { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:0 0 2px; }
         .who { font-size:15px; line-height:1.45; flex:1; }
@@ -740,11 +761,11 @@ export default function ReceiptPage() {
             <option value="company">บริษัท ใส่เลขภาษี</option>
           </select>
         </label>
-        <label>ชำระโดย
+        {showPrice && <label>ชำระโดย
           <select value={payType} onChange={(e) => setPayType(e.target.value)}>
             {PAY_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
-        </label>
+        </label>}
         <label>รับประกัน
           <select value={warrantyMonths} onChange={(e) => setWarrantyMonths(Number(e.target.value))}>
             <option value={0}>ไม่ระบุ</option>
@@ -757,7 +778,7 @@ export default function ReceiptPage() {
             )}
           </select>
         </label>
-        {payType === 'cheque' && (
+        {showPrice && payType === 'cheque' && (
           <label>เลขที่เช็ค
             <input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} />
           </label>
@@ -765,10 +786,11 @@ export default function ReceiptPage() {
         <div className="status" style={{ color: printerOn ? '#067a32' : '#9a3412' }}>{printerText}</div>
       </div>
 
-      <div className="sheet">
+      <div className={`sheet${showPrice ? '' : ' hide-money'}`}>
         <div className="head">
           {logoOk && <img src="/ratsada-logo.png" alt="RATSADA" className="logo" onError={() => setLogoOk(false)} />}
           <div className="shop">
+            {billNo ? <div className="bill-no">เลขที่ {billNo}</div> : null}
             <h1>{title}</h1>
             {info && <p>{info.address}</p>}
             {info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}
@@ -862,12 +884,13 @@ export default function ReceiptPage() {
                 สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" />
               </span>
             </div>
-            <div className="row">
-              <span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span>
-            </div>
+            {showPrice && payType !== 'unspecified' && (
+              <div className="row">
+                <span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span>
+              </div>
+            )}
           </div>
           <div className="bill-meta">
-            <div>เลขที่ {billNo}</div>
             <div>วันที่ {dateText}</div>
           </div>
         </div>
@@ -884,8 +907,8 @@ export default function ReceiptPage() {
               <th className="c" style={{ width: 36 }}>ลำดับ</th>
               <th>รายการ</th>
               <th className="c" style={{ width: 70 }}>จำนวน</th>
-              <th className="r" style={{ width: 90 }}>ราคา/หน่วย</th>
-              <th className="r" style={{ width: 100 }}>จำนวนเงิน</th>
+              <th className="r money-col" style={{ width: 90 }}>ราคา/หน่วย</th>
+              <th className="r money-col" style={{ width: 100 }}>จำนวนเงิน</th>
               <th className="no-print" style={{ width: 46 }}></th>
             </tr>
           </thead>
@@ -899,7 +922,7 @@ export default function ReceiptPage() {
                     <div className="menu no-print">
                       {partMatch.list.map((part) => (
                         <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0) } : line)); setPartFocus(-1) }}>
-                          {part.name} · {Number(part.price || 0).toLocaleString()}{part.stock != null ? ` · คงเหลือ ${part.stock}` : ''}
+                          {part.name}{showPrice ? ` · ${Number(part.price || 0).toLocaleString()}` : ''}{part.stock != null && showPrice ? ` · คงเหลือ ${part.stock}` : ''}
                         </button>
                       ))}
                       {partMatch.total > partMatch.list.length && <div className="cap">แสดง {partMatch.list.length} จาก {partMatch.total} พิมพ์เพิ่มอีกตัว</div>}
@@ -907,8 +930,8 @@ export default function ReceiptPage() {
                   )}
                 </td>
                 <td><input className="c" value={item.name.trim() ? item.qty : ''} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, qty: Number(e.target.value || 0) } : line)) }} /></td>
-                <td><input className="r" value={item.name.trim() ? item.price : ''} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, price: Number(e.target.value || 0) } : line)) }} /></td>
-                <td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td>
+                <td className="money-col"><input className="r" value={item.name.trim() ? item.price : ''} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, price: Number(e.target.value || 0) } : line)) }} /></td>
+                <td className="r money-col">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td>
                 <td className="no-print"><button className="rowbtn" onClick={() => setItems(items.length === 1 ? [blank()] : items.filter((_, i) => i !== index))}>ลบ</button></td>
               </tr>
             ))}
@@ -970,8 +993,8 @@ export default function ReceiptPage() {
 
       <div className="actions no-print">
         <button style={{ background: '#111' }} onClick={printHere}>พิมพ์ที่เครื่องนี้</button>
-        <button style={{ background: '#067a32' }} onClick={sendBranch}>ส่งพิมพ์ไปสาขานี้</button>
-        <button style={{ background: '#1d4ed8' }} onClick={save} disabled={saving || !!voidedAt}>{saving ? 'กำลังบันทึก...' : savedId ? 'บันทึกการแก้ไข' : 'บันทึกบิล'}</button>
+        <button style={{ background: canManage ? '#067a32' : '#9ca3af' }} onClick={sendBranch} disabled={!canManage} title={canManage ? 'ส่งตามสิทธิ์ของบัญชีที่ล็อกอิน' : 'บัญชีนี้พิมพ์ที่เครื่องนี้ได้ แต่ส่งข้ามสาขาไม่ได้'}>ส่งพิมพ์ไปสาขานี้</button>
+        <button style={{ background: canEdit ? '#1d4ed8' : '#9ca3af' }} onClick={save} disabled={!canEdit || saving || !!voidedAt}>{saving ? 'กำลังบันทึก...' : savedId ? 'บันทึกการแก้ไข' : 'บันทึกบิล'}</button>
         {canVoid && savedId && !voidedAt && <button style={{ background: '#b91c1c' }} onClick={cancelBill} disabled={saving}>ยกเลิกบิล</button>}
         <button style={{ background: '#4b5563' }} onClick={fresh}>ใบใหม่</button>
       </div>
