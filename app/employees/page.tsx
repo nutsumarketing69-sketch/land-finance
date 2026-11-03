@@ -7,6 +7,8 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([])
   const [branches, setBranches] = useState<any[]>([])
   const [name, setName] = useState('')
+  const [nickname, setNickname] = useState('')
+  const [position, setPosition] = useState('')
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState('staff')
   const [branchId, setBranchId] = useState('')
@@ -37,7 +39,9 @@ export default function EmployeesPage() {
     const nextCode = `EMP${String(employees.length + 1).padStart(3, '0')}`
 
     const { error } = await supabase.from('employees').insert({
-      full_name: name,
+      full_name: name.trim(),
+      nickname: nickname.trim() || null,
+      position: position.trim() || null,
       employee_code: nextCode,
       phone: phone || null,
       role,
@@ -49,6 +53,8 @@ export default function EmployeesPage() {
     } else {
       setMsg('เพิ่มสำเร็จ!')
       setName('')
+      setNickname('')
+      setPosition('')
       setPhone('')
       fetchData()
     }
@@ -71,6 +77,8 @@ export default function EmployeesPage() {
         <h2 className="font-semibold mb-3">เพิ่มพนักงานใหม่</h2>
         <div className="space-y-2">
           <input type="text" placeholder="ชื่อ-นามสกุล" value={name} onChange={(e) => setName(e.target.value)} className="w-full border p-2 rounded text-black" />
+          <input type="text" placeholder="ชื่อเล่น เช่น ช่างทอม" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full border p-2 rounded text-black" />
+          <input type="text" placeholder="ตำแหน่ง เช่น ช่างซ่อม เสมียน" value={position} onChange={(e) => setPosition(e.target.value)} className="w-full border p-2 rounded text-black" />
           <input type="text" placeholder="เบอร์โทร" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border p-2 rounded text-black" />
           <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full border p-2 rounded text-black">
             <option value="staff">พนักงาน</option>
@@ -91,7 +99,8 @@ export default function EmployeesPage() {
         {employees.map((emp) => (
           <div key={emp.id} className="border p-4 rounded flex justify-between items-center">
             <div>
-              <div className="font-medium">{emp.full_name}</div>
+              <div className="font-medium">{emp.full_name}{emp.nickname ? ` (${emp.nickname})` : ''}</div>
+              <div className="text-sm text-gray-400">{emp.position || '-'}</div>
               <div className="text-sm text-gray-400">รหัส: {emp.employee_code || '-'}</div>
               <div className="text-sm text-gray-400">{emp.phone || '-'}</div>
               <div className="text-sm text-gray-400">{emp.branches?.name || '-'}</div>
