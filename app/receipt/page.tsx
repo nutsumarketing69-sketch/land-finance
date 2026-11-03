@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
 import { voidBill } from '@/lib/void-bill'
 
-type Line = { name: string; qty: number; price: number }
+type Line = { name: string; qty: number; price: number; supplier?: string }
 
 const SHOP_TAX = '3101701714063'
 const PROMPTPAY_ID = '0994102559'
@@ -56,7 +56,16 @@ const BRANDS: Record<string, string[]> = {
 const COLORS = ['ขาว', 'ดำ', 'เทา', 'เงิน', 'แดง', 'น้ำเงิน', 'น้ำตาล', 'ทอง', 'เขียว', 'เหลือง', 'ส้ม', 'ฟ้า']
 
 function blank(): Line {
-  return { name: '', qty: 1, price: 0 }
+  return { name: '', qty: 1, price: 0, supplier: '' }
+}
+
+function lineOf(item: any): Line {
+  return {
+    name: String(item?.name || ''),
+    qty: Number(item?.qty || 1),
+    price: Number(item?.price || 0),
+    supplier: String(item?.supplier || ''),
+  }
 }
 
 function fit(value: string, min = 4) {
@@ -231,6 +240,7 @@ export default function ReceiptPage() {
   const [printerText, setPrinterText] = useState('ยังไม่เลือกสาขา')
   const [printerOn, setPrinterOn] = useState(false)
   const [logoOk, setLogoOk] = useState(true)
+  const [previewKey, setPreviewKey] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -240,7 +250,8 @@ export default function ReceiptPage() {
       const employeeRes = await supabase.from('employees').select('*').limit(300)
       const partRows: any[] = []
       for (let from = 0; ; from += 1000) {
-        const page = await supabase.from('parts_services').select('id, name, price, stock').order('name').range(from, from + 999)
+        let page: { error: { message?: string } | null; data: any[] | null } = await supabase.from('parts_services').select('id, name, price, stock, supplier').order('name').range(from, from + 999)
+        if (page.error) page = await supabase.from('parts_services').select('id, name, price, stock').order('name').range(from, from + 999)
         if (page.error || !page.data?.length) break
         partRows.push(...page.data)
         if (page.data.length < 1000) break
@@ -266,11 +277,7 @@ export default function ReceiptPage() {
         const parsed = unpackNote(bill.note || '')
         const meta = parsed.meta || {}
         const day = bangkokDay(bill.created_at || new Date().toISOString())
-        const lines = (Array.isArray(bill.items) ? bill.items : []).slice(0, 16).map((item: any) => ({
-          name: String(item?.name || ''),
-          qty: Number(item?.qty || 1),
-          price: Number(item?.price || 0),
-        }))
+        const lines: Line[] = (Array.isArray(bill.items) ? bill.items : []).slice(0, 16).map((item: any) => lineOf(item))
         while (lines.length < 5) lines.push(blank())
         const knownDoc = DOC_TYPES.some((item) => item.id === meta.docType)
         const knownPay = PAY_TYPES.some((item) => item.id === meta.payType)
@@ -327,11 +334,7 @@ export default function ReceiptPage() {
         }
         const picked = JSON.parse(localStorage.getItem('selectedItems') || '[]')
         if (Array.isArray(picked) && picked.length) {
-          const lines = picked.slice(0, 16).map((item: any) => ({
-            name: String(item.name || ''),
-            qty: Number(item.qty || 1),
-            price: Number(item.price || 0),
-          }))
+          const lines: Line[] = picked.slice(0, 16).map((item: any) => lineOf(item))
           while (lines.length < 5) lines.push(blank())
           setItems(lines)
           localStorage.removeItem('selectedItems')
@@ -373,6 +376,24 @@ export default function ReceiptPage() {
     const timer = setInterval(tick, 5000)
     return () => { stop = true; clearInterval(timer) }
   }, [branchId])
+
+  useEffect(() => {
+    if (savedId || billNoRef.current) return
+    if (!branchId) {
+      setBillNo('')
+      return
+    }
+    let stop = false
+    const look = async () => {
+      if (billNoRef.current) return
+      const res = await createClient().rpc('peek_branch_bill_no', { p_branch: branchId })
+      if (stop || billNoRef.current || res.error || !res.data) return
+      setBillNo(String(res.data))
+    }
+    void look()
+    const timer = window.setInterval(look, 4000)
+    return () => { stop = true; window.clearInterval(timer) }
+  }, [branchId, savedId, previewKey])
 
   const selected = branches.find((item) => item.id === branchId)
   const info = BRANCH_BOOK.find((item) => selected?.name && String(selected.name).includes(item.key)) || null
@@ -647,6 +668,7 @@ export default function ReceiptPage() {
     setBillCreatedAt('')
     setVoidedAt('')
     setVoidReason('')
+    setPreviewKey((value) => value + 1)
     setMsg('พร้อมออกบิลใหม่')
   }
 
@@ -664,7 +686,7 @@ export default function ReceiptPage() {
         .shop { flex:1; text-align:right; }
         .shop h1 { margin:0; font-size:22px; }
         .shop p { margin:0; font-size:11px; line-height:1.35; }
-        .bill-no { font-size:18px; font-weight:700; line-height:1.2; margin:0 0 2px; }
+        .bill-no { font-size:15px; font-weight:400; line-height:1.4; margin:0 0 2px; }
         .sheet.hide-money .money-col, .sheet.hide-money .sum, .sheet.hide-money .pp { display:none !important; }
         .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
         .who-wrap { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:0 0 2px; }
@@ -692,9 +714,10 @@ export default function ReceiptPage() {
         .chips button { background:#fff; color:#444; border:1px solid #ddd; border-radius:999px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; }
         .rowbtn { background:#fff; color:#111; border:1px solid #ddd; border-radius:6px; padding:4px 8px; cursor:pointer; }
         .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-        .sum { text-align:right; min-width:210px; color:#111; line-height:1.7; }
-        .discount { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
-        .discount input { width:4.5em; text-align:right; border:0; border-radius:0; padding:0; background:transparent; color:#111; }
+        .sum { text-align:right; min-width:230px; color:#111; line-height:1.7; }
+        .sum-line { display:grid; grid-template-columns:auto 5em 2.6em; column-gap:6px; align-items:baseline; justify-content:end; }
+        .sum-line .num { text-align:right; }
+        .discount input { width:100%; text-align:right; border:0; border-radius:0; padding:0; background:transparent; color:#111; }
         .grand { font-size:16px; font-weight:700; }
         .words { font-size:12px; }
         .pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; color:#111; }
@@ -710,10 +733,12 @@ export default function ReceiptPage() {
         .signs i { display:block; width:150px; border-bottom:1px solid #111; height:0; margin:0 auto 4px; }
         .sign-name { width:150px; text-align:center; text-align-last:center; border:none; background:transparent; color:#111; appearance:none; -webkit-appearance:none; -moz-appearance:none; }
         .sign-name::-ms-expand { display:none; }
-        .sign-date { margin-top:3px; background:transparent; color:#111; border:0; border-bottom:1px solid #111; border-radius:0; font-size:12px; width:150px; }
+        .sign-date { display:block; margin:3px auto 0; text-align:center; background:transparent; color:#111; border:0; border-bottom:1px solid #111; border-radius:0; font-size:12px; width:150px; }
+        .sign-date::-webkit-datetime-edit, .sign-date::-webkit-date-and-time-value { text-align:center; }
         .only-print { display:none; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:12px 14px; cursor:pointer; font-size:16px; }
+        .src-tag { margin-top:1px; color:#9a3412; font-size:11px; line-height:1.2; }
         .cap { padding:8px 12px; color:#9a3412; font-size:13px; }
         @media screen and (max-width:820px) {
           .page { padding:8px 8px 96px; }
@@ -790,7 +815,7 @@ export default function ReceiptPage() {
         <div className="head">
           {logoOk && <img src="/ratsada-logo.png" alt="RATSADA" className="logo" onError={() => setLogoOk(false)} />}
           <div className="shop">
-            {billNo ? <div className="bill-no">เลขที่ {billNo}</div> : null}
+            <div className="bill-no">เลขที่ {billNo || '—'}</div>
             <h1>{title}</h1>
             {info && <p>{info.address}</p>}
             {info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}
@@ -917,12 +942,13 @@ export default function ReceiptPage() {
               <tr key={index} className={item.name.trim() ? '' : 'spare'}>
                 <td className="c">{index + 1}</td>
                 <td className="rel">
-                  <input value={item.name} autoComplete="off" onFocus={() => setPartFocus(index)} onChange={(e) => { setPartFocus(index); setItems(items.map((line, i) => i === index ? { ...line, name: e.target.value } : line)) }} placeholder="พิมพ์หรือเลือกอะไหล่" />
+                  <input value={item.name} autoComplete="off" onFocus={() => setPartFocus(index)} onChange={(e) => { const name = e.target.value; const part = parts.find((row) => row.name === name); setPartFocus(index); setItems(items.map((line, i) => i === index ? { ...line, name, supplier: part?.supplier || '' } : line)) }} placeholder="พิมพ์หรือเลือกอะไหล่" />
+                  {item.supplier ? <div className="src-tag no-print">ซื้อจาก {item.supplier}</div> : null}
                   {partFocus === index && partMatch.list.length > 0 && (
                     <div className="menu no-print">
                       {partMatch.list.map((part) => (
-                        <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0) } : line)); setPartFocus(-1) }}>
-                          {part.name}{showPrice ? ` · ${Number(part.price || 0).toLocaleString()}` : ''}{part.stock != null && showPrice ? ` · คงเหลือ ${part.stock}` : ''}
+                        <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0), supplier: part.supplier || '' } : line)); setPartFocus(-1) }}>
+                          {part.name}{showPrice ? ` · ${Number(part.price || 0).toLocaleString()}` : ''}{part.stock != null && showPrice ? ` · คงเหลือ ${part.stock}` : ''}{part.supplier ? ` · ซื้อจาก ${part.supplier}` : ''}
                         </button>
                       ))}
                       {partMatch.total > partMatch.list.length && <div className="cap">แสดง {partMatch.list.length} จาก {partMatch.total} พิมพ์เพิ่มอีกตัว</div>}
@@ -954,12 +980,13 @@ export default function ReceiptPage() {
             {warrantyText && <div className="warn">{warrantyText}</div>}
           </div>
           <div className="sum">
-            <div>ยอดรวม {subtotal.toLocaleString()} บาท</div>
-            <div className="discount">
+            <div className="sum-line"><span>ยอดรวม</span><span className="num">{subtotal.toLocaleString()}</span><span>บาท</span></div>
+            <div className="sum-line discount">
               <span>ส่วนลด</span>
-              <input value={discount || ''} placeholder="0" onChange={(e) => setDiscount(Number(e.target.value || 0))} />
+              <input className="num" value={String(discount)} onChange={(e) => setDiscount(Number(e.target.value || 0))} />
+              <span>บาท</span>
             </div>
-            <div className="grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
+            <div className="sum-line grand"><span>รวมทั้งสิ้น</span><span className="num">{total.toLocaleString()}</span><span>บาท</span></div>
             <div className="words">{bahtText(total)}</div>
           </div>
         </div>
@@ -1002,3 +1029,4 @@ export default function ReceiptPage() {
     </div>
   )
 }
+// bill number stays visible and follows the branch counter
