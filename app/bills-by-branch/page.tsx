@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 export default function BillsByBranchPage() {
+  const { showPrice } = useAccess()
+  const money = (value: number) => (showPrice ? Number(value || 0).toLocaleString() : '—')
   const [branches, setBranches] = useState<any[]>([])
   const [selectedBranch, setSelectedBranch] = useState('')
   const [bills, setBills] = useState<any[]>([])
@@ -82,7 +85,7 @@ export default function BillsByBranchPage() {
             <div className="text-sm text-gray-400">จำนวนบิล</div>
           </div>
           <div className="border border-gray-700 rounded-lg p-4 text-center bg-gray-900">
-            <div className="text-2xl font-bold">{summary.total.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{money(summary.total)}</div>
             <div className="text-sm text-gray-400">ยอดรวม (บาท)</div>
           </div>
         </div>
@@ -102,7 +105,7 @@ export default function BillsByBranchPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{Number(bill.total || 0).toLocaleString()} บาท</div>
+                  <div className="font-bold">{money(Number(bill.total || 0))} บาท</div>
                   <div className="text-xs text-gray-400">
                     {new Date(bill.created_at).toLocaleDateString('th-TH')}
                   </div>
