@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import AuthShell from "./components/AuthShell";
 import BackHome from "./components/BackHome";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -34,8 +35,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <BackHome />
-          {children}
+          <AuthShell>
+            <BackHome />
+            {children}
+          </AuthShell>
         </ThemeProvider>
       </body>
     </html>
