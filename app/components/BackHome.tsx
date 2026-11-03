@@ -8,7 +8,7 @@ export default function BackHome() {
   return (
     <>
       <style>{`@media print { .back-home { display: none !important; } }`}</style>
-      <a href="/" className="back-home no-print fixed bottom-4 left-4 z-[80] rounded-full bg-black/85 text-white border border-white/30 px-4 py-3 text-sm shadow-lg">
+      <a href="/" className="back-home no-print fixed bottom-4 right-4 z-[80] rounded-full bg-red-600 text-white px-4 py-3 text-sm font-medium shadow-lg">
         กลับหน้าหลัก
       </a>
     </>
