@@ -43,6 +43,7 @@ export default function DailyClosePage() {
       .select('*, branches(name)')
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString())
+      .is('voided_at', null)
       .order('created_at', { ascending: false })
     if (branchId) billQuery = billQuery.eq('branch_id', branchId)
 
@@ -120,6 +121,7 @@ export default function DailyClosePage() {
         <p className="text-sm text-gray-400 mb-5">
           {dateLabel || '-'}
           {branchId ? ` — ${branches.find((b) => b.id === branchId)?.name}` : ' — ทุกสาขา'}
+          {' · ไม่รวมบิลที่ยกเลิก'}
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
