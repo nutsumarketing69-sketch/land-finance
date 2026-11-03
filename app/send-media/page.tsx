@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaff } from '@/app/components/AuthShell'
 
@@ -41,18 +41,52 @@ export default function SendMediaPage() {
   const [photos, setPhotos] = useState<{ url: string; file: File }[]>([])
   const [videos, setVideos] = useState<File[]>([])
   const [hits, setHits] = useState<{ id: string; license_plate: string; symptom: string; note: string; created_at: string; photo_count: number; video_count: number }[]>([])
+  const [cars, setCars] = useState<{ license_plate: string; brand: string; model: string; mileage: number | null }[]>([])
+  const [brand, setBrand] = useState('')
+  const [model, setModel] = useState('')
+  const [mileage, setMileage] = useState('')
+  const [picked, setPicked] = useState('')
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const searchSeq = useRef(0)
 
   const search = async (value: string) => {
+    const seq = searchSeq.current + 1
+    searchSeq.current = seq
     setPlate(value)
+    if (value.trim() !== picked) {
+      setBrand('')
+      setModel('')
+      setMileage('')
+      setPicked('')
+    }
     const word = value.trim().replace(/[%_,()]/g, '')
     if (!word) {
       setHits([])
+      setCars([])
       return
     }
-    const res = await createClient().from('media_logs').select('id, license_plate, symptom, note, created_at, photo_count, video_count').ilike('license_plate', `%${word}%`).order('created_at', { ascending: false }).limit(30)
-    setHits(res.data || [])
+    const supabase = createClient()
+    const [logs, vehicles] = await Promise.all([
+      supabase.from('media_logs').select('id, license_plate, symptom, note, created_at, photo_count, video_count').ilike('license_plate', `%${word}%`).order('created_at', { ascending: false }).limit(30),
+      supabase.from('vehicles').select('license_plate, brand, model, mileage').ilike('license_plate', `%${word}%`).limit(20),
+    ])
+    if (seq !== searchSeq.current) return
+    setHits(logs.data || [])
+    setCars((vehicles.data || []).filter((item) => item.license_plate))
+  }
+
+  const pickCar = async (item: { license_plate: string; brand: string; model: string; mileage: number | null }) => {
+    searchSeq.current += 1
+    const plateNo = item.license_plate || ''
+    setPicked(plateNo)
+    setPlate(plateNo)
+    setBrand(item.brand || '')
+    setModel(item.model || '')
+    setMileage(item.mileage != null ? String(item.mileage) : '')
+    setCars([])
+    const logs = await createClient().from('media_logs').select('id, license_plate, symptom, note, created_at, photo_count, video_count').ilike('license_plate', `%${plateNo.replace(/[%_,()]/g, '')}%`).order('created_at', { ascending: false }).limit(30)
+    setHits(logs.data || [])
   }
 
   const addPhotos = async (list: FileList | null) => {
@@ -93,8 +127,25 @@ export default function SendMediaPage() {
       return
     }
     setBusy(true)
+    let carBrand = brand
+    let carModel = model
+    let carMile = mileage
+    if (!carBrand && !carModel && !carMile) {
+      const found = await createClient().from('vehicles').select('brand, model, mileage').ilike('license_plate', plateNo).limit(1)
+      const car = found.data?.[0]
+      if (car) {
+        carBrand = car.brand || ''
+        carModel = car.model || ''
+        carMile = car.mileage != null ? String(car.mileage) : ''
+        setBrand(carBrand)
+        setModel(carModel)
+        setMileage(carMile)
+      }
+    }
     const caption = [
       `ป้าย: ${plateNo}`,
+      `รถ: ${`${carBrand} ${carModel}`.trim() || '-'}`,
+      `ไมล์: ${carMile || '-'}`,
       `อาการ: ${symptom.trim() || '-'}`,
       `ช่างอธิบาย: ${note.trim() || '-'}`,
       `ผู้ส่ง: ${account?.full_name || '-'}`,
@@ -151,7 +202,19 @@ export default function SendMediaPage() {
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
       <h1 className="text-2xl font-bold">ส่งรูปเข้าเทเลแกรม</h1>
       <p className="mt-2 text-sm text-gray-300">ป้ายทะเบียนต้องมีทุกครั้ง รูป 1–15 ใบ และวิดีโอได้ 1–2 คลิป ภายหลังค้นป้ายนี้แล้วเจออาการกับคำอธิบายของช่าง</p>
-      <input value={plate} onChange={(e) => { void search(e.target.value) }} placeholder="ป้ายทะเบียน เช่น กข 1234" className="mt-4 w-full rounded border border-gray-600 bg-gray-800 p-3 text-lg" />
+      <div className="relative">
+        <input value={plate} onChange={(e) => { void search(e.target.value) }} placeholder="ป้ายทะเบียน เช่น กข 1234" className="mt-4 w-full rounded border border-gray-600 bg-gray-800 p-3 text-lg" />
+        {cars.length > 0 && (
+          <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-gray-600 bg-gray-900">
+            {cars.map((item) => (
+              <button key={`${item.license_plate}-${item.brand}-${item.model}`} type="button" onClick={() => { void pickCar(item) }} className="block w-full border-b border-gray-800 px-3 py-2 text-left text-sm">
+                {item.license_plate} · {item.brand || '-'} {item.model || ''} · {item.mileage != null ? `${item.mileage} km` : 'ไม่ทราบไมล์'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {(brand || model || mileage) && <p className="mt-2 text-sm text-gray-200">ดึงมาใช้: {brand} {model} {mileage ? `ไมล์ ${mileage}` : ''}</p>}
       <textarea value={symptom} onChange={(e) => setSymptom(e.target.value)} placeholder="อาการเป็นอย่างไร" rows={2} className="mt-3 w-full rounded border border-gray-600 bg-gray-800 p-3" />
       <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="ช่างอธิบายเพิ่ม" rows={3} className="mt-3 w-full rounded border border-gray-600 bg-gray-800 p-3" />
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -187,3 +250,4 @@ export default function SendMediaPage() {
     </div>
   )
 }
+// plate lookup fills the car before the photo is sent
