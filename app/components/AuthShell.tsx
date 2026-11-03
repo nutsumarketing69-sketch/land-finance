@@ -49,6 +49,9 @@ export function SessionBar() {
           <span className="text-gray-500"> · {account.username}</span>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a href="/" className="rounded-full border border-white/30 px-3 py-2">
+            หน้าหลัก
+          </a>
           {account.role === "admin" && (
             <a href="/approvals" className="rounded-full bg-red-600 px-3 py-2 font-medium">
               อนุมัติพนักงาน
