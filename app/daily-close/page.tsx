@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 export default function DailyClosePage() {
+  const { showPrice } = useAccess()
+  const money = (value: number) => (showPrice ? Number(value || 0).toLocaleString() : '—')
   const [date, setDate] = useState('')
   const [dateLabel, setDateLabel] = useState('')
   const [branchId, setBranchId] = useState('')
@@ -126,9 +129,9 @@ export default function DailyClosePage() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{bills.length}</div><div className="text-xs text-gray-400">จำนวนบิล</div></div>
-          <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{gross.toLocaleString()}</div><div className="text-xs text-gray-400">ยอดก่อนลด</div></div>
-          <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{discount.toLocaleString()}</div><div className="text-xs text-gray-400">ส่วนลด</div></div>
-          <div className="border border-gray-700 rounded-lg p-4"><div className="text-xl sm:text-2xl font-bold text-green-400 break-words">{net.toLocaleString()}</div><div className="text-xs text-gray-400">ยอดสุทธิ</div></div>
+          <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{money(gross)}</div><div className="text-xs text-gray-400">ยอดก่อนลด</div></div>
+          <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{money(discount)}</div><div className="text-xs text-gray-400">ส่วนลด</div></div>
+          <div className="border border-gray-700 rounded-lg p-4"><div className="text-xl sm:text-2xl font-bold text-green-400 break-words">{money(net)}</div><div className="text-xs text-gray-400">ยอดสุทธิ</div></div>
         </div>
 
         {!branchId && loaded && (
@@ -146,7 +149,7 @@ export default function DailyClosePage() {
                 <tr key={b.name} className="border-b border-gray-800">
                   <td className="py-2">{b.name}</td>
                   <td className="py-2 text-right">{b.count}</td>
-                  <td className="py-2 text-right">{b.total.toLocaleString()}</td>
+                  <td className="py-2 text-right">{money(b.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -163,7 +166,7 @@ export default function DailyClosePage() {
                   <div>{bill.bill_no} — {bill.customer_name || '-'} | {bill.license_plate || '-'}</div>
                   <div className="text-xs text-gray-400">{bill.branches?.name || '-'}</div>
                 </div>
-                <div className="font-semibold">{Number(bill.total || 0).toLocaleString()}</div>
+                <div className="font-semibold">{money(Number(bill.total || 0))}</div>
               </div>
             ))}
           </div>
