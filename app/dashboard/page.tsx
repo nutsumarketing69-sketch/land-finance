@@ -41,7 +41,8 @@ export default function DashboardPage() {
       supabase
         .from('parts_services')
         .select('id', { count: 'exact', head: true })
-        .lte('stock', 5),
+        .lte('stock', 5)
+        .not('type', 'in', '("labor","service")'),
       supabase
         .from('bills')
         .select('id, bill_no, customer_name, license_plate, total, created_at, branches(name)')
