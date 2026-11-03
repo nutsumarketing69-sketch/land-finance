@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 export default function DashboardPage() {
+  const { showPrice } = useAccess()
   const [stats, setStats] = useState({
     vehicles: 0,
     customers: 0,
@@ -84,7 +86,7 @@ export default function DashboardPage() {
           <div className="text-sm text-gray-400 mt-1">บิลวันนี้</div>
         </div>
         <div className="border border-gray-700 rounded-xl p-4 text-center bg-gray-900">
-          <div className="text-xl sm:text-3xl font-bold text-purple-400 break-words">{stats.salesToday.toLocaleString()}</div>
+          <div className="text-xl sm:text-3xl font-bold text-purple-400 break-words">{showPrice ? stats.salesToday.toLocaleString() : '—'}</div>
           <div className="text-sm text-gray-400 mt-1">ยอดวันนี้</div>
         </div>
         <div className="border border-gray-700 rounded-xl p-4 text-center bg-gray-900">
@@ -104,7 +106,7 @@ export default function DashboardPage() {
             <a key={bill.id} href={`/receipt?bill=${bill.id}`} className="block border border-gray-700 rounded-lg p-3 bg-gray-900 text-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <div className="font-medium break-words">{bill.license_plate || '-'} · {bill.customer_name || '-'}{bill.voided_at ? ' · ยกเลิก' : ''}</div>
-                <div className="text-gray-300">{Number(bill.total || 0).toLocaleString()} บาท</div>
+                <div className="text-gray-300">{showPrice ? `${Number(bill.total || 0).toLocaleString()} บาท` : '—'}</div>
               </div>
               <div className="text-gray-400">{bill.branches?.name || '-'} · {bill.bill_no}</div>
             </a>
