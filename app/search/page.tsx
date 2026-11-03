@@ -40,7 +40,7 @@ export default function SearchPage() {
 
       supabase
         .from('bills')
-        .select('id, bill_no, customer_name, phone, license_plate, car_info, total, created_at')
+        .select('id, bill_no, customer_name, phone, license_plate, car_info, total, created_at, voided_at')
         .or(`license_plate.ilike.${q},customer_name.ilike.${q},car_info.ilike.${q},bill_no.ilike.${q}`)
         .order('created_at', { ascending: false })
         .limit(30),
@@ -129,8 +129,9 @@ export default function SearchPage() {
           if (item.type === 'bill') {
             const b = item.data
             return (
-              <a key={`b-${b.id || index}`} href={`/history?plate=${encodeURIComponent(b.license_plate || '')}`} className="block border border-gray-700 rounded-lg p-4 bg-gray-900">
+              <a key={`b-${b.id || index}`} href={`/receipt?bill=${b.id}`} className="block border border-gray-700 rounded-lg p-4 bg-gray-900">
                 <span className="text-xs bg-purple-700 px-2 py-0.5 rounded">บิล</span>
+                {b.voided_at && <span className="text-xs bg-red-700 px-2 py-0.5 rounded ml-2">ยกเลิก</span>}
                 <div className="font-semibold mt-1 break-words">{b.license_plate || '-'} {b.customer_name || ''}</div>
                 <div className="text-sm text-gray-400 break-words">{b.car_info || ''}</div>
                 <div className="text-sm mt-1">{Number(b.total || 0).toLocaleString()} บาท</div>
