@@ -137,6 +137,9 @@ export default function LoginPage() {
         >
           {busy ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
         </button>
+        <a href="/forgot" className="block text-center text-sm font-medium text-red-700">
+          ลืมรหัสผ่าน
+        </a>
         <a
           href="/signup"
           className="block w-full rounded-xl border border-red-200 py-3 text-center text-base font-semibold text-red-700"
@@ -150,4 +153,4 @@ export default function LoginPage() {
     </AuthFrame>
   );
 }
-// saved login stays on this device
+// forgot password opens from this screen
