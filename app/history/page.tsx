@@ -36,7 +36,7 @@ function HistoryContent() {
         .limit(40),
       supabase
         .from('bills')
-        .select('id, bill_no, customer_name, phone, license_plate, car_info, mileage, total, created_at, items')
+        .select('id, bill_no, customer_name, phone, license_plate, car_info, mileage, total, created_at, items, voided_at, void_reason')
         .ilike('license_plate', `%${q}%`)
         .order('created_at', { ascending: false })
         .limit(40),
@@ -115,6 +115,10 @@ function HistoryContent() {
                 <div className="text-sm text-gray-400">{bill.customer_name || '-'} {bill.phone || ''}</div>
                 <div className="text-sm text-gray-400">ไมล์: {bill.mileage ? Number(bill.mileage).toLocaleString() : '-'} km</div>
                 {names ? <div className="text-sm mt-1 break-words">{names}</div> : null}
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  {bill.voided_at && <span className="text-xs bg-red-700 text-white rounded-full px-2 py-0.5">ยกเลิก</span>}
+                  <a href={`/receipt?bill=${bill.id}`} className="text-sm text-red-200">เปิดใบจริง</a>
+                </div>
               </div>
             )
           })}
