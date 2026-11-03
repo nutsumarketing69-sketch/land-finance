@@ -7,6 +7,7 @@ export default function WarrantyPage() {
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'active' | 'expired'>('all')
+  const [q, setQ] = useState('')
 
   useEffect(() => {
     fetchJobs()
@@ -34,21 +35,25 @@ export default function WarrantyPage() {
   }
 
   const filtered = jobs.filter((job) => {
-    if (filter === 'active') return isUnderWarranty(job)
-    if (filter === 'expired') return job.warranty_until && !isUnderWarranty(job)
+    if (filter === 'active' && !isUnderWarranty(job)) return false
+    if (filter === 'expired' && !(job.warranty_until && !isUnderWarranty(job))) return false
+    const text = `${job.vehicles?.license_plate || ''} ${job.vehicles?.customers?.full_name || ''} ${job.repair || ''}`.toLowerCase()
+    if (q && !text.includes(q.toLowerCase())) return false
     return true
   })
 
   if (loading) return <div className="p-8 text-center">กำลังโหลด...</div>
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">ระบบรับประกันงาน</h1>
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto pb-24">
+      <h1 className="text-2xl font-bold mb-2">ระบบรับประกันงาน</h1>
+      <p className="text-sm text-gray-400 mb-4">ค้นจากป้ายหรือชื่อลูกค้า งานที่รับรถเข้ามาแล้วเท่านั้น</p>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ป้ายหรือชื่อ" className="w-full border border-gray-600 bg-gray-800 p-3 rounded mb-4 text-white text-lg" />
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700'}`}
+          className={`px-4 py-3 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700'}`}
         >
           ทั้งหมด
         </button>
@@ -74,7 +79,7 @@ export default function WarrantyPage() {
             const under = isUnderWarranty(job)
             return (
               <div key={job.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
-                <div className="flex justify-between items-start">
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
                   <div>
                     <div className="font-semibold text-lg">
                       {job.vehicles?.license_plate || '-'}
