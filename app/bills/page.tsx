@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function BillsPage() {
@@ -8,32 +8,33 @@ export default function BillsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [printBill, setPrintBill] = useState<any>(null)
+  const [capped, setCapped] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    fetchBills()
+    fetchBills('')
   }, [])
 
-  const fetchBills = async () => {
+  const fetchBills = async (word: string) => {
     const supabase = createClient()
-    const { data } = await supabase
-      .from('bills')
-      .select('*, branches(name)')
-      .order('created_at', { ascending: false })
-      .limit(50)
-    setBills(data || [])
+    const q = word.trim().replace(/[,()%_]/g, '')
+    let query = supabase.from('bills').select('*, branches(name)').order('created_at', { ascending: false }).limit(40)
+    if (q) {
+      query = supabase
+        .from('bills')
+        .select('*, branches(name)')
+        .or(`bill_no.ilike.%${q}%,customer_name.ilike.%${q}%,license_plate.ilike.%${q}%,car_info.ilike.%${q}%`)
+        .order('created_at', { ascending: false })
+        .limit(40)
+    }
+    const { data } = await query
+    const rows = data || []
+    setBills(rows)
+    setCapped(!!q && rows.length >= 40)
     setLoading(false)
   }
 
-  const filtered = bills.filter((b) => {
-    if (!search) return true
-    const q = search.toLowerCase()
-    return (
-      b.bill_no?.toLowerCase().includes(q) ||
-      b.customer_name?.toLowerCase().includes(q) ||
-      b.license_plate?.toLowerCase().includes(q) ||
-      b.car_info?.toLowerCase().includes(q)
-    )
-  })
+  const filtered = bills
 
   const handlePrint = (bill: any) => {
     setPrintBill(bill)
@@ -55,16 +56,23 @@ export default function BillsPage() {
         }
       `}</style>
 
-      <div className="p-6 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">ประวัติบิล</h1>
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
+        <h1 className="text-2xl font-bold mb-2">ประวัติบิล</h1>
+        <p className="text-sm text-gray-400 mb-4">พิมพ์ป้าย ชื่อ หรือเลขบิล แม้แค่ตัวเดียว</p>
 
         <input
           type="text"
-          placeholder="ค้นหา เลขที่บิล, ชื่อลูกค้า, ป้ายทะเบียน..."
+          placeholder="เช่น 1 หรือ ก หรือ ชื่อลูกค้า"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full border border-gray-600 bg-gray-800 p-3 rounded mb-6 text-white placeholder-gray-400"
+          onChange={(e) => {
+            const value = e.target.value
+            setSearch(value)
+            if (timer.current) clearTimeout(timer.current)
+            timer.current = setTimeout(() => fetchBills(value), 250)
+          }}
+          className="w-full border border-gray-600 bg-gray-800 p-3 rounded mb-3 text-white text-lg placeholder-gray-400"
         />
+        {capped && <p className="text-amber-300 text-sm mb-4">แสดง 40 ใบแรก พิมพ์เพิ่มอีกตัว</p>}
 
         {filtered.length === 0 ? (
           <p className="text-gray-400 text-center py-8">ไม่พบบิล</p>
@@ -72,7 +80,7 @@ export default function BillsPage() {
           <div className="space-y-3">
             {filtered.map((bill) => (
               <div key={bill.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
-                <div className="flex justify-between items-start">
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
                   <div>
                     <div className="font-semibold">{bill.bill_no}</div>
                     <div className="text-sm text-gray-400 mt-1">
@@ -106,7 +114,7 @@ export default function BillsPage() {
                 <div className="mt-3">
                   <button
                     onClick={() => handlePrint(bill)}
-                    className="text-xs bg-blue-600 px-3 py-1 rounded"
+                    className="text-sm bg-blue-600 px-4 py-2 rounded"
                   >
                     พิมพ์บิล
                   </button>
