@@ -7,6 +7,7 @@ export default function StockPage() {
   const [parts, setParts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<any>(null)
+  const [q, setQ] = useState('')
 
   useEffect(() => {
     fetchParts()
@@ -14,8 +15,14 @@ export default function StockPage() {
 
   const fetchParts = async () => {
     const supabase = createClient()
-    const { data } = await supabase.from('parts_services').select('*').order('name')
-    setParts(data || [])
+    const all: any[] = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('parts_services').select('*').order('name').range(from, from + 999)
+      if (error || !data?.length) break
+      all.push(...data)
+      if (data.length < 1000) break
+    }
+    setParts(all)
     setLoading(false)
   }
 
@@ -46,8 +53,9 @@ export default function StockPage() {
   const lowStock = parts.filter(p => (p.stock || 0) <= (p.min_stock || 5))
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">จัดการสต็อกอะไหล่</h1>
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-24">
+      <h1 className="text-2xl font-bold mb-4">จัดการสต็อกอะไหล่</h1>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ชื่ออะไหล่ เช่น ก" className="w-full border border-gray-600 bg-gray-800 p-3 rounded mb-4 text-white text-lg" />
 
       {lowStock.length > 0 && (
         <div className="mb-6 p-4 bg-red-900/30 border border-red-600 rounded">
@@ -59,7 +67,7 @@ export default function StockPage() {
       {editing && (
         <div className="mb-6 p-4 border rounded bg-gray-800">
           <h2 className="font-semibold mb-3">แก้ไขรายการ</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input type="text" value={editing.name} onChange={(e) => setEditing({...editing, name: e.target.value})} className="border p-2 rounded text-black" placeholder="ชื่อ" />
             <input type="number" value={editing.price} onChange={(e) => setEditing({...editing, price: e.target.value})} className="border p-2 rounded text-black" placeholder="ราคา" />
             <input type="number" value={editing.stock} onChange={(e) => setEditing({...editing, stock: e.target.value})} className="border p-2 rounded text-black" placeholder="สต็อก" />
@@ -73,10 +81,10 @@ export default function StockPage() {
       )}
 
       <div className="space-y-2">
-        {parts.map((part) => (
-          <div key={part.id} className="border p-4 rounded flex justify-between items-center">
-            <div className="flex-1">
-              <div className="font-medium">{part.name}</div>
+        {(q.trim() ? parts.filter((part) => String(part.name || '').toLowerCase().includes(q.trim().toLowerCase())) : parts.slice(0, 40)).map((part) => (
+          <div key={part.id} className="border p-4 rounded flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium break-words">{part.name}</div>
               <div className="text-sm text-gray-400">{Number(part.price).toLocaleString()} บาท</div>
             </div>
             <div className="flex items-center gap-3">
@@ -86,12 +94,13 @@ export default function StockPage() {
                 </div>
                 <div className="text-xs text-gray-500">คงเหลือ</div>
               </div>
-              <button onClick={() => adjustStock(part.id, -1)} className="bg-gray-700 w-8 h-8 rounded">-</button>
-              <button onClick={() => adjustStock(part.id, 1)} className="bg-gray-700 w-8 h-8 rounded">+</button>
-              <button onClick={() => setEditing({...part})} className="text-blue-400 text-sm">แก้ไข</button>
+              <button onClick={() => adjustStock(part.id, -1)} className="bg-gray-700 w-12 h-12 rounded text-xl">-</button>
+              <button onClick={() => adjustStock(part.id, 1)} className="bg-gray-700 w-12 h-12 rounded text-xl">+</button>
+              <button onClick={() => setEditing({...part})} className="text-blue-400 py-3 px-2">แก้ไข</button>
             </div>
           </div>
         ))}
+        {!q.trim() && <p className="text-sm text-gray-400">แสดง 40 รายการแรก พิมพ์ชื่อเพื่อหาที่เหลือ</p>}
       </div>
     </div>
   )
