@@ -336,7 +336,7 @@ export default function PartsPage() {
   const [msg, setMsg] = useState('')
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
-  const [stock, setStock] = useState('0')
+  const [stock, setStock] = useState('100')
   const [category, setCategory] = useState('ทั่วไป')
   const [itemType, setItemType] = useState('อะไหล่')
 
@@ -447,7 +447,7 @@ export default function PartsPage() {
     }
     setName('')
     setPrice('')
-    setStock('0')
+    setStock('100')
     setMsg('เพิ่มรายการแล้ว')
     load()
   }
