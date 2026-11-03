@@ -12,6 +12,7 @@ export default function EmployeesPage() {
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState('staff')
   const [branchId, setBranchId] = useState('')
+  const [editing, setEditing] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
 
@@ -38,26 +39,42 @@ export default function EmployeesPage() {
     // สร้างรหัสพนักงานอัตโนมัติ
     const nextCode = `EMP${String(employees.length + 1).padStart(3, '0')}`
 
-    const { error } = await supabase.from('employees').insert({
+    const payload = {
       full_name: name.trim(),
       nickname: nickname.trim() || null,
       position: position.trim() || null,
-      employee_code: nextCode,
       phone: phone || null,
       role,
       branch_id: branchId || null,
-    })
-
-    if (error) {
-      setMsg('เพิ่มไม่สำเร็จ: ' + error.message)
+    }
+    const res = editing
+      ? await supabase.from('employees').update(payload).eq('id', editing.id).select('id')
+      : await supabase.from('employees').insert({ ...payload, employee_code: nextCode }).select('id')
+    const blocked = !res.error && !(res.data || []).length
+    if (res.error || blocked) {
+      setMsg('บันทึกไม่สำเร็จ: ' + (res.error?.message || 'ฐานข้อมูลยังไม่รับการแก้ไข'))
     } else {
-      setMsg('เพิ่มสำเร็จ!')
+      setMsg(editing ? 'แก้ไขสำเร็จ!' : 'เพิ่มสำเร็จ!')
+      setEditing(null)
       setName('')
       setNickname('')
       setPosition('')
       setPhone('')
+      setRole('staff')
+      setBranchId('')
       fetchData()
     }
+  }
+
+  const startEdit = (emp: any) => {
+    setEditing(emp)
+    setName(emp.full_name || '')
+    setNickname(emp.nickname || '')
+    setPosition(emp.position || '')
+    setPhone(emp.phone || '')
+    setRole(emp.role || 'staff')
+    setBranchId(emp.branch_id || '')
+    setMsg('')
   }
 
   const deleteEmployee = async (id: string) => {
@@ -70,11 +87,11 @@ export default function EmployeesPage() {
   if (loading) return <div className="p-8">กำลังโหลด...</div>
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">จัดการพนักงาน</h1>
 
       <div className="mb-6 p-4 border rounded">
-        <h2 className="font-semibold mb-3">เพิ่มพนักงานใหม่</h2>
+        <h2 className="font-semibold mb-3">{editing ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงานใหม่'}</h2>
         <div className="space-y-2">
           <input type="text" placeholder="ชื่อ-นามสกุล" value={name} onChange={(e) => setName(e.target.value)} className="w-full border p-2 rounded text-black" />
           <input type="text" placeholder="ชื่อเล่น เช่น ช่างทอม" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full border p-2 rounded text-black" />
@@ -83,6 +100,7 @@ export default function EmployeesPage() {
           <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full border p-2 rounded text-black">
             <option value="staff">พนักงาน</option>
             <option value="manager">ผู้จัดการสาขา</option>
+            <option value="admin">แอดมิน สั่งพิมพ์ได้ทุกสาขา</option>
           </select>
           <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="w-full border p-2 rounded text-black">
             <option value="">-- เลือกสาขา --</option>
@@ -90,14 +108,19 @@ export default function EmployeesPage() {
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
-          <button onClick={addEmployee} className="bg-blue-600 text-white px-4 py-2 rounded">เพิ่มพนักงาน</button>
+          <div className="flex gap-2">
+            <button onClick={addEmployee} className="bg-blue-600 text-white px-4 py-2 rounded">{editing ? 'บันทึกการแก้ไข' : 'เพิ่มพนักงาน'}</button>
+            {editing && (
+              <button onClick={() => { setEditing(null); setName(''); setNickname(''); setPosition(''); setPhone(''); setRole('staff'); setBranchId('') }} className="bg-gray-600 text-white px-4 py-2 rounded">ยกเลิก</button>
+            )}
+          </div>
           {msg && <p className="text-sm mt-2">{msg}</p>}
         </div>
       </div>
 
       <div className="space-y-3">
         {employees.map((emp) => (
-          <div key={emp.id} className="border p-4 rounded flex justify-between items-center">
+          <div key={emp.id} className="border p-4 rounded flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
             <div>
               <div className="font-medium">{emp.full_name}{emp.nickname ? ` (${emp.nickname})` : ''}</div>
               <div className="text-sm text-gray-400">{emp.position || '-'}</div>
@@ -107,6 +130,7 @@ export default function EmployeesPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm bg-gray-700 px-3 py-1 rounded">{emp.role}</span>
+              <button onClick={() => startEdit(emp)} className="text-blue-400 text-sm">แก้ไข</button>
               <button onClick={() => deleteEmployee(emp.id)} className="text-red-400 text-sm">ลบ</button>
             </div>
           </div>
