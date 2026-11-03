@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
+import { hasCap } from "@/lib/access";
+import type { StaffAccount } from "@/lib/staff";
 
 const STOCK_TRACKING_FROM = Date.parse("2026-11-03T00:00:00+07:00");
 
@@ -11,14 +13,20 @@ export async function voidBill(bill: VoidTarget, reason: string) {
   const supabase = createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return { error: "ต้องเข้าสู่ระบบก่อนยกเลิกบิล", restored: false };
-  const account = await supabase
+  let account = await supabase
     .from("staff_accounts")
-    .select("role, status")
+    .select("id, user_id, username, full_name, phone, branch_id, position, requested_role, role, status, employee_id, permissions")
     .eq("user_id", userData.user.id)
     .maybeSingle();
-  const role = account.data?.role;
-  if (account.data?.status !== "approved" || (role !== "admin" && role !== "manager")) {
-    return { error: "ยกเลิกบิลได้เฉพาะผู้ดูแลระบบหรือผู้จัดการสาขา", restored: false };
+  if (account.error) {
+    account = await supabase
+      .from("staff_accounts")
+      .select("id, user_id, username, full_name, phone, branch_id, position, requested_role, role, status, employee_id")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+  }
+  if (!hasCap((account.data || null) as StaffAccount | null, "void_bill")) {
+    return { error: "บัญชีนี้ยังไม่มีสิทธิ์ยกเลิกบิล", restored: false };
   }
   const res = await supabase
     .from("bills")
