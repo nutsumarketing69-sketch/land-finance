@@ -16,7 +16,7 @@ export default function InvoicePage() {
   const total = items.reduce((sum, item) => sum + item.price * item.qty, 0)
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-6 text-center">บิลร้านแอร์รถยนต์</h1>
       
       <div className="border rounded-lg p-6">
