@@ -70,21 +70,41 @@ div.bg-gray-900 {
   color: #111 !important;
 }
 
-.sheet input,
-.sheet textarea,
-.sheet select,
-.bill-sheet input,
-.bill-sheet textarea,
-.bill-sheet select {
+.page .sheet input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+.page .sheet textarea,
+.page .sheet select,
+.page .bill-sheet input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+.page .bill-sheet textarea,
+.page .bill-sheet select {
+  -webkit-appearance: none !important;
+  appearance: none !important;
   background: transparent !important;
+  background-color: transparent !important;
   color: #111 !important;
-  border: none !important;
+  border: 0 !important;
   border-radius: 0 !important;
   min-height: 0 !important;
-  padding: 1px 4px !important;
+  height: auto !important;
+  padding: 0 1px !important;
+  margin: 0 !important;
   font-size: inherit !important;
+  line-height: inherit !important;
   outline: none !important;
   box-shadow: none !important;
+  color-scheme: light !important;
+}
+
+.page .sheet input::placeholder,
+.page .sheet textarea::placeholder {
+  color: #b5b5b5 !important;
+}
+
+.page .sheet .items input::placeholder {
+  color: transparent !important;
+}
+
+.page .sheet .items input:focus::placeholder {
+  color: #bdbdbd !important;
 }
 
 .page .toolbar input,
@@ -98,12 +118,14 @@ div.bg-gray-900 {
   font-size: 16px !important;
 }
 
-.sheet .discount input,
-.sheet .sign-date {
-  background: #fff !important;
-  border: 1px solid #ddd !important;
-  border-radius: 4px !important;
-  min-height: 0 !important;
+.page .sheet .sign-date {
+  width: 150px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #111 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-size: 12px !important;
+  padding: 0 !important;
 }
 
 .sheet .menu button,
@@ -139,5 +161,26 @@ div.bg-gray-900 {
   .back-home,
   .session-bar {
     display: none !important;
+  }
+
+  .page .sheet input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+  .page .sheet textarea,
+  .page .sheet select,
+  .page .sheet .sign-date,
+  .page .bill-sheet input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+  .page .bill-sheet textarea,
+  .page .bill-sheet select {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+
+  .page .sheet input::placeholder,
+  .page .sheet textarea::placeholder {
+    color: transparent !important;
   }
 }
