@@ -85,6 +85,7 @@ export default function ReceivePage() {
   const [color, setColor] = useState('')
   const [mileage, setMileage] = useState('')
   const [symptom, setSymptom] = useState('')
+  const [pickupDate, setPickupDate] = useState('')
   const [warrantyMonths, setWarrantyMonths] = useState(6)
   const [vehicleId, setVehicleId] = useState('')
   const [customerId, setCustomerId] = useState('')
@@ -124,7 +125,7 @@ export default function ReceivePage() {
 
   const loadHistory = async (id: string, plateNo: string) => {
     const supabase = createClient()
-    const first = await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until, branches(name)').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
+    const first = await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until, pickup_date, branches(name)').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
     const second = first.error
       ? await supabase.from('jobs').select('id, status, symptom, created_at, warranty_until').eq('vehicle_id', id).order('created_at', { ascending: false }).limit(20)
       : null
@@ -291,6 +292,7 @@ export default function ReceivePage() {
       status: 'in_progress',
       mileage: mileage ? Number(mileage) : null,
       warranty_until: warrantyUntil,
+      pickup_date: pickupDate || null,
     }
     let jobError = ''
     for (let i = 0; i < 6; i++) {
@@ -303,6 +305,7 @@ export default function ReceivePage() {
       if (jobError.includes('employee_id')) delete jobPayload.employee_id
       else if (jobError.includes('mileage')) delete jobPayload.mileage
       else if (jobError.includes('warranty')) delete jobPayload.warranty_until
+      else if (jobError.includes('pickup')) delete jobPayload.pickup_date
       else if (jobError.includes('status')) jobPayload.status = 'pending'
       else if (jobError.includes('branch_id')) delete jobPayload.branch_id
       else break
@@ -424,6 +427,10 @@ export default function ReceivePage() {
       </div>
       <textarea value={symptom} onChange={(e) => setSymptom(e.target.value)} placeholder="อาการที่ลูกค้าแจ้ง" rows={3} className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white mb-3" />
 
+      <label className="block text-sm text-gray-400 mb-4">นัดรับรถ ว่างได้ถ้ายังไม่นัด
+        <input type="date" value={pickupDate} onChange={(e) => setPickupDate(e.target.value)} className="mt-1 w-full border border-gray-600 bg-gray-800 rounded p-3 text-white" />
+      </label>
+
       <label className="block text-sm text-gray-400 mb-4">รับประกัน
         <select value={warrantyMonths} onChange={(e) => setWarrantyMonths(Number(e.target.value))} className="mt-1 w-full border border-gray-600 bg-gray-800 rounded p-3 text-white">
           <option value={0}>ไม่รับประกัน</option>
@@ -477,6 +484,7 @@ export default function ReceivePage() {
             <div key={job.id} className="border border-gray-700 rounded-lg px-3 py-2 text-sm">
               <div>{String(job.created_at || '').replace('T', ' ').slice(0, 16)} · {job.branches?.name || '-'}</div>
               <div className="text-gray-300">{job.symptom || 'ไม่ระบุอาการ'}</div>
+              {job.pickup_date && <div className="text-amber-200">นัดรับ {String(job.pickup_date).slice(0, 10)}</div>}
               {until && <div className={inWarranty ? 'text-green-400' : 'text-gray-500'}>รับประกันถึง {until}{inWarranty ? ' ยังคุ้มอยู่' : ''}</div>}
             </div>
           )
@@ -494,3 +502,4 @@ export default function ReceivePage() {
     </div>
   )
 }
+// pickup date is saved with the job
