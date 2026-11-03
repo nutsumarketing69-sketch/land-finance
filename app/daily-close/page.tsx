@@ -97,23 +97,23 @@ export default function DailyClosePage() {
         }
       `}</style>
 
-      <div className="sheet p-6 max-w-4xl mx-auto">
-        <div className="no-print flex flex-wrap gap-3 items-end mb-6">
+      <div className="sheet p-4 sm:p-6 max-w-4xl mx-auto pb-24">
+        <div className="no-print flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end mb-6">
           <div>
             <label className="block text-sm text-gray-400 mb-1">วันที่</label>
-            <input type="date" value={date} onChange={(e) => onChangeDate(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
+            <input type="date" value={date} onChange={(e) => onChangeDate(e.target.value)} className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white" />
           </div>
           <div>
             <label className="block text-sm text-gray-400 mb-1">สาขา</label>
-            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white">
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white">
               <option value="">ทุกสาขา</option>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </div>
-          <button onClick={load} disabled={loading || !date} className="bg-blue-600 text-white px-5 py-2 rounded disabled:opacity-50">
+          <button onClick={load} disabled={loading || !date} className="bg-blue-600 text-white px-5 py-3 rounded disabled:opacity-50">
             {loading ? 'กำลังโหลด...' : 'ดูยอด'}
           </button>
-          <button onClick={() => window.print()} className="bg-gray-700 text-white px-5 py-2 rounded">พิมพ์สรุป</button>
+          <button onClick={() => window.print()} className="bg-gray-700 text-white px-5 py-3 rounded">พิมพ์สรุป</button>
         </div>
 
         <h1 className="text-2xl font-bold">ปิดยอดประจำวัน</h1>
@@ -126,11 +126,12 @@ export default function DailyClosePage() {
           <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{bills.length}</div><div className="text-xs text-gray-400">จำนวนบิล</div></div>
           <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{gross.toLocaleString()}</div><div className="text-xs text-gray-400">ยอดก่อนลด</div></div>
           <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold">{discount.toLocaleString()}</div><div className="text-xs text-gray-400">ส่วนลด</div></div>
-          <div className="border border-gray-700 rounded-lg p-4"><div className="text-2xl font-bold text-green-400">{net.toLocaleString()}</div><div className="text-xs text-gray-400">ยอดสุทธิ</div></div>
+          <div className="border border-gray-700 rounded-lg p-4"><div className="text-xl sm:text-2xl font-bold text-green-400 break-words">{net.toLocaleString()}</div><div className="text-xs text-gray-400">ยอดสุทธิ</div></div>
         </div>
 
         {!branchId && loaded && (
-          <table className="w-full text-sm mb-6 border-collapse">
+          <div className="overflow-x-auto mb-6">
+          <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-gray-700 text-left">
                 <th className="py-2">สาขา</th>
@@ -148,13 +149,14 @@ export default function DailyClosePage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         <h2 className="font-semibold mb-2">บิลวันนี้</h2>
         {loaded && bills.length === 0 ? <p className="text-gray-400 mb-6">ไม่มีบิลในวันที่เลือก</p> : (
           <div className="space-y-2 mb-6">
             {bills.map((bill) => (
-              <div key={bill.id} className="flex justify-between border border-gray-800 rounded-lg px-3 py-2 text-sm">
+              <div key={bill.id} className="flex flex-col gap-1 sm:flex-row sm:justify-between border border-gray-800 rounded-lg px-3 py-2 text-sm">
                 <div>
                   <div>{bill.bill_no} — {bill.customer_name || '-'} | {bill.license_plate || '-'}</div>
                   <div className="text-xs text-gray-400">{bill.branches?.name || '-'}</div>
