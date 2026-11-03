@@ -75,6 +75,9 @@ export default function ReceivePage() {
   const [plateHits, setPlateHits] = useState<any[]>([])
   const [customerName, setCustomerName] = useState('')
   const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [taxId, setTaxId] = useState('')
+  const [plateCapped, setPlateCapped] = useState(false)
   const [brand, setBrand] = useState('')
   const [model, setModel] = useState('')
   const [color, setColor] = useState('')
@@ -97,7 +100,9 @@ export default function ReceivePage() {
     setToday(`${now.getFullYear()}-${m}-${d}`)
     const supabase = createClient()
     supabase.from('branches').select('id, name').order('name').then(({ data }) => setBranches(data || []))
-    supabase.from('employees').select('*').order('name').then(({ data }) => setEmployees(data || []))
+    supabase.from('employees').select('*').order('full_name').then(({ data }) => setEmployees(data || []))
+    const preset = new URLSearchParams(window.location.search).get('plate') || ''
+    if (preset) searchPlate(preset)
   }, [])
 
   const ready = KINDS.every(([kind]) => shots[kind])
@@ -105,14 +110,14 @@ export default function ReceivePage() {
   const brandHits = useMemo(() => {
     const q = brand.trim().toLowerCase()
     if (!q) return []
-    return Object.keys(BRANDS).filter((b) => b.toLowerCase().startsWith(q) && b.toLowerCase() !== q).slice(0, 8)
+    return Object.keys(BRANDS).filter((b) => b.toLowerCase().includes(q) && b.toLowerCase() !== q)
   }, [brand])
 
   const modelHits = useMemo(() => {
     const list = BRANDS[brand] || Object.values(BRANDS).flat()
     const q = model.trim().toLowerCase()
     if (!q) return []
-    return list.filter((item) => item.toLowerCase().includes(q) && item.toLowerCase() !== q).slice(0, 8)
+    return list.filter((item) => item.toLowerCase().includes(q) && item.toLowerCase() !== q)
   }, [brand, model])
 
   const loadHistory = async (id: string, plateNo: string) => {
@@ -129,16 +134,20 @@ export default function ReceivePage() {
   const searchPlate = async (value: string) => {
     setPlate(value)
     setVehicleId('')
-    if (value.trim().length < 1) {
+    const word = value.trim().replace(/[%_]/g, '')
+    if (word.length < 1) {
       setPlateHits([])
+      setPlateCapped(false)
       return
     }
     const supabase = createClient()
-    const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone)').ilike('license_plate', `%${value.trim()}%`).limit(8)
+    const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone, address, tax_id)').ilike('license_plate', `%${word}%`).limit(80)
     const plain = withCustomer.error
-      ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8)
+      ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${word}%`).limit(80)
       : null
-    setPlateHits((plain?.data || withCustomer.data || []) as any[])
+    const rows = (plain?.data || withCustomer.data || []) as any[]
+    setPlateHits(rows)
+    setPlateCapped(rows.length >= 80)
   }
 
   const pickVehicle = async (v: any) => {
@@ -151,6 +160,8 @@ export default function ReceivePage() {
     setCustomerId(v.customer_id || '')
     setCustomerName(v.customers?.full_name || '')
     setPhone(v.customers?.phone || '')
+    setAddress(v.customers?.address || '')
+    setTaxId(v.customers?.tax_id || '')
     setPlateHits([])
     await loadHistory(v.id, v.license_plate)
   }
@@ -208,10 +219,11 @@ export default function ReceivePage() {
     const supabase = createClient()
     let cid = customerId
     if (customerName.trim()) {
+      const person = { full_name: customerName.trim(), phone: phone || null, address: address.trim() || null, tax_id: taxId.trim() || null }
       if (cid) {
-        await supabase.from('customers').update({ full_name: customerName.trim(), phone: phone || null }).eq('id', cid)
+        await supabase.from('customers').update(person).eq('id', cid)
       } else {
-        const created = await supabase.from('customers').insert({ full_name: customerName.trim(), phone: phone || null }).select('id')
+        const created = await supabase.from('customers').insert(person).select('id')
         if (created.error) return 'บันทึกลูกค้าไม่สำเร็จ: ' + created.error.message
         cid = created.data?.[0]?.id || ''
         setCustomerId(cid)
@@ -331,7 +343,7 @@ export default function ReceivePage() {
       <h1 className="text-2xl font-bold">รับรถเข้าซ่อม</h1>
       <p className="text-sm text-gray-400 mb-4">ถ่ายให้ครบ 3 รูป แล้วกดปุ่มเดียว จบทั้งบันทึกและส่งเข้ากลุ่ม</p>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
         <label className="block text-sm text-gray-400">สาขา
           <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="mt-1 w-full border border-gray-600 bg-gray-800 rounded p-3 text-white">
             <option value="">เลือกสาขา</option>
@@ -349,27 +361,30 @@ export default function ReceivePage() {
       <div className="relative mb-3">
         <input value={plate} onChange={(e) => searchPlate(e.target.value)} placeholder="ป้ายทะเบียน เช่น กก 999" className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white text-lg" />
         {plateHits.length > 0 && (
-          <div className="absolute z-20 bg-gray-900 border border-gray-700 w-full mt-1 rounded max-h-60 overflow-y-auto">
+          <div className="absolute z-20 bg-gray-900 border border-gray-700 w-full mt-1 rounded max-h-[50vh] overflow-y-auto">
             {plateHits.map((v) => (
-              <button key={v.id} onClick={() => pickVehicle(v)} className="block w-full text-left px-3 py-2 hover:bg-gray-800">
+              <button key={v.id} onClick={() => pickVehicle(v)} className="block w-full text-left px-3 py-3 hover:bg-gray-800">
                 <div className="font-semibold">{v.license_plate}</div>
                 <div className="text-xs text-gray-400">{v.brand} {v.model} {v.color} {v.customers?.full_name || ''}</div>
               </button>
             ))}
+            {plateCapped && <div className="px-3 py-2 text-sm text-amber-300">แสดง 80 ป้ายแรก พิมพ์เพิ่มอีกตัว</div>}
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="ชื่อลูกค้า" className="border border-gray-600 bg-gray-800 rounded p-3 text-white" />
         <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="เบอร์โทร" className="border border-gray-600 bg-gray-800 rounded p-3 text-white" />
+        <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="ที่อยู่ ว่างได้ถ้าไม่มีในข้อมูล" className="border border-gray-600 bg-gray-800 rounded p-3 text-white sm:col-span-2" />
+        <input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="เลขผู้เสียภาษี ถ้าร้านหรือบริษัท" className="border border-gray-600 bg-gray-800 rounded p-3 text-white sm:col-span-2" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div className="relative">
           <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="ยี่ห้อ เช่น T" className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white" />
           {brandHits.length > 0 && (
-            <div className="absolute z-20 bg-gray-900 border border-gray-700 w-full mt-1 rounded">
+            <div className="absolute z-20 bg-gray-900 border border-gray-700 w-full mt-1 rounded max-h-[50vh] overflow-y-auto">
               {brandHits.map((b) => <button key={b} onClick={() => setBrand(b)} className="block w-full text-left px-3 py-2 hover:bg-gray-800">{b}</button>)}
             </div>
           )}
@@ -377,7 +392,7 @@ export default function ReceivePage() {
         <div className="relative">
           <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="รุ่น เช่น y" className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white" />
           {modelHits.length > 0 && (
-            <div className="absolute z-20 bg-gray-900 border border-gray-700 w-full mt-1 rounded">
+            <div className="absolute z-20 bg-gray-900 border border-gray-700 w-full mt-1 rounded max-h-[50vh] overflow-y-auto">
               {modelHits.map((item) => <button key={item} onClick={() => setModel(item)} className="block w-full text-left px-3 py-2 hover:bg-gray-800">{item}</button>)}
             </div>
           )}
