@@ -436,7 +436,7 @@ export default function BackupPage() {
       <h1 className="text-2xl font-bold">สำรองข้อมูล</h1>
       <p className="mt-2 text-sm leading-6 text-gray-300">
         ส่งออกข้อมูลจริงของร้านเป็นไฟล์ Excel ไฟล์เดียว เปิดใน Excel หรือ Google Sheets ได้ทันที
-        มีลูกค้า รถ ประวัติบิล และรายการในบิล เก็บไฟล์ไว้ หรือส่งต่อเข้าระบบอื่นได้จากหัวตารางภาษาไทย
+        มีลูกค้า รถ ประวัติบิล และรายการในบิลครบตามที่บันทึกไว้ในระบบ เก็บไฟล์ไว้ หรือส่งต่อเข้าระบบอื่นได้จากหัวตารางภาษาไทย
       </p>
       {ready && !admin && <p className="mt-4 text-amber-200">สำรองข้อมูลทำได้เฉพาะผู้ดูแลระบบ</p>}
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -470,4 +470,4 @@ export default function BackupPage() {
     </div>
   )
 }
-// ส่งออกข้อมูลจริงของร้านเป็นไฟล์ excel
+// ไฟล์สำรองนี้มาจากข้อมูลจริงในร้าน
