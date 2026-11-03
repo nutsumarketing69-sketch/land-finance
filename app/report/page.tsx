@@ -31,6 +31,7 @@ export default function ReportPage() {
       .select('id, bill_no, customer_name, license_plate, car_info, total, created_at, branches(name)')
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString())
+      .is('voided_at', null)
       .order('created_at', { ascending: false })
       .limit(300)
     if (!error) setBills(data || [])
@@ -48,7 +49,7 @@ export default function ReportPage() {
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-2">รายงานประจำวัน</h1>
-      <p className="text-sm text-gray-400 mb-4">ยอดจากบิลที่บันทึกในวันที่เลือก</p>
+      <p className="text-sm text-gray-400 mb-4">ยอดจากบิลที่บันทึกในวันที่เลือก ไม่รวมบิลที่ยกเลิก</p>
 
       <div className="flex flex-col sm:flex-row gap-2 mb-6">
         <input
