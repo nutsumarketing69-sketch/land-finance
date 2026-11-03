@@ -470,4 +470,4 @@ export default function BackupPage() {
     </div>
   )
 }
-// ส่งออกข้อมูลจริงของร้าน
+// ส่งออกข้อมูลจริงของร้านเป็นไฟล์ excel
