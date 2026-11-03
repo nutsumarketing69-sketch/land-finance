@@ -105,6 +105,7 @@ export default function ApprovalsPage() {
         <h1 className="text-2xl font-bold">อนุมัติพนักงาน</h1>
         <p className="mt-1 text-sm text-gray-400">
           คนที่สมัครใหม่ยังเข้าหน้าร้านไม่ได้ จนกว่าจะกดอนุมัติ จากนั้นชื่อจะไปอยู่ในรายชื่อพนักงาน และใช้สิทธิ์ตามที่กำหนด
+          คำขอเดียวกันอยู่ในกลุ่มเทเลแกรม พร้อมปุ่มอนุมัติและไม่ผ่าน กดที่นี่หรือกดในกลุ่มได้ผลเหมือนกัน
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
           <Stat label="รออนุมัติ" value={counts.pending} />
@@ -199,6 +200,7 @@ export default function ApprovalsPage() {
   );
 }
 
+// telegram buttons and this page approve the same request
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl bg-gray-900 px-2 py-3">
