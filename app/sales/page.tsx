@@ -10,17 +10,19 @@ export default function SalesPage() {
   const [summary, setSummary] = useState({ count: 0, total: 0 })
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     setDate(today)
+    fetchSales(today)
   }, [])
 
-  const fetchSales = async () => {
-    if (!date) return
+  const fetchSales = async (value = date) => {
+    if (!value) return
     setLoading(true)
     const supabase = createClient()
 
-    const start = new Date(date + 'T00:00:00')
-    const end = new Date(date + 'T23:59:59')
+    const start = new Date(value + 'T00:00:00')
+    const end = new Date(value + 'T23:59:59')
 
     const { data } = await supabase
       .from('bills')
@@ -38,23 +40,23 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-6">สรุปยอดขายรายวัน</h1>
 
-      <div className="flex gap-3 mb-6 items-end">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-end">
         <div>
           <label className="block text-sm text-gray-400 mb-1">เลือกวันที่</label>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="border border-gray-600 bg-gray-800 p-2 rounded text-white"
+            className="w-full border border-gray-600 bg-gray-800 p-3 rounded text-white"
           />
         </div>
         <button
           onClick={fetchSales}
           disabled={loading}
-          className="bg-blue-600 text-white px-5 py-2 rounded disabled:opacity-50"
+          className="bg-blue-600 text-white px-5 py-3 rounded disabled:opacity-50"
         >
           {loading ? 'กำลังโหลด...' : 'ดูสรุป'}
         </button>
@@ -66,7 +68,7 @@ export default function SalesPage() {
           <div className="text-sm text-gray-400">จำนวนบิล</div>
         </div>
         <div className="border border-gray-700 rounded-lg p-4 text-center bg-gray-900">
-          <div className="text-3xl font-bold text-green-400">{summary.total.toLocaleString()}</div>
+          <div className="text-xl sm:text-3xl font-bold text-green-400 break-words">{summary.total.toLocaleString()}</div>
           <div className="text-sm text-gray-400">ยอดรวม (บาท)</div>
         </div>
       </div>
@@ -77,7 +79,7 @@ export default function SalesPage() {
         <div className="space-y-2">
           {bills.map((bill) => (
             <div key={bill.id} className="border border-gray-700 rounded-lg p-3 bg-gray-900 text-sm">
-              <div className="flex justify-between">
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <div>
                   <div className="font-medium">{bill.bill_no}</div>
                   <div className="text-gray-400">{bill.customer_name || '-'} | {bill.license_plate || '-'}</div>
