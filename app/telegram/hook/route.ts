@@ -14,6 +14,25 @@ async function telegram(token: string, method: string, body: Record<string, unkn
   })
 }
 
+export async function GET() {
+  const token = process.env.TELEGRAM_BOT_TOKEN || ''
+  const gate = reviewGate(token)
+  if (!token || gate.length < 20) return NextResponse.json({ ok: false, gateLength: gate.length })
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  const bound = await supabase.rpc('telegram_bind_gate', { gate })
+  const hook = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: 'https://aircon.tppth.cam/telegram/hook',
+      secret_token: gate,
+      allowed_updates: ['callback_query'],
+    }),
+  })
+  const data = await hook.json().catch(() => ({ ok: false }))
+  return NextResponse.json({ ok: !!data.ok && !bound.error, bound: !bound.error, webhook: data.ok === true })
+}
+
 export async function POST(request: Request) {
   const token = process.env.TELEGRAM_BOT_TOKEN || ''
   const gate = reviewGate(token)
@@ -47,3 +66,4 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ ok: true })
 }
+// the approve button is answered here
