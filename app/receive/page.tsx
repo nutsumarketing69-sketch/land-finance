@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 const BRANDS: Record<string, string[]> = {
   Toyota: ['Vios', 'Yaris', 'Yaris Ativ', 'Corolla Altis', 'Corolla Cross', 'Camry', 'Fortuner', 'Hilux Revo', 'Hilux Vigo', 'Commuter', 'Hiace', 'Innova', 'Alphard', 'Veloz', 'C-HR', 'Raize', 'Avanza', 'Prius'],
@@ -66,6 +67,7 @@ function shrink(file: File): Promise<Blob> {
 }
 
 export default function ReceivePage() {
+  const { showPrice } = useAccess()
   const [today, setToday] = useState('')
   const [branches, setBranches] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
@@ -166,17 +168,25 @@ export default function ReceivePage() {
     await loadHistory(v.id, v.license_plate)
   }
 
-  const addShot = (kind: string, file?: File) => {
+  const addShot = async (kind: string, file?: File) => {
     if (!file) return
     if (!plate.trim()) {
       setMsg('ใส่ป้ายทะเบียนก่อนถ่ายรูป จะได้ค้นรูปในกลุ่มเจอ')
       return
     }
     setDone(false)
-    setShots((prev) => ({
-      ...prev,
-      [kind]: { url: URL.createObjectURL(file), kind, file, status: 'ready', note: 'พร้อมส่ง' },
-    }))
+    const blob = await shrink(file)
+    const jpeg = new File([blob], `${kind}.jpg`, { type: 'image/jpeg' })
+    const url = URL.createObjectURL(jpeg.size ? jpeg : file)
+    setShots((prev) => {
+      const old = prev[kind]?.url
+      if (old) URL.revokeObjectURL(old)
+      return {
+        ...prev,
+        [kind]: { url, kind, file: jpeg.size ? jpeg : file, status: 'ready', note: 'ถ่ายแล้ว' },
+      }
+    })
+    setMsg('')
   }
 
   const sendAlbum = async () => {
@@ -424,20 +434,27 @@ export default function ReceivePage() {
         </select>
       </label>
 
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {KINDS.map(([kind, label]) => (
-          <label key={kind} className="border border-dashed border-gray-600 rounded-lg p-3 text-center text-sm cursor-pointer">
-            {label}
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { addShot(kind, e.target.files?.[0]); e.target.value = '' }} />
-          </label>
-        ))}
-      </div>
       <div className="grid grid-cols-3 gap-2 mb-4">
         {KINDS.map(([kind, label]) => (
-          <div key={kind}>
-            {shots[kind] ? <img src={shots[kind].url} alt={label} className="w-full h-24 object-cover rounded" /> : <div className="w-full h-24 rounded bg-gray-800" />}
-            <div className={`text-xs mt-1 ${shots[kind]?.status === 'sent' ? 'text-green-400' : 'text-gray-400'}`}>{label}{shots[kind] ? ` · ${shots[kind].note}` : ''}</div>
-          </div>
+          <label key={kind} className="shot-tile relative block min-h-[148px] overflow-hidden rounded-lg border border-dashed border-gray-500 text-center text-sm">
+            {shots[kind] ? (
+              <img src={shots[kind].url} alt={label} className="h-32 w-full object-cover" />
+            ) : (
+              <span className="flex h-32 items-center justify-center px-1 text-gray-200">กดถ่าย<br />{label}</span>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                void addShot(kind, file)
+              }}
+            />
+            <div className={`px-1 py-1 text-xs ${shots[kind]?.status === 'sent' ? 'text-green-400' : 'text-gray-300'}`}>{label}{shots[kind] ? ` · ${shots[kind].note}` : ''}</div>
+          </label>
         ))}
       </div>
 
@@ -470,7 +487,7 @@ export default function ReceivePage() {
         {bills.map((bill) => (
           <div key={bill.id} className="flex justify-between border border-gray-800 rounded-lg px-3 py-2 text-sm">
             <div>{bill.bill_no}<div className="text-xs text-gray-500">{String(bill.created_at || '').replace('T', ' ').slice(0, 16)}</div></div>
-            <div>{Number(bill.total || 0).toLocaleString()}</div>
+            <div>{showPrice ? Number(bill.total || 0).toLocaleString() : '—'}</div>
           </div>
         ))}
       </div>
