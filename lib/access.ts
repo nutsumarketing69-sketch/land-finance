@@ -35,9 +35,11 @@ export const CAPS: Cap[] = [
   { id: "sales", label: "ยอดขาย", group: "ร้าน", detail: "ยอดขายรายวัน" },
   { id: "daily_close", label: "ปิดยอดวัน", group: "ร้าน", detail: "สรุปก่อนเลิกงาน" },
   { id: "import_bills", label: "นำเข้าบิล Excel", group: "ร้าน", detail: "อัปโหลดบิลเก่าพร้อมรายการและยอด" },
+  { id: "backup", label: "สำรองข้อมูล", group: "ร้าน", detail: "ส่งออก Excel ลูกค้า รถ และประวัติบิล เฉพาะผู้ดูแลระบบ" },
 ];
 
 const PATHS: [string, string][] = [
+  ["/backup", "backup"],
   ["/import-bills", "import_bills"],
   ["/report-advanced", "reports"],
   ["/jobs-by-branch", "jobs"],
@@ -93,13 +95,14 @@ function frontCaps() {
 
 export function defaultCapIds(account: Pick<StaffAccount, "role" | "position">) {
   if (account.role === "admin") return CAPS.map((item) => item.id);
-  if (account.role === "manager") return CAPS.map((item) => item.id).filter((id) => id !== "access");
+  if (account.role === "manager") return CAPS.map((item) => item.id).filter((id) => id !== "access" && id !== "backup");
   if ((account.position || "").includes("ช่าง")) return techCaps();
   return frontCaps();
 }
 
 export function hasCap(account: StaffAccount | null | undefined, cap: string) {
   if (!account || account.status !== "approved") return false;
+  if (cap === "backup") return account.role === "admin";
   if (cap === "access" && account.role === "admin") return true;
   const custom = account.permissions;
   if (custom && typeof custom === "object" && Object.prototype.hasOwnProperty.call(custom, cap)) {
@@ -120,5 +123,7 @@ export function explicitPermissions(account: Pick<StaffAccount, "role" | "positi
     }
   }
   if (account.role === "admin") map.access = true;
+  map.backup = account.role === "admin";
   return map;
 }
+// backup stays with the admin account only
