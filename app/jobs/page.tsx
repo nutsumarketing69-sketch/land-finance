@@ -7,6 +7,7 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [q, setQ] = useState('')
 
   useEffect(() => {
     fetchJobs()
@@ -49,8 +50,10 @@ export default function JobsPage() {
   }
 
   const filtered = jobs.filter((job) => {
-    if (filter === 'all') return true
-    return job.status === filter
+    if (filter !== 'all' && job.status !== filter) return false
+    const text = `${job.vehicles?.license_plate || ''} ${job.symptom || ''} ${job.employees?.full_name || ''}`.toLowerCase()
+    if (q && !text.includes(q.toLowerCase())) return false
+    return true
   })
 
   if (loading) {
@@ -58,13 +61,20 @@ export default function JobsPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-6">จัดการงานซ่อม</h1>
+
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="พิมพ์ป้ายหรืออาการ"
+        className="w-full border border-gray-600 bg-gray-800 p-3 rounded mb-4 text-white text-lg"
+      />
 
       <div className="flex gap-2 mb-6 flex-wrap">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700'}`}
+          className={`px-4 py-3 rounded ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700'}`}
         >
           ทั้งหมด
         </button>
@@ -88,7 +98,7 @@ export default function JobsPage() {
         <div className="space-y-3">
           {filtered.map((job) => (
             <div key={job.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-start">
                 <div>
                   <div className="font-semibold">{job.vehicles?.license_plate || '-'}</div>
                   <div className="text-sm text-gray-400">
@@ -124,7 +134,7 @@ export default function JobsPage() {
                 {job.status !== 'completed' && (
                   <button
                     onClick={() => updateStatus(job.id, 'completed')}
-                    className="text-xs bg-green-600 px-3 py-1 rounded"
+                    className="text-sm bg-green-600 px-4 py-2 rounded"
                   >
                     ทำเครื่องหมายเสร็จสิ้น
                   </button>
@@ -132,7 +142,7 @@ export default function JobsPage() {
                 {job.status === 'completed' && (
                   <button
                     onClick={() => updateStatus(job.id, 'in_progress')}
-                    className="text-xs bg-yellow-600 px-3 py-1 rounded"
+                    className="text-sm bg-yellow-600 px-4 py-2 rounded"
                   >
                     เปลี่ยนเป็นกำลังทำ
                   </button>
