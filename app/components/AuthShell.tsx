@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { capForPath, capLabel, hasCap } from "@/lib/access";
 import { isOpenPath, ROLE_LABEL, type StaffAccount } from "@/lib/staff";
 
 type StaffState = {
@@ -16,17 +17,31 @@ export function useStaff() {
   return useContext(StaffContext);
 }
 
+export function useAccess() {
+  const { account, ready } = useStaff();
+  return {
+    ready,
+    account,
+    can: (cap: string) => hasCap(account, cap),
+    showPrice: hasCap(account, "see_prices"),
+  };
+}
+
 async function loadAccount() {
   const supabase = createClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
   if (!user) return { user: null, account: null as StaffAccount | null };
-  const { data: account } = await supabase
-    .from("staff_accounts")
-    .select("id, user_id, username, full_name, phone, branch_id, position, requested_role, role, status, employee_id, created_at, approved_at, branches(name)")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  return { user, account: (account || null) as StaffAccount | null };
+  const columns = "id, user_id, username, full_name, phone, branch_id, position, requested_role, role, status, employee_id, permissions, created_at, approved_at, branches(name)";
+  let accountRes = await supabase.from("staff_accounts").select(columns).eq("user_id", user.id).maybeSingle();
+  if (accountRes.error) {
+    accountRes = await supabase
+      .from("staff_accounts")
+      .select("id, user_id, username, full_name, phone, branch_id, position, requested_role, role, status, employee_id, created_at, approved_at, branches(name)")
+      .eq("user_id", user.id)
+      .maybeSingle();
+  }
+  return { user, account: (accountRes.data || null) as StaffAccount | null };
 }
 
 export function SessionBar() {
@@ -76,6 +91,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
   const [account, setAccount] = useState<StaffAccount | null>(null);
   const [ready, setReady] = useState(open);
   const [allowed, setAllowed] = useState(open);
+  const [blocked, setBlocked] = useState("");
 
   useEffect(() => {
     let cancel = false;
@@ -102,11 +118,19 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         return;
       }
       if (current.startsWith("/approvals") && row.role !== "admin") {
-        setAllowed(false);
+        setBlocked("approvals");
+        setAllowed(true);
         setReady(true);
-        router.replace("/");
         return;
       }
+      const needed = capForPath(current);
+      if (needed && !hasCap(row, needed)) {
+        setBlocked(needed);
+        setAllowed(true);
+        setReady(true);
+        return;
+      }
+      setBlocked("");
       setAllowed(true);
       setReady(true);
     })();
@@ -120,7 +144,17 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <StaffContext.Provider value={{ ready, account }}>
       {show && <SessionBar />}
-      {show ? (
+      {show && blocked ? (
+        <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center px-6 text-center text-white">
+          <h1 className="text-2xl font-bold">หน้านี้ไม่เปิดให้บัญชีที่ล็อกอินอยู่</h1>
+          <p className="mt-3 text-sm text-gray-300">
+            {blocked === "approvals"
+              ? "อนุมัติพนักงานทำได้เฉพาะผู้ดูแลระบบ"
+              : `ต้องได้รับสิทธิ์ “${capLabel(blocked)}” จากหน้ากำหนดสิทธิ์`}
+          </p>
+          <a href="/" className="mt-6 rounded-full bg-red-600 px-5 py-3">กลับหน้าหลัก</a>
+        </div>
+      ) : show ? (
         children
       ) : (
         <div className="flex min-h-screen items-center justify-center bg-[#140406] px-6 text-white">
