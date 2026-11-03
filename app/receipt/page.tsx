@@ -540,8 +540,13 @@ export default function ReceiptPage() {
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:12px 14px; cursor:pointer; font-size:16px; }
         .cap { padding:8px 12px; color:#9a3412; font-size:13px; }
-        @media (max-width:800px) { .page { padding:8px; } .toolbar { grid-template-columns:1fr; } .actions button { flex:1 1 140px; } }
-        @media screen and (max-width:800px) { .who-wrap { display:block; } .bill-meta { text-align:left; white-space:normal; } }
+        @media screen and (max-width:820px) {
+          .page { padding:8px 8px 96px; }
+          .toolbar { grid-template-columns:1fr; }
+          .actions { max-width:none; }
+          .actions button { flex:1 1 140px; }
+          .sheet { width:210mm; max-width:210mm; zoom:calc((100vw - 16px) / 210mm); margin-left:0; }
+        }
         @media print {
           @page { size:A4 portrait; margin:8mm; }
           .no-print { display:none !important; }
