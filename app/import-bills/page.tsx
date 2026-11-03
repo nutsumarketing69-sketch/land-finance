@@ -332,9 +332,9 @@ export default function ImportBillsPage() {
         อัปโหลดไฟล์บิลเก่าหรือใหม่ หนึ่งแถวต่อหนึ่งรายการ ใช้หัวตารางเช่น สาขา เลขที่ วันที่ ชื่อหรือบริษัท ที่อยู่ เบอร์ ยี่ห้อ รุ่น ป้ายทะเบียน เลขไมล์ สี รายการ จำนวน ราคา จำนวนเงิน ส่วนลด
         ระบบเก็บครบทุกช่องและเปิดกลับมาพิมพ์ได้ บิลเดิมจะไม่ถูกใส่ซ้ำ
       </p>
-      <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-red-600 px-5 py-3 font-semibold">
+      <label className="relative mt-4 inline-flex cursor-pointer overflow-hidden rounded-xl bg-red-600 px-5 py-3 font-semibold">
         {busy ? 'กำลังทำงาน...' : 'อัปโหลด Excel'}
-        <input type="file" accept=".xlsx,.xls,.csv" className="hidden" disabled={busy} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; void readFile(file) }} />
+        <input type="file" accept=".xlsx,.xls,.csv" disabled={busy} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; void readFile(file) }} />
       </label>
       {fileName && <p className="mt-3 text-sm text-gray-400">{fileName}</p>}
       {msg && <p className="mt-3 text-amber-200">{msg}</p>}
@@ -357,6 +357,7 @@ export default function ImportBillsPage() {
           </div>
         </>
       )}
+      {/* phone file picker */}
     </div>
   )
 }
