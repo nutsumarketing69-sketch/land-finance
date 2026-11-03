@@ -60,12 +60,12 @@ export default function DailyClosePage() {
 
     const partRes = await supabase
       .from('parts_services')
-      .select('name, stock, min_stock')
+      .select('name, stock, min_stock, type')
       .order('stock', { ascending: true })
       .limit(40)
 
     const rows = partRes.error ? [] : partRes.data || []
-    const lows = rows.filter((p: any) => Number(p.stock || 0) <= Number(p.min_stock ?? 0)).slice(0, 12)
+    const lows = rows.filter((p: any) => p.type !== 'labor' && p.type !== 'service' && Number(p.stock || 0) <= Number(p.min_stock ?? 0)).slice(0, 12)
     setLowStock(lows)
     setLoaded(true)
     setLoading(false)
