@@ -1,249 +1,316 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
-
-type Line = { name: string; qty: number; price: number }
-
-const SHOP_TAX = '3101701714063'
-const PROMPTPAY_ID = '0994102559'
-const PROMPTPAY_TEXT = '099-410-2559'
-const BRANCH_BOOK = [
-  { key: 'เจ้าฟ้า', title: 'รัษฎาแอร์ เจ้าฟ้าสวนหลวง', address: 'ถนนเจ้าฟ้าสวนหลวง ตำบลวิชิต อำเภอเมืองภูเก็ต จังหวัดภูเก็ต', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
-  { key: 'ท่าเรือ', title: 'รัษฎาแอร์ ท่าเรือ', address: '56/6 หมู่ที่ 5 ถนนเทพกระษัตรี ตำบลศรีสุนทร อำเภอถลาง จังหวัดภูเก็ต 83110', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
-  { key: 'สนามบิน', title: 'รัษฎาแอร์ สนามบิน', address: '201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
-  { key: 'กู้กู', title: 'รัษฎาแอร์ กู้กู', address: '63/20 หมู่ที่ 3 ถนนร่วมพัฒนา ตำบลรัษฎา อำเภอเมือง จังหวัดภูเก็ต 83000', phone: '099-4102559 , 084-3057559', email: 'ratsada_air@hotmail.com' },
-]
-const DOC_TYPES = [
-  { id: 'receipt', title: 'ใบเสร็จรับเงิน/Receipt' },
-  { id: 'delivery', title: 'ใบส่งของ/Delivery Bill' },
-  { id: 'deposit', title: 'ใบรับเงินมัดจำ/Receive Deposit' },
-  { id: 'quotation', title: 'ใบเสนอราคา/Quotation' },
-]
-
-function crc16(data: string) {
-  let crc = 0xffff
-  for (let i = 0; i < data.length; i++) {
-    crc ^= data.charCodeAt(i) << 8
-    for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1); crc &= 0xffff }
-  }
-  return crc.toString(16).toUpperCase().padStart(4, '0')
-}
-function promptPay(id: string, amount: number) {
-  const numbers = id.replace(/\D/g, '')
-  const target = numbers.length >= 13 ? numbers : ('0000000000000' + numbers.replace(/^0/, '66')).slice(-13)
-  const targetType = numbers.length >= 15 ? '03' : numbers.length >= 13 ? '02' : '01'
-  const field = (tag: string, value: string) => tag + String(value.length).padStart(2, '0') + value
-  const amountText = amount > 0 ? amount.toFixed(2) : ''
-  const body = [field('00', '01'), field('01', amountText ? '12' : '11'), field('29', field('00', 'A000000677010111') + field(targetType, target)), field('58', 'TH'), field('53', '764'), amountText ? field('54', amountText) : ''].join('')
-  return body + '6304' + crc16(body + '6304')
-}
-function bahtText(amount: number) {
-  const digits = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
-  const units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน']
-  const group = (num: number): string => {
-    if (num >= 1000000) return group(Math.floor(num / 1000000)) + 'ล้าน' + group(num % 1000000)
-    const s = String(num); let out = ''
-    for (let i = 0; i < s.length; i++) {
-      const d = Number(s[i]); const p = s.length - i - 1
-      if (!d) continue
-      if (p === 1 && d === 1) out += 'สิบ'
-      else if (p === 1 && d === 2) out += 'ยี่สิบ'
-      else if (p === 0 && d === 1 && s.length > 1) out += 'เอ็ด'
-      else out += digits[d] + units[p]
-    }
-    return out
-  }
-  const n = Math.round(Math.abs(Number(amount || 0)) * 100)
-  const baht = Math.floor(n / 100); const satang = n % 100
-  if (!baht && !satang) return 'ศูนย์บาทถ้วน'
-  return `${baht ? group(baht) + 'บาท' : ''}${satang ? group(satang) + 'สตางค์' : 'ถ้วน'}`
-}
-function thaiFromDate(value: string) {
-  if (!value) return ''
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear() + 543}`
-}
-function readItems(value: any): Line[] {
-  let raw = value
-  if (typeof raw === 'string') { try { raw = JSON.parse(raw) } catch { raw = [] } }
-  if (!Array.isArray(raw)) return []
-  return raw.filter((item) => item && String(item.name || '').trim()).map((item) => ({ name: String(item.name), qty: Number(item.qty || 1), price: Number(item.price || 0) }))
-}
-function readMeta(note: string) {
-  const text = String(note || '')
-  const mark = text.indexOf('[[meta]]')
-  let meta: any = {}
-  let body = text
-  if (mark >= 0) { body = text.slice(0, mark); try { meta = JSON.parse(text.slice(mark + 8).trim()) } catch { meta = {} } }
-  const rows = body.split('\n').map((line) => line.trim()).filter(Boolean)
-  return { meta, warranty: rows.find((line) => line.startsWith('รับประกัน')) || '', note: rows.filter((line) => !line.startsWith('รับประกัน') && !line.startsWith('ชำระโดย') && !line.startsWith('ช่าง:')).join('\n') }
-}
 
 export default function BranchPrinterPage() {
   const [branches, setBranches] = useState<any[]>([])
   const [branchId, setBranchId] = useState('')
-  const [job, setJob] = useState<any>(null)
-  const [status, setStatus] = useState('เลือกสาขาของเครื่องนี้')
-  const [logoOk, setLogoOk] = useState(true)
+  const [bill, setBill] = useState<any>(null)
+  const [status, setStatus] = useState('กำลังเตรียม...')
+  const [lastBill, setLastBill] = useState('')
+  const printingRef = useRef(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('branchPrinterId') || ''
+    const saved = localStorage.getItem('printer_branch_id') || ''
     if (saved) setBranchId(saved)
-    createClient().from('branches').select('*').order('name').then((res) => setBranches(res.data || []))
+    const supabase = createClient()
+    supabase.from('branches').select('*').order('name').then(({ data }) => {
+      setBranches(data || [])
+    })
   }, [])
 
   useEffect(() => {
     if (!branchId) return
-    localStorage.setItem('branchPrinterId', branchId)
-    let stop = false
-    const beat = async () => {
-      const now = new Date().toISOString()
+    localStorage.setItem('printer_branch_id', branchId)
+    const supabase = createClient()
+    supabase.from('print_jobs').update({ status: 'pending' }).eq('branch_id', branchId).eq('status', 'printing')
+
+    const tick = async () => {
+      if (printingRef.current) return
+      const hb = createClient()
+      await hb.from('printer_heartbeats').upsert(
+        { branch_id: branchId, last_seen: new Date().toISOString() },
+        { onConflict: 'branch_id' }
+      )
+      await pullJob()
+    }
+
+    tick()
+    const timer = setInterval(tick, 3000)
+    return () => clearInterval(timer)
+  }, [branchId])
+
+  const pullJob = async () => {
+    if (!branchId || printingRef.current) return
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('print_jobs')
+      .select('*')
+      .eq('branch_id', branchId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(1)
+
+    if (error) {
+      setStatus('ยังเชื่อมคิวพิมพ์ไม่ได้ ตรวจว่าสร้างตารางแล้ว')
+      return
+    }
+    if (!data || data.length === 0) {
+      setStatus('พร้อมรับงาน พักหน้านี้ไว้ได้เลย')
+      return
+    }
+
+    const job = data[0]
+    const { data: locked } = await supabase
+      .from('print_jobs')
+      .update({ status: 'printing' })
+      .eq('id', job.id)
+      .eq('status', 'pending')
+      .select()
+
+    if (!locked || locked.length === 0) return
+    await printPayload(job.payload, job.id)
+  }
+
+  const waitForImages = async () => {
+    const started = Date.now()
+    while (Date.now() - started < 5000) {
+      const imgs = [...document.querySelectorAll('#print-area img')] as HTMLImageElement[]
+      const pending = imgs.filter((img) => !(img.complete && img.naturalWidth > 0))
+      if (imgs.length > 0 && pending.length === 0) {
+        await Promise.all(imgs.map((img) => (img.decode ? img.decode().catch(() => undefined) : Promise.resolve())))
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 80))
+    }
+  }
+
+  const printPayload = async (payload: any, jobId?: string) => {
+    printingRef.current = true
+    setStatus('กำลังโหลด QR ก่อนพิมพ์...')
+    flushSync(() => setBill(payload))
+    await waitForImages()
+    setStatus('กำลังพิมพ์...')
+    window.print()
+
+    if (jobId) {
       const supabase = createClient()
-      const up = await supabase.from('printer_heartbeats').upsert({ branch_id: branchId, last_seen: now }, { onConflict: 'branch_id' })
-      if (up.error) {
-        await supabase.from('printer_heartbeats').update({ last_seen: now }).eq('branch_id', branchId)
-        await supabase.from('printer_heartbeats').insert({ branch_id: branchId, last_seen: now })
-      }
-      if (!stop && !job) setStatus('เครื่องสาขาออนไลน์ รอรับบิล')
+      await supabase
+        .from('print_jobs')
+        .update({ status: 'printed', printed_at: new Date().toISOString() })
+        .eq('id', jobId)
+      setLastBill(payload?.bill_no || '')
     }
-    beat()
-    const timer = setInterval(beat, 4000)
-    return () => { stop = true; clearInterval(timer) }
-  }, [branchId, job])
 
-  useEffect(() => {
-    if (!branchId || job) return
-    let stop = false
-    const pull = async () => {
-      const res = await createClient().from('print_jobs').select('*').eq('branch_id', branchId).eq('status', 'pending').limit(5)
-      if (stop) return
-      const rows = res.data || []
-      rows.sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
-      if (rows[0]) setJob(rows[0])
-    }
-    pull()
-    const timer = setInterval(pull, 3000)
-    return () => { stop = true; clearInterval(timer) }
-  }, [branchId, job])
+    setBill(null)
+    printingRef.current = false
+    setStatus('พร้อมรับงาน พักหน้านี้ไว้ได้เลย')
+  }
 
-  useEffect(() => {
-    if (!job) return
-    let stop = false
-    const run = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      const img = document.querySelector('.pp img') as HTMLImageElement | null
-      if (img && !(img.complete && img.naturalWidth > 0)) {
-        await new Promise((resolve) => {
-          img.onload = () => resolve(true)
-          img.onerror = () => resolve(true)
-          setTimeout(resolve, 3000)
-        })
-      }
-      if (stop) return
-      window.print()
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      await createClient().from('print_jobs').update({ status: 'printed' }).eq('id', job.id)
-      if (!stop) setJob(null)
-    }
-    run()
-    return () => { stop = true }
-  }, [job])
+  const branchName = branches.find((b) => b.id === branchId)?.name || ''
+  const rows = Array.isArray(bill?.items) ? bill.items : []
+  const total = Number(bill?.total || 0)
+  const qrData = String(bill?.promptpay || '')
+  const qrUrl =
+    bill?.showQr !== false && qrData
+      ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&ecc=M&data=${encodeURIComponent(qrData)}`
+      : ''
 
-  const payload = job?.payload || {}
-  const parsed = readMeta(payload.note || '')
-  const meta = { ...parsed.meta, ...payload }
-  const branch = branches.find((item) => item.id === (job?.branch_id || branchId))
-  const info = BRANCH_BOOK.find((item) => String(meta.title || meta.headerTitle || branch?.name || '').includes(item.key)) || null
-  const title = info?.title || meta.title || meta.headerTitle || branch?.name || 'รัษฎาแอร์'
-  const company = meta.customerType === 'company' || meta.showShopTax === true
-  const docTitle = meta.docTitle || DOC_TYPES.find((item) => item.id === meta.docType)?.title || 'ใบเสร็จรับเงิน/Receipt'
-  const items = readItems(meta.items)
-  const subtotal = Number(meta.subtotal ?? items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0))
-  const discount = Number(meta.discount || 0)
-  const total = Number(meta.total ?? Math.max(0, subtotal - discount))
-  const showQr = meta.showQr !== false && meta.payType !== 'credit' && meta.payType !== 'cheque' && meta.docType !== 'delivery' && meta.docType !== 'quotation' && total > 0
-  const qrCode = meta.promptpay || (showQr ? promptPay(PROMPTPAY_ID, total) : '')
-  const qrUrl = qrCode ? `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=20&ecc=M&data=${encodeURIComponent(qrCode)}` : ''
-  const dateText = thaiFromDate(meta.dateText || meta.date || '')
-  const signDate = thaiFromDate(meta.signDate || '')
-  const warrantyText = meta.warrantyText || (meta.warrantyMonths > 0 ? `รับประกันงาน ${meta.warrantyMonths} เดือน` : parsed.warranty)
+  const testPrint = () => {
+    printPayload({
+      bill_no: 'TEST',
+      date: new Date().toLocaleDateString('th-TH'),
+      headerTitle: branchName ? `รัษฎาแอร์ ${branchName}` : 'รัษฎาแอร์',
+      customer: 'ทดสอบระบบ',
+      phone: '-',
+      plate: '-',
+      car: '-',
+      mileage: '-',
+      items: [{ name: 'ทดสอบเครื่องพิมพ์สาขา', qty: 1, price: 0 }],
+      discount: 0,
+      subtotal: 0,
+      total: 0,
+      note: 'ถ้ากระดาษนี้ออก แสดงว่าสาขานี้พร้อมรับบิลจากผู้จัดการ',
+    })
+  }
 
   return (
-    <div style={{ background: '#fff', minHeight: '100vh', padding: 12, fontFamily: '"Leelawadee UI",Tahoma,sans-serif', color: '#111' }}>
-      <style>{`
-        .sheet { max-width:210mm; margin:0 auto; }
-        .head { display:flex; gap:12px; align-items:center; }
-        .logo { width:190px; height:auto; }
-        .shop { flex:1; text-align:right; } .shop h1 { margin:0; font-size:22px; } .shop p { margin:0; font-size:11px; line-height:1.35; }
-        .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
-        .who-wrap { position:relative; padding-right:46mm; margin-bottom:6px; } .who { font-size:13px; line-height:1.55; }
-        .bill-meta { position:absolute; right:0; bottom:0; width:44mm; text-align:right; font-size:13px; line-height:1.4; }
-        table { width:100%; border-collapse:collapse; } th, td { border:1px solid #222; padding:3px 5px; font-size:12px; } th { background:#f5f5f5; }
-        .c { text-align:center; } .r { text-align:right; }
-        .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; }
-        .sum { min-width:230px; line-height:1.7; } .sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; } .sum-line .amt { text-align:right; }
-        .grand { font-size:16px; font-weight:700; } .words { text-align:right; font-size:12px; }
-        .pp { width:112px; border:1.5px solid #0b3b8c; } .pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
-        .pp-en { font-size:13px; font-weight:800; } .pp-en b { background:#0b3b8c; color:#fff; padding:0 2px; } .pp-en span { color:#0b3b8c; }
-        .pp img { display:block; width:92px; height:92px; margin:2px auto 3px; }
-        .pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:9px; line-height:1.3; padding:3px 2px; }
-        .note { white-space:pre-wrap; font-size:12px; margin-top:4px; } .warn { color:#b00000; font-size:12px; }
-        .signs { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:18px; text-align:center; font-size:12px; }
-        .sign-top { min-height:24px; } .signs i { display:block; width:150px; border-bottom:1px solid #111; margin:0 auto 4px; }
-        @media print { @page { size:A4 portrait; margin:8mm; } .no-print { display:none !important; } .pp,.pp-foot,.pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+    <>
+      <style jsx global>{`
+        .bill-sheet {
+          max-width: 210mm;
+          margin: 16px auto;
+          background: #fff;
+          color: #111;
+          padding: 12px 14px 16px;
+          font-family: "Leelawadee UI", Tahoma, sans-serif;
+          border-top: 4px solid #d00000;
+        }
+        .bill-head { display:flex; gap:12px; align-items:center; }
+        .bill-logo { width:190px; height:auto; object-fit:contain; }
+        .bill-shop { flex:1; text-align:right; }
+        .bill-shop h1 { margin:0; font-size:22px; color:#111; }
+        .bill-shop p { margin:0; font-size:11px; line-height:1.35; }
+        .bill-doc { text-align:center; font-size:18px; margin:6px 0 2px; }
+        .bill-who { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; font-size:15px; line-height:1.45; }
+        .bill-meta { text-align:right; white-space:nowrap; }
+        .bill-strong { font-weight:700; }
+        .bill-table { width:100%; border-collapse:collapse; margin-top:6px; }
+        .bill-table th, .bill-table td { border:1px solid #222; padding:3px 5px; font-size:12px; vertical-align:middle; color:#111; }
+        .bill-table th { background:#f5f5f5; }
+        .bill-foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
+        .bill-sum { text-align:right; min-width:210px; line-height:1.7; font-size:13px; }
+        .bill-grand { font-size:16px; font-weight:700; }
+        .bill-warn { color:#b00000; font-size:12px; }
+        .bill-pp { width:112px; border:1.5px solid #0b3b8c; }
+        .bill-pp img { display:block; width:92px; height:92px; margin:2px auto; }
+        .bill-pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:9px; line-height:1.3; padding:3px 2px; }
+        .bill-signs { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:18px; text-align:center; font-size:12px; }
+        .bill-signs i { display:block; width:150px; border-bottom:1px solid #111; margin:22px auto 4px; }
+        @media print {
+          @page { size: A4 portrait; margin: 8mm; }
+          html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; color: #111 !important; }
+          .no-print { display: none !important; }
+          .bill-sheet { max-width: none !important; margin: 0 !important; padding: 0 !important; border-top: 0 !important; color: #111 !important; }
+          .bill-who { font-size: 15px !important; }
+          .bill-table th, .bill-table td { padding: 3px 5px !important; font-size: 12px !important; }
+          .bill-pp, .bill-pp-foot, .bill-pp b { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
       `}</style>
-      <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto 12px', display: 'flex', gap: 12, alignItems: 'end' }}>
-        <label>สาขาของเครื่องนี้
-          <select value={branchId} onChange={(e) => { setBranchId(e.target.value); setJob(null) }} style={{ display: 'block', marginTop: 4, padding: 8 }}>
-            <option value="">เลือกสาขา</option>
-            {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-        </label>
-        <b>{status}</b>
+
+      <div className="no-print min-h-screen bg-gray-950 text-white p-8">
+        <div className="max-w-xl mx-auto">
+          <h1 className="text-2xl font-bold mb-2">เครื่องพิมพ์สาขา</h1>
+          <p className="text-sm text-gray-400 mb-6">
+            เปิดหน้านี้ค้างไว้ที่คอมสาขา ผู้จัดการกดส่งบิลจากที่ไหนก็ได้ เครื่องนี้จะพิมพ์เอง
+          </p>
+
+          {!branchId ? (
+            <div className="space-y-3">
+              <p className="font-medium">คอมเครื่องนี้เป็นสาขาไหน</p>
+              {branches.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => setBranchId(b.id)}
+                  className="block w-full text-left bg-gray-800 hover:bg-gray-700 rounded-lg px-4 py-3"
+                >
+                  {b.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-5">
+              <div className="text-sm text-gray-400">สาขาที่รับพิมพ์</div>
+              <div className="text-xl font-bold mt-1">{branchName || '...'}</div>
+              <div className="mt-3 text-green-400">{status}</div>
+              {lastBill && <div className="text-xs text-gray-500 mt-2">พิมพ์ล่าสุด {lastBill}</div>}
+              <div className="flex gap-3 mt-5">
+                <button onClick={testPrint} className="bg-blue-600 px-4 py-2 rounded text-sm">
+                  ทดสอบพิมพ์
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('printer_branch_id')
+                    setBranchId('')
+                  }}
+                  className="bg-gray-700 px-4 py-2 rounded text-sm"
+                >
+                  เปลี่ยนสาขา
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      {!job && <p className="no-print">{branchId ? 'รอรับบิลจากผู้จัดการ...' : 'เลือกสาขาครั้งแรก ครั้งต่อไปจำไว้ให้'}</p>}
-      {job && (
-        <div className="sheet">
-          <div className="head">
-            {logoOk && <img src="/ratsada-logo.png" alt="RATSADA" className="logo" onError={() => setLogoOk(false)} />}
-            <div className="shop"><h1>{title}</h1>{info && <p>{info.address}</p>}{info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}</div>
-          </div>
-          <h2 className="doc">{docTitle}</h2>
-          <div className="who-wrap">
-            <div className="who">
-              {company ? (<><div>{meta.customer || meta.customer_name}</div>{meta.customerAddress && <div>ที่อยู่: {meta.customerAddress}</div>}<div>เลขที่ผู้เสียภาษี {meta.customerTax || ''} โทร: {meta.phone || meta.customerPhone || ''}</div></>) : (<div>ลูกค้า: {meta.customer || meta.customer_name || ''} โทร: {meta.phone || meta.customerPhone || ''}</div>)}
-              <div>รุ่นรถ: {meta.brand || ''} {meta.model || meta.car_info || ''} ทะเบียน: {meta.plate || meta.license_plate || ''} เลขที่ไมล์: {meta.mileage || ''} km.{meta.color ? ` สี: ${meta.color}` : ''}</div>
-              <div>ชำระโดย: {meta.payLabel || 'เงินสด'}{meta.chequeNo ? ` ${meta.chequeNo}` : ''}</div>
+
+      {bill && (
+        <div id="print-area" className="bill-sheet">
+          <div className="bill-head">
+            <img src="/ratsada-logo.png" alt="RATSADA" className="bill-logo" />
+            <div className="bill-shop">
+              <h1>{bill.title || bill.headerTitle || 'รัษฎาแอร์'}</h1>
+              {bill.address ? <p>{bill.address}</p> : null}
+              <p>
+                Tel. {bill.shopPhone || '099-4102559'} Email. {bill.email || 'ratsada_air@hotmail.com'}
+                {bill.showShopTax && bill.shopTax ? ` เลขผู้เสียภาษีอากร ${bill.shopTax}` : ''}
+              </p>
             </div>
-            <div className="bill-meta"><div>เลขที่ {meta.billNo || meta.bill_no || job.bill_no}</div><div>วันที่ {dateText}</div></div>
           </div>
-          <table>
-            <thead><tr><th className="c">ลำดับ</th><th>รายการ</th><th className="c">จำนวน</th><th className="r">ราคา/หน่วย</th><th className="r">จำนวนเงิน</th></tr></thead>
-            <tbody>{items.map((item, index) => <tr key={`${item.name}-${index}`}><td className="c">{index + 1}</td><td>{item.name}</td><td className="c">{item.qty}</td><td className="r">{Number(item.price || 0).toLocaleString()}</td><td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td></tr>)}</tbody>
-          </table>
-          <div className="foot">
+          <h2 className="bill-doc">{bill.docTitle || 'ใบเสร็จรับเงิน/Receipt'}</h2>
+          <div className="bill-who">
             <div>
-              {qrUrl && <div className="pp"><div className="pp-logo"><div className="pp-en"><b>Prompt</b><span>Pay</span></div></div><img src={qrUrl} alt="PromptPay" /><div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div></div>}
-              {parsed.note && <div className="note">{parsed.note}</div>}
-              {warrantyText && <div className="warn">{warrantyText}</div>}
+              {bill.customerType === 'company' ? (
+                <>
+                  <div className="bill-strong">{bill.customer || ''}</div>
+                  <div>ที่อยู่: {bill.customerAddress || ''}</div>
+                  <div>เลขที่ผู้เสียภาษี {bill.customerTax || ''} โทร: {bill.phone || ''}</div>
+                </>
+              ) : (
+                <div>ลูกค้า: {bill.customer || ''} โทร: {bill.phone || ''}</div>
+              )}
+              <div>
+                รุ่นรถ: {bill.brand || ''} {bill.model || ''} ทะเบียน: {bill.plate || bill.license_plate || ''} เลขที่ไมล์: {bill.mileage ? `${bill.mileage} km.` : ''}
+                {bill.color ? ` สี: ${bill.color}` : ''}
+              </div>
+              <div>ชำระโดย: {bill.payLabel || 'เงินสด'}{bill.chequeNo ? ` ${bill.chequeNo}` : ''}</div>
             </div>
-            <div className="sum">
-              <div className="sum-line"><span>ยอดรวม</span><span className="amt">{subtotal.toLocaleString()}</span><span>บาท</span></div>
-              <div className="sum-line"><span>ส่วนลด</span><span className="amt">{discount.toLocaleString()}</span><span>บาท</span></div>
-              <div className="sum-line grand"><span>รวมทั้งสิ้น</span><span className="amt">{total.toLocaleString()}</span><span>บาท</span></div>
-              <div className="words">{bahtText(total)}</div>
+            <div className="bill-meta">
+              <div>เลขที่ {bill.billNo || bill.bill_no}</div>
+              <div>วันที่ {bill.dateText || bill.date}</div>
             </div>
           </div>
-          <div className="signs">
-            <div><div className="sign-top"></div><i></i>ตรวจรับงานซ่อม</div>
-            <div><div className="sign-top">{meta.technician || ''}</div><i></i><div>ช่างซ่อม</div><div>{signDate}</div></div>
-            <div><div className="sign-top"></div><i></i>ผู้รับเงิน</div>
+          <table className="bill-table">
+            <thead>
+              <tr>
+                <th style={{ width: 36 }} className="text-center">ลำดับ</th>
+                <th className="text-left">รายการ</th>
+                <th style={{ width: 70 }} className="text-center">จำนวน</th>
+                <th style={{ width: 90 }} className="text-right">ราคา/หน่วย</th>
+                <th style={{ width: 100 }} className="text-right">จำนวนเงิน</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((item: any, i: number) => (
+                <tr key={i}>
+                  <td className="text-center">{i + 1}</td>
+                  <td>{item.name}</td>
+                  <td className="text-center">{item.qty}</td>
+                  <td className="text-right">{Number(item.price || 0).toLocaleString()}</td>
+                  <td className="text-right">{(Number(item.price || 0) * Number(item.qty || 1)).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="bill-foot">
+            <div>
+              {qrUrl ? (
+                <div className="bill-pp">
+                  <div style={{ margin: 4, border: '1.5px solid #0b3b8c', textAlign: 'center', padding: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800 }}><b style={{ background: '#0b3b8c', color: '#fff', padding: '0 2px' }}>Prompt</b><span style={{ color: '#0b3b8c' }}>Pay</span></div>
+                  </div>
+                  <img src={qrUrl} alt="PromptPay" />
+                  <div className="bill-pp-foot">พร้อมเพย์ 099-410-2559<br />{total.toLocaleString()} บาท</div>
+                </div>
+              ) : null}
+              {bill.note ? <div style={{ marginTop: 4 }}>{bill.note}</div> : null}
+              {bill.warrantyText ? <div className="bill-warn">{bill.warrantyText}</div> : null}
+            </div>
+            <div className="bill-sum">
+              <div>ยอดรวม {Number(bill.subtotal || 0).toLocaleString()} บาท</div>
+              <div>ส่วนลด {Number(bill.discount || 0).toLocaleString()}</div>
+              <div className="bill-grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
+              {bill.words ? <div style={{ fontSize: 12 }}>{bill.words}</div> : null}
+            </div>
+          </div>
+          <div className="bill-signs">
+            <div><i></i>ตรวจรับงานซ่อม</div>
+            <div><i></i>ช่างซ่อม<div>{bill.technician || ''}</div><div>{bill.signDate || ''}</div></div>
+            <div><i></i>ผู้รับเงิน</div>
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
