@@ -152,6 +152,7 @@ export default function BranchPrinterPage() {
         .bill-logo { width:190px; height:auto; object-fit:contain; }
         .bill-shop { flex:1; text-align:right; }
         .bill-shop h1 { margin:0; font-size:22px; color:#111; }
+        .bill-no { font-size:18px; font-weight:700; line-height:1.2; margin:0 0 2px; color:#111; }
         .bill-shop p { margin:0; font-size:11px; line-height:1.35; }
         .bill-doc { text-align:center; font-size:18px; margin:6px 0 2px; }
         .bill-who { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; font-size:15px; line-height:1.45; }
@@ -230,6 +231,7 @@ export default function BranchPrinterPage() {
           <div className="bill-head">
             <img src="/ratsada-logo.png" alt="RATSADA" className="bill-logo" />
             <div className="bill-shop">
+              {(bill.billNo || bill.bill_no) ? <div className="bill-no">เลขที่ {bill.billNo || bill.bill_no}</div> : null}
               <h1>{bill.title || bill.headerTitle || 'รัษฎาแอร์'}</h1>
               {bill.address ? <p>{bill.address}</p> : null}
               <p>
@@ -254,10 +256,11 @@ export default function BranchPrinterPage() {
                 รุ่นรถ: {bill.brand || ''} {bill.model || ''} ทะเบียน: {bill.plate || bill.license_plate || ''} เลขที่ไมล์: {bill.mileage ? `${bill.mileage} km.` : ''}
                 {bill.color ? ` สี: ${bill.color}` : ''}
               </div>
-              <div>ชำระโดย: {bill.payLabel || 'เงินสด'}{bill.chequeNo ? ` ${bill.chequeNo}` : ''}</div>
+              {bill.payType === 'unspecified' || bill.payLabel === 'ไม่ระบุ' ? null : (
+                <div>ชำระโดย: {bill.payLabel || 'เงินสด'}{bill.chequeNo ? ` ${bill.chequeNo}` : ''}</div>
+              )}
             </div>
             <div className="bill-meta">
-              <div>เลขที่ {bill.billNo || bill.bill_no}</div>
               <div>วันที่ {bill.dateText || bill.date}</div>
             </div>
           </div>
