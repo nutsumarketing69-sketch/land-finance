@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 
-export const runtime = 'nodejs'
-
 const PHOTO_KEYS = Array.from({ length: 15 }, (_, i) => `photo${i}`).concat('photo')
 
 async function telegram(token: string, method: string, body: FormData) {
@@ -73,3 +71,4 @@ export async function POST(request: Request) {
   files.forEach((file, i) => body.append(`file${i}`, file, `car${i}.jpg`))
   return telegram(token, 'sendMediaGroup', body)
 }
+// clips are sent one at a time so each stays under the host limit
