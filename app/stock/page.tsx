@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 export default function StockPage() {
+  const { showPrice } = useAccess()
   const [parts, setParts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<any>(null)
@@ -69,7 +71,7 @@ export default function StockPage() {
           <h2 className="font-semibold mb-3">แก้ไขรายการ</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input type="text" value={editing.name} onChange={(e) => setEditing({...editing, name: e.target.value})} className="border p-2 rounded text-black" placeholder="ชื่อ" />
-            <input type="number" value={editing.price} onChange={(e) => setEditing({...editing, price: e.target.value})} className="border p-2 rounded text-black" placeholder="ราคา" />
+            {showPrice && <input type="number" value={editing.price} onChange={(e) => setEditing({...editing, price: e.target.value})} className="border p-2 rounded text-black" placeholder="ราคา" />}
             <input type="number" value={editing.stock} onChange={(e) => setEditing({...editing, stock: e.target.value})} className="border p-2 rounded text-black" placeholder="สต็อก" />
             <input type="number" value={editing.min_stock} onChange={(e) => setEditing({...editing, min_stock: e.target.value})} className="border p-2 rounded text-black" placeholder="สต็อกขั้นต่ำ" />
           </div>
@@ -85,7 +87,7 @@ export default function StockPage() {
           <div key={part.id} className="border p-4 rounded flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
             <div className="flex-1 min-w-0">
               <div className="font-medium break-words">{part.name}</div>
-              <div className="text-sm text-gray-400">{Number(part.price).toLocaleString()} บาท</div>
+              {showPrice && <div className="text-sm text-gray-400">{Number(part.price).toLocaleString()} บาท</div>}
             </div>
             <div className="flex items-center gap-3">
               <div className="text-center">
