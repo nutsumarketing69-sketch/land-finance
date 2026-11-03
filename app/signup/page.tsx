@@ -105,6 +105,7 @@ export default function SignupPage() {
         return;
       }
     }
+    await fetch("/telegram/signup", { method: "POST" }).catch(() => null);
     window.location.href = "/pending";
   };
 
@@ -114,7 +115,7 @@ export default function SignupPage() {
         <Field label="ชื่อ-นามสกุล">
           <input value={fullName} onChange={(event) => setFullName(event.target.value)} required className={inputClass} placeholder="ชื่อที่ใช้ในร้าน" />
         </Field>
-        <Field label="ชื่อผู้ใช้">
+        <Field label="ชื่อผู้ใช้ USER">
           <input
             value={username}
             onChange={(event) => {
@@ -129,7 +130,7 @@ export default function SignupPage() {
             spellCheck={false}
             required
             className={inputClass}
-            placeholder="ภาษาอังกฤษ เช่น somchai"
+            placeholder="ภาษาอังกฤษเท่านั้น"
           />
           {usernameHint && (
             <p className={`mt-1 text-xs ${usernameHint === "ใช้ชื่อนี้ได้" ? "text-green-700" : "text-red-600"}`}>{usernameHint}</p>
@@ -193,3 +194,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+// signup notifies the shop group
