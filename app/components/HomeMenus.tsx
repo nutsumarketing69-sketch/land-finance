@@ -9,6 +9,7 @@ const MENUS: { name: string; desc: string; href: string; icon: string; cap?: str
   { name: 'เข้างาน', desc: 'ตอกบัตรก่อน 08:00 น.', href: '/attendance', icon: '⏰', cap: 'clock' },
   { name: 'ส่งรูป', desc: 'รูปและคลิปเข้าเทเลแกรม', href: '/send-media', icon: '📸', cap: 'media' },
   { name: 'นำเข้าบิล', desc: 'อัปโหลด Excel บิลเก่า', href: '/import-bills', icon: '📥', cap: 'import_bills' },
+  { name: 'สำรองข้อมูล', desc: 'ส่งออก Excel ลูกค้าและบิล', href: '/backup', icon: '💾', cap: 'backup' },
   { name: 'สรุปทุกสาขา', desc: 'รายวัน เดือน ปี และช่วงที่เลือก', href: '/summary', icon: '🧮', cap: 'summary' },
   { name: 'กำหนดสิทธิ์', desc: 'เปิดปิดฟังก์ชันพนักงาน', href: '/access', icon: '🔐', cap: 'access' },
   { name: 'อะไหล่ / บริการ', desc: 'เลือกรายการและเพิ่มใหม่', href: '/parts', icon: '🔧', cap: 'parts' },
@@ -52,3 +53,4 @@ export default function HomeMenus() {
     </div>
   )
 }
+// backup menu is admin only
