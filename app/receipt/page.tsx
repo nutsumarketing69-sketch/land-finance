@@ -283,7 +283,10 @@ export default function ReceiptPage() {
   const qrUrl = showQr
     ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}`
     : ''
-  const techNames = employees.map((item) => item.name || item.full_name || item.code).filter(Boolean)
+  const techNames = employees.map((item) => {
+    const name = item.full_name || item.name || item.code || ''
+    return item.nickname ? `${name} (${item.nickname})` : name
+  }).filter(Boolean)
 
   const brandHits = useMemo(() => {
     const q = brand.trim().toLowerCase()
