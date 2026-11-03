@@ -25,27 +25,27 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black text-white">
-      <header className="bg-red-600 px-6 py-6">
-        <div className="max-w-5xl mx-auto flex items-center gap-4">
-          <div className="bg-white text-red-600 font-black px-5 py-2 rounded-xl text-2xl tracking-wider">
+      <header className="bg-red-600 px-4 py-4 sm:px-6 sm:py-6">
+        <div className="max-w-5xl mx-auto flex items-center gap-3">
+          <div className="bg-white text-red-600 font-black px-3 py-2 rounded-xl text-xl sm:text-2xl tracking-wider">
             RATSADA
           </div>
           <div>
-            <h1 className="text-2xl font-bold">รัษฎาแอร์</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">รัษฎาแอร์</h1>
             <p className="text-sm opacity-90">ระบบจัดการร้านแอร์รถยนต์แบบหลายสาขา</p>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+      <main className="max-w-5xl mx-auto px-3 py-6 sm:px-6 sm:py-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
           {menus.map((menu) => (
             <a
               key={menu.href}
               href={menu.href}
-              className="group bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-red-500/60 rounded-2xl p-6 text-center transition-all duration-200 hover:shadow-lg hover:shadow-red-900/20"
+              className="group bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-red-500/60 rounded-2xl p-3 sm:p-6 text-center transition-all duration-200 hover:shadow-lg hover:shadow-red-900/20"
             >
-              <div className="text-4xl mb-3">{menu.icon}</div>
+              <div className="text-3xl sm:text-4xl mb-2">{menu.icon}</div>
               <div className="font-semibold text-white group-hover:text-red-400">
                 {menu.name}
               </div>
@@ -54,7 +54,7 @@ export default function HomePage() {
           ))}
         </div>
 
-        <footer className="mt-14 text-center text-gray-500 text-sm space-y-1">
+        <footer className="mt-10 text-center text-gray-500 text-sm space-y-1 break-words px-2">
           <p>Tel. 099-4102559 , 076-602429</p>
           <p>201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110</p>
         </footer>
