@@ -29,6 +29,7 @@ export default function SalesPage() {
       .select('*, branches(name)')
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString())
+      .is('voided_at', null)
       .order('created_at', { ascending: false })
 
     const list = data || []
@@ -42,6 +43,7 @@ export default function SalesPage() {
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-6">สรุปยอดขายรายวัน</h1>
+      <p className="text-sm text-gray-400 -mt-4 mb-6">ไม่รวมบิลที่ยกเลิก</p>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-end">
         <div>
