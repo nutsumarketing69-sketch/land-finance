@@ -117,8 +117,8 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         router.replace("/pending");
         return;
       }
-      if (current.startsWith("/approvals") && row.role !== "admin") {
-        setBlocked("approvals");
+      if ((current.startsWith("/approvals") || current.startsWith("/backup")) && row.role !== "admin") {
+        setBlocked(current.startsWith("/backup") ? "backup" : "approvals");
         setAllowed(true);
         setReady(true);
         return;
@@ -150,7 +150,9 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
           <p className="mt-3 text-sm text-gray-300">
             {blocked === "approvals"
               ? "อนุมัติพนักงานทำได้เฉพาะผู้ดูแลระบบ"
-              : `ต้องได้รับสิทธิ์ “${capLabel(blocked)}” จากหน้ากำหนดสิทธิ์`}
+              : blocked === "backup"
+                ? "สำรองข้อมูลทำได้เฉพาะผู้ดูแลระบบ"
+                : `ต้องได้รับสิทธิ์ “${capLabel(blocked)}” จากหน้ากำหนดสิทธิ์`}
           </p>
           <a href="/" className="mt-6 rounded-full bg-red-600 px-5 py-3">กลับหน้าหลัก</a>
         </div>
@@ -167,3 +169,4 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
     </StaffContext.Provider>
   );
 }
+// backup page stays with the admin account
