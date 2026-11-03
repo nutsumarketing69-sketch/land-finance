@@ -117,6 +117,18 @@ function companyName(name: string) {
   return name.startsWith('บริษัท') || name.startsWith('บ.') || /จำกัด|ห้าง|หจก|บจก/.test(name)
 }
 
+function sameLines(rowItems: unknown, draftItems: Line[], rowTotal: number, total: number) {
+  if (Math.round(Number(rowTotal || 0) * 100) !== Math.round(total * 100)) return false
+  const items = Array.isArray(rowItems) ? rowItems : []
+  if (items.length !== draftItems.length) return false
+  return draftItems.every((item, index) => {
+    const other = items[index] as { name?: string; qty?: number; price?: number }
+    return String(other?.name || '') === item.name
+      && Number(other?.qty || 0) === Number(item.qty || 0)
+      && Math.round(Number(other?.price || 0) * 100) === Math.round(Number(item.price || 0) * 100)
+  })
+}
+
 function mapHeaders(keys: string[]) {
   const mapped: Record<string, string> = {}
   for (const key of keys) {
@@ -235,22 +247,22 @@ export default function ImportBillsPage() {
       const createdAt = `${day}T04:00:00+00:00`
       const billNo = draft.billNo || `UP-${day.replace(/-/g, '')}-${plate || customer}`.slice(0, 40)
       const dupByNo = draft.billNo
-        ? await supabase.from('bills').select('id').eq('bill_no', draft.billNo).limit(1)
-        : { data: [] as { id: string }[] }
-      if (dupByNo.data?.length) {
+        ? await supabase.from('bills').select('id, items, total').eq('bill_no', draft.billNo).limit(20)
+        : { data: [] as { id: string; items: unknown; total: number }[] }
+      if ((dupByNo.data || []).some((row) => sameLines(row.items, draft.items, Number(row.total || 0), total))) {
         skipped += 1
         continue
       }
       const sameDay = await supabase
         .from('bills')
-        .select('id, customer_name, total, license_plate')
+        .select('id, customer_name, total, license_plate, items')
         .gte('created_at', `${day}T00:00:00+00:00`)
         .lt('created_at', `${day}T23:59:59+00:00`)
         .limit(1000)
       const duplicate = (sameDay.data || []).some((row) => {
         const samePlate = String(row.license_plate || '').replace(/\s+/g, '').toLowerCase() === plate.replace(/\s+/g, '').toLowerCase()
         const sameName = String(row.customer_name || '').replace(/\s+/g, '').toLowerCase() === customer.replace(/\s+/g, '').toLowerCase()
-        return samePlate && sameName && Math.round(Number(row.total || 0) * 100) === Math.round(total * 100)
+        return samePlate && sameName && sameLines(row.items, draft.items, Number(row.total || 0), total)
       })
       if (duplicate) {
         skipped += 1
@@ -330,7 +342,7 @@ export default function ImportBillsPage() {
       <h1 className="text-2xl font-bold">นำเข้าบิลจาก Excel</h1>
       <p className="mt-2 text-sm text-gray-300">
         อัปโหลดไฟล์บิลเก่าหรือใหม่ หนึ่งแถวต่อหนึ่งรายการ ใช้หัวตารางเช่น สาขา เลขที่ วันที่ ชื่อหรือบริษัท ที่อยู่ เบอร์ ยี่ห้อ รุ่น ป้ายทะเบียน เลขไมล์ สี รายการ จำนวน ราคา จำนวนเงิน ส่วนลด
-        ระบบเก็บครบทุกช่องและเปิดกลับมาพิมพ์ได้ บิลเดิมจะไม่ถูกใส่ซ้ำ
+        ระบบเก็บครบทุกช่องและเปิดกลับมาพิมพ์ได้ ถ้าข้อมูลเดิมทุกรายการเหมือนกันจะไม่ใส่ซ้ำ ถ้าเลขที่หรือลูกค้าเดิมแต่รายการ ราคา หรือจำนวนเงินไม่เหมือน จะเพิ่มอีก 1 บิล
       </p>
       <label className="relative mt-4 inline-flex cursor-pointer overflow-hidden rounded-xl bg-red-600 px-5 py-3 font-semibold">
         {busy ? 'กำลังทำงาน...' : 'อัปโหลด Excel'}
@@ -361,3 +373,4 @@ export default function ImportBillsPage() {
     </div>
   )
 }
+// a changed line total is a new bill
