@@ -164,7 +164,7 @@ export default function PrintQueuePage() {
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ป้าย ชื่อ หรือเลขบิล" className="flex-1 min-w-0 w-full sm:min-w-[220px] border border-gray-600 bg-gray-800 rounded p-3 text-white text-lg" />
-            <button onClick={load} className="bg-gray-700 text-white px-4 rounded">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</button>
+            <button onClick={() => load()} className="bg-gray-700 text-white px-4 py-3 rounded">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</button>
           </div>
           {msg && <p className="mb-3 text-sm text-amber-300">{msg}</p>}
           <div className="space-y-2">
