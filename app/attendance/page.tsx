@@ -41,6 +41,47 @@ function monthRange(value: string) {
   return { from: `${value}-01`, to: `${value}-${String(last).padStart(2, '0')}`, days: last }
 }
 
+function stampLate(file: Blob, lines: string[]): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width || 1
+      canvas.height = img.height || 1
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        URL.revokeObjectURL(url)
+        resolve(file)
+        return
+      }
+      ctx.drawImage(img, 0, 0)
+      const fontSize = Math.max(42, Math.round(canvas.width * 0.11))
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      lines.forEach((line, index) => {
+        const size = index === 0 ? fontSize : Math.round(fontSize * 0.62)
+        ctx.font = `700 ${size}px sans-serif`
+        ctx.lineWidth = Math.max(8, Math.round(size / 7))
+        ctx.strokeStyle = '#ffffff'
+        ctx.fillStyle = '#e10600'
+        const y = fontSize + index * size * 1.25
+        ctx.strokeText(line, canvas.width / 2, y)
+        ctx.fillText(line, canvas.width / 2, y)
+      })
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url)
+        resolve(blob || file)
+      }, 'image/jpeg', 0.82)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      resolve(file)
+    }
+    img.src = url
+  })
+}
+
 function shrink(file: File): Promise<Blob> {
   return new Promise((resolve) => {
     const img = new Image()
@@ -79,8 +120,10 @@ export default function AttendancePage() {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([])
   const [preview, setPreview] = useState('')
   const [msg, setMsg] = useState('')
+  const [msgLate, setMsgLate] = useState(false)
   const [busy, setBusy] = useState(false)
   const now = bangkokNow()
+  const lateNow = now.hour * 60 + now.minute > 8 * 60
 
   const load = async () => {
     const supabase = createClient()
@@ -107,12 +150,16 @@ export default function AttendancePage() {
     const supabase = createClient()
     const existing = await supabase.from('attendance').select('clocked_at, late_minutes').eq('user_id', account.user_id).eq('work_date', clock.date).maybeSingle()
     if (existing.data) {
+      const wasLate = Number(existing.data.late_minutes) > 0
       setBusy(false)
-      setMsg(`วันนี้เข้างานแล้วเมื่อ ${new Date(existing.data.clocked_at).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })}`)
+      setMsgLate(wasLate)
+      setMsg(`วันนี้เข้างานแล้วเมื่อ ${new Date(existing.data.clocked_at).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })}${wasLate ? ' มาสาย' : ''}`)
       return
     }
     const late = Math.max(0, clock.hour * 60 + clock.minute - 8 * 60)
-    const blob = await shrink(file)
+    setMsgLate(late > 0)
+    const shrunk = await shrink(file)
+    const blob = late > 0 ? await stampLate(shrunk, ['มาสาย', `${late} นาที`]) : shrunk
     const photo = new File([blob], 'clock.jpg', { type: 'image/jpeg' })
     const url = URL.createObjectURL(photo.size ? photo : file)
     setPreview(url)
@@ -177,8 +224,8 @@ export default function AttendancePage() {
     <div className="mx-auto max-w-4xl px-4 py-6 pb-24 text-white">
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
       <h1 className="text-2xl font-bold">พนักงานเข้างาน</h1>
-      <p className="mt-2 text-sm text-gray-300">เวลาประเทศไทย เข้างานไม่เกิน 08:00 น. กดถ่ายได้รูปเดียว ระบบส่งเทเลแกรมและเก็บเวลาไว้สรุปสิ้นเดือน</p>
-      <p className="mt-2 text-lg">ตอนนี้ {now.label} {now.hour * 60 + now.minute > 480 ? '· เลยเวลาแล้ว' : '· ยังไม่เกิน 08:00'}</p>
+      <p className="mt-2 text-sm text-gray-300">เวลาประเทศไทย เข้าก่อน 08:00 น. ถ้ามาสายยังกดถ่ายรูปส่งกลุ่มได้ รูปในกลุ่มจะมีตัวแดงว่ามาสาย</p>
+      <p className="mt-2 text-lg" style={lateNow ? { color: '#e10600', fontWeight: 700 } : undefined}>ตอนนี้ {now.label} {lateNow ? '· มาสาย' : '· ยังไม่เกิน 08:00'}</p>
       <label className="relative mt-4 block overflow-hidden rounded-2xl border border-dashed border-gray-500 text-center">
         {preview ? <img src={preview} alt="รูปเข้างาน" className="h-56 w-full object-cover" /> : <span className="flex h-40 items-center justify-center text-lg">กดถ่ายรูปหน้าร้านหรือรูปตัวเอง</span>}
         <input
@@ -194,7 +241,7 @@ export default function AttendancePage() {
           }}
         />
       </label>
-      {msg && <p className="mt-3 text-amber-200">{msg}</p>}
+      {msg && <p className="mt-3 text-amber-200" style={msgLate ? { color: '#e10600', fontWeight: 700, fontSize: '1.25rem' } : undefined}>{msg}</p>}
 
       <div className="mt-8 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -220,8 +267,8 @@ export default function AttendancePage() {
               <tr key={person.user_id} className="border-t border-gray-800">
                 <td className="py-2">{person.full_name}</td>
                 <td>{person.worked} วัน</td>
-                <td>{person.lateDays} วัน</td>
-                <td>{person.lateMinutes} นาที</td>
+                <td style={person.lateDays > 0 ? { color: '#e10600', fontWeight: 700 } : undefined}>{person.lateDays} วัน</td>
+                <td style={person.lateMinutes > 0 ? { color: '#e10600', fontWeight: 700 } : undefined}>{person.lateMinutes} นาที</td>
                 <td>{person.absent} วัน</td>
               </tr>
             ))}
@@ -232,3 +279,5 @@ export default function AttendancePage() {
     </div>
   )
 }
+
+// late staff can still send the photo, with red letters on it
