@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { branchName, formatBangkok, ROLE_LABEL, STATUS_LABEL, type StaffAccount } from "@/lib/staff";
 
 export default function PendingPage() {
+  const [sent, setSent] = useState("");
   const [account, setAccount] = useState<StaffAccount | null>(null);
   const [missing, setMissing] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
@@ -36,6 +37,7 @@ export default function PendingPage() {
   };
 
   useEffect(() => {
+    setSent(new URLSearchParams(window.location.search).get("sent") || "");
     load();
     const timer = setInterval(load, 15000);
     return () => clearInterval(timer);
@@ -73,6 +75,18 @@ export default function PendingPage() {
             <Row label="สมัครเมื่อ" value={formatBangkok(account.created_at)} />
           </div>
         )}
+        {waiting && sent === "1" && (
+          <p>
+            ส่งคำขอเข้ากลุ่มเทเลแกรมของร้านแล้ว มีชื่อผู้ใช้ เบอร์ สาขา และหน้าที่
+            ผู้ดูแลกดอนุมัติหรือไม่ผ่านในกลุ่มได้เลย หรือเปิดหน้าอนุมัติพนักงานก็กดได้เหมือนกัน
+          </p>
+        )}
+        {waiting && sent === "0" && (
+          <p>
+            บัญชีถูกสร้างแล้ว แต่ส่งเข้ากลุ่มเทเลแกรมไม่สำเร็จในรอบนี้
+            ให้ผู้ดูแลเปิดหน้าอนุมัติพนักงานแล้วกดอนุมัติจากที่นั่นได้
+          </p>
+        )}
         {waiting && (
           <p>
             บัญชีนี้ยังเปิดหน้าร้านไม่ได้ ผู้ดูแลระบบต้องกดอนุมัติก่อน จึงจะรับรถ ออกบิล และดูข้อมูลได้
@@ -97,6 +111,7 @@ export default function PendingPage() {
   );
 }
 
+// the waiting page tells the new staff that the group has the request
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3">
