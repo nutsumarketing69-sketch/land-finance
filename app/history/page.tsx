@@ -1,143 +1,130 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 
+function dayText(value: string) {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value.slice(0, 10)
+  return d.toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })
+}
+
 function HistoryContent() {
   const searchParams = useSearchParams()
-  const initialPlate = searchParams.get('plate') || ''
-
-  const [plate, setPlate] = useState(initialPlate)
-  const [jobs, setJobs] = useState<any[]>([])
+  const [plate, setPlate] = useState(searchParams.get('plate') || '')
+  const [vehicles, setVehicles] = useState<any[]>([])
+  const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [vehicle, setVehicle] = useState<any>(null)
+  const [capped, setCapped] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const searchHistory = async () => {
-    if (!plate.trim()) return
+  const searchHistory = async (value = plate) => {
+    const q = value.trim().replace(/[%_]/g, '')
+    if (!q) return
     setLoading(true)
-    const supabase = createClient()
-
-    const { data: v } = await supabase
-      .from('vehicles')
-      .select('*, customers(*)')
-      .ilike('license_plate', `%${plate}%`)
-      .maybeSingle()
-
-    setVehicle(v)
-
-    if (v) {
-      const { data } = await supabase
-        .from('jobs')
-        .select('*, employees(full_name), branches(name)')
-        .eq('vehicle_id', v.id)
-        .order('created_at', { ascending: false })
-      setJobs(data || [])
-    } else {
-      setJobs([])
-    }
     setSearched(true)
+    const supabase = createClient()
+    const [vehicleRes, billRes] = await Promise.all([
+      supabase
+        .from('vehicles')
+        .select('*, customers(full_name, phone, address)')
+        .ilike('license_plate', `%${q}%`)
+        .order('license_plate')
+        .limit(40),
+      supabase
+        .from('bills')
+        .select('id, bill_no, customer_name, phone, license_plate, car_info, mileage, total, created_at, items')
+        .ilike('license_plate', `%${q}%`)
+        .order('created_at', { ascending: false })
+        .limit(40),
+    ])
+    const cars = vehicleRes.data || []
+    const visits = billRes.data || []
+    setVehicles(cars)
+    setBills(visits)
+    setCapped(cars.length >= 40 || visits.length >= 40)
     setLoading(false)
   }
 
-  const isUnderWarranty = (job: any) => {
-    if (!job.warranty_until) return false
-    return new Date(job.warranty_until) >= new Date()
-  }
+  useEffect(() => {
+    const initial = searchParams.get('plate') || ''
+    if (initial.trim()) searchHistory(initial)
+  }, [])
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">ประวัติงานซ่อม</h1>
+    <div className="p-4 sm:p-8 max-w-3xl mx-auto pb-24">
+      <a href="/" className="inline-block mb-4 border border-gray-600 rounded-full px-4 py-2 text-sm">กลับหน้าหลัก</a>
+      <h1 className="text-2xl font-bold mb-4">ประวัติรถ</h1>
+      <p className="text-sm text-gray-400 mb-4">พิมพ์เลขในป้าย แม้แค่ตัวเดียว แล้วเลือกคันที่ต้องการ</p>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-col sm:flex-row gap-2 mb-6">
         <input
           type="text"
-          placeholder="พิมพ์ป้ายทะเบียน"
+          placeholder="เช่น 1 หรือ กก 999"
           value={plate}
-          onChange={(e) => setPlate(e.target.value)}
-          className="flex-1 border p-2 rounded text-black"
+          onChange={(e) => {
+            const value = e.target.value
+            setPlate(value)
+            if (timer.current) clearTimeout(timer.current)
+            if (value.trim().length >= 1) timer.current = setTimeout(() => searchHistory(value), 250)
+          }}
+          className="flex-1 border border-gray-600 bg-gray-800 p-3 rounded text-white text-lg"
           onKeyDown={(e) => e.key === 'Enter' && searchHistory()}
         />
-        <button
-          onClick={searchHistory}
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
+        <button onClick={() => searchHistory()} disabled={loading} className="bg-blue-600 text-white px-4 py-3 rounded text-lg">
           {loading ? 'กำลังค้นหา...' : 'ค้นหา'}
         </button>
       </div>
 
-      {vehicle && (
-        <div className="mb-6 p-4 border rounded bg-white text-black">
-          <div className="font-bold text-lg">{vehicle.license_plate}</div>
-          <div>{vehicle.brand} {vehicle.model}</div>
-          <div className="text-sm text-gray-600">ลูกค้า: {vehicle.customers?.full_name || '-'}</div>
-          <div className="text-sm text-gray-600">โทร: {vehicle.customers?.phone || '-'}</div>
-          <div className="text-sm text-gray-600">สี: {vehicle.color || '-'}</div>
-        </div>
-      )}
-
-      {searched && !vehicle && (
-        <p className="text-gray-500">ไม่พบข้อมูลรถคันนี้</p>
-      )}
-
-      {jobs.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="font-semibold">ประวัติการเข้าซ่อม ({jobs.length} ครั้ง)</h2>
-          {jobs.map((job) => (
-            <div key={job.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
-              <div className="flex justify-between items-start">
-                <div className="font-medium">
-                  {new Date(job.created_at).toLocaleDateString('th-TH')}
-                </div>
-                <div className="flex gap-2">
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    job.status === 'completed' ? 'bg-green-700' : 'bg-yellow-700'
-                  }`}>
-                    {job.status === 'completed' ? 'เสร็จสิ้น' : 'กำลังทำ'}
-                  </span>
-                  {job.warranty_until && (
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      isUnderWarranty(job) ? 'bg-blue-700' : 'bg-gray-700'
-                    }`}>
-                      {isUnderWarranty(job) ? 'อยู่ในประกัน' : 'หมดประกัน'}
-                    </span>
-                  )}
-                </div>
+      {vehicles.length > 0 && (
+        <div className="space-y-3 mb-6">
+          <h2 className="font-semibold">รถที่ตรงกัน {vehicles.length} คัน</h2>
+          {vehicles.map((v) => (
+            <div key={v.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-xl font-bold break-words">{v.license_plate}</div>
+                <a href={`/receive?plate=${encodeURIComponent(v.license_plate || '')}`} className="text-blue-300 py-1">รับรถคันนี้</a>
               </div>
-
-              <div className="text-sm text-gray-400 mt-2 space-y-1">
-                <div>ไมล์: {job.mileage?.toLocaleString() || '-'} km</div>
-                <div>พนักงาน: {job.employees?.full_name || '-'}</div>
-                <div>สาขา: {job.branches?.name || '-'}</div>
-                {job.warranty_months && (
-                  <div>รับประกัน: {job.warranty_months} เดือน (ถึง {new Date(job.warranty_until).toLocaleDateString('th-TH')})</div>
-                )}
-              </div>
-
-              {job.symptom && (
-                <div className="mt-2 text-sm">
-                  <span className="text-gray-400">อาการ:</span> {job.symptom}
-                </div>
-              )}
-              {job.diagnosis && (
-                <div className="text-sm">
-                  <span className="text-gray-400">ตรวจพบ:</span> {job.diagnosis}
-                </div>
-              )}
-              {job.repair && (
-                <div className="text-sm">
-                  <span className="text-gray-400">ซ่อม:</span> {job.repair}
-                </div>
-              )}
+              <div>{v.brand || ''} {v.model || ''} {v.color || ''}</div>
+              <div className="text-sm text-gray-400">ไมล์ล่าสุด: {v.mileage ? Number(v.mileage).toLocaleString() : '-'} km</div>
+              <div className="text-sm text-gray-300 mt-1">{v.customers?.full_name || '-'}</div>
+              <div className="text-sm text-gray-400">{v.customers?.phone || '-'}</div>
+              {v.customers?.address ? <div className="text-sm text-gray-400 break-words">{v.customers.address}</div> : null}
             </div>
           ))}
         </div>
       )}
 
-      {searched && vehicle && jobs.length === 0 && (
-        <p className="text-gray-500">ยังไม่มีประวัติงานของรถคันนี้</p>
+      {bills.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-semibold">เคยเข้าซ่อม {bills.length} ครั้ง</h2>
+          {bills.map((bill) => {
+            const names = Array.isArray(bill.items)
+              ? bill.items.map((item: any) => item?.name).filter(Boolean).slice(0, 4).join(', ')
+              : ''
+            return (
+              <div key={bill.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
+                <div className="flex justify-between gap-3">
+                  <div className="font-medium">{dayText(bill.created_at)}</div>
+                  <div className="font-semibold">{Number(bill.total || 0).toLocaleString()} บาท</div>
+                </div>
+                <div className="text-sm mt-1">{bill.license_plate || '-'} {bill.car_info || ''}</div>
+                <div className="text-sm text-gray-400">{bill.customer_name || '-'} {bill.phone || ''}</div>
+                <div className="text-sm text-gray-400">ไมล์: {bill.mileage ? Number(bill.mileage).toLocaleString() : '-'} km</div>
+                {names ? <div className="text-sm mt-1 break-words">{names}</div> : null}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {capped && <p className="text-amber-300 text-sm mt-4">แสดงไม่เกิน 40 รายการ พิมพ์เพิ่มอีกตัวเพื่อให้แคบลง</p>}
+
+      {searched && !loading && vehicles.length === 0 && bills.length === 0 && (
+        <p className="text-gray-500">ยังไม่พบรถหรือบิลที่ตรงกับที่พิมพ์</p>
       )}
     </div>
   )
