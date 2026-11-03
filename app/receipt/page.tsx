@@ -65,7 +65,10 @@ function isoToday() {
 }
 
 function thaiDateOnly(date = new Date()) {
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear() + 543}`
+  const dd = String(date.getDate()).padStart(2, '0')
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const yy = date.getFullYear() + 543
+  return `${dd}/${mm}/${yy}`
 }
 
 function thaiFromIso(iso: string) {
@@ -93,7 +96,14 @@ function promptPay(id: string, amount: number) {
   const field = (tag: string, value: string) => tag + String(value.length).padStart(2, '0') + value
   const merchant = field('00', 'A000000677010111') + field(targetType, target)
   const amountText = amount > 0 ? amount.toFixed(2) : ''
-  const body = [field('00', '01'), field('01', amountText ? '12' : '11'), field('29', merchant), field('58', 'TH'), field('53', '764'), amountText ? field('54', amountText) : ''].join('')
+  const body = [
+    field('00', '01'),
+    field('01', amountText ? '12' : '11'),
+    field('29', merchant),
+    field('58', 'TH'),
+    field('53', '764'),
+    amountText ? field('54', amountText) : '',
+  ].join('')
   const data = body + '6304'
   return data + crc16(data)
 }
@@ -211,7 +221,11 @@ export default function ReceiptPage() {
         }
         const picked = JSON.parse(localStorage.getItem('selectedItems') || '[]')
         if (Array.isArray(picked) && picked.length) {
-          const lines = picked.slice(0, 16).map((item: any) => ({ name: String(item.name || ''), qty: Number(item.qty || 1), price: Number(item.price || 0) }))
+          const lines = picked.slice(0, 16).map((item: any) => ({
+            name: String(item.name || ''),
+            qty: Number(item.qty || 1),
+            price: Number(item.price || 0),
+          }))
           while (lines.length < 5) lines.push(blank())
           setItems(lines)
           localStorage.removeItem('selectedItems')
@@ -266,7 +280,9 @@ export default function ReceiptPage() {
   const warrantyText = warrantyMonths > 0 ? `รับประกันงาน ${warrantyMonths} เดือน` : ''
   const brandKey = Object.keys(BRANDS).find((name) => name.toLowerCase() === brand.trim().toLowerCase()) || ''
   const company = customerType === 'company'
-  const qrUrl = showQr ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}` : ''
+  const qrUrl = showQr
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=6&ecc=M&data=${encodeURIComponent(promptPay(PROMPTPAY_ID, total))}`
+    : ''
   const techNames = employees.map((item) => item.name || item.full_name || item.code).filter(Boolean)
 
   const brandHits = useMemo(() => {
@@ -282,36 +298,31 @@ export default function ReceiptPage() {
     return list.filter((name) => name.toLowerCase().includes(q) && name.toLowerCase() !== q).slice(0, 8)
   }, [brandKey, model])
 
-  const [partHits, setPartHits] = useState<any[]>([])
+  const partHits = useMemo(() => {
+    const q = items[partFocus]?.name?.trim().toLowerCase() || ''
+    if (!q) return []
+    return parts.filter((part) => String(part.name || '').toLowerCase().includes(q) && String(part.name || '').toLowerCase() !== q).slice(0, 8)
+  }, [parts, items, partFocus])
 
-useEffect(() => {
-  const q = items[partFocus]?.name?.trim() || ''
-  if (partFocus < 0 || !q) {
-    setPartHits([])
-    return
+  const fillCustomer = (item: any) => {
+    const name = item?.full_name || ''
+    const address = item?.address || ''
+    const tax = item?.tax_id || ''
+    setCustomer(name)
+    setPhone(item?.phone || '')
+    setCustomerAddress(address)
+    setCustomerTax(tax)
+    const companyName = name.startsWith('บริษัท') || name.startsWith('บ.') || /จำกัด|ห้าง|หจก|บจก/.test(name)
+    if (address || tax || companyName) setCustomerType('company')
+    setCustomerHits([])
+    setSavedId('')
   }
-  let stop = false
-  const timer = setTimeout(async () => {
-    const res = await createClient()
-      .from('parts_services')
-      .select('id, name, price, stock')
-      .ilike('name', `${q}%`)
-      .order('name')
-      .limit(1000)
-    if (stop) return
-    setPartHits((res.data || []).filter((part) => String(part.name || '').trim() !== q))
-  }, 120)
-  return () => {
-    stop = true
-    clearTimeout(timer)
-  }
-}, [items, partFocus])
 
   const searchCustomers = async (value: string) => {
     setCustomer(value)
     setSavedId('')
     if (value.trim().length < 1) { setCustomerHits([]); return }
-    const res = await createClient().from('customers').select('id, full_name, phone').ilike('full_name', `%${value.trim()}%`).limit(8)
+    const res = await createClient().from('customers').select('id, full_name, phone, address, tax_id').ilike('full_name', `%${value.trim()}%`).limit(8)
     setCustomerHits(res.data || [])
   }
 
@@ -320,18 +331,55 @@ useEffect(() => {
     setSavedId('')
     if (value.trim().length < 1) { setPlateHits([]); return }
     const supabase = createClient()
-    const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone)').ilike('license_plate', `%${value.trim()}%`).limit(8)
-    const plain = withCustomer.error ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8) : null
+    const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone, address, tax_id)').ilike('license_plate', `%${value.trim()}%`).limit(8)
+    const plain = withCustomer.error
+      ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8)
+      : null
     setPlateHits((plain?.data || withCustomer.data || []) as any[])
   }
 
   const payload = () => ({
-    headerTitle: title, title, address: info?.address || '', shopPhone: info?.phone || '', email: info?.email || '',
-    showShopTax: company, shopTax: company ? SHOP_TAX : '', docType, docTitle, billNo, bill_no: billNo, dateText, date: dateText,
-    customerType, customer, customer_name: customer, customerPhone: phone, phone, customerTax: company ? customerTax : '', customerAddress,
-    plate, license_plate: plate, brand, model, color, car: `${brand} ${model} ${color}`.trim(), car_info: `${brand} ${model} ${color}`.trim(),
-    mileage, technician, signDate: thaiFromIso(signDate), payType, payLabel, chequeNo, items: lines, discount: Number(discount || 0),
-    subtotal, total, note, warrantyText, showQr, promptpay: showQr ? promptPay(PROMPTPAY_ID, total) : '',
+    headerTitle: title,
+    title,
+    address: info?.address || '',
+    shopPhone: info?.phone || '',
+    email: info?.email || '',
+    showShopTax: company,
+    shopTax: company ? SHOP_TAX : '',
+    docType,
+    docTitle,
+    billNo,
+    bill_no: billNo,
+    dateText,
+    date: dateText,
+    customerType,
+    customer,
+    customer_name: customer,
+    customerPhone: phone,
+    phone,
+    customerTax: company ? customerTax : '',
+    customerAddress,
+    plate,
+    license_plate: plate,
+    brand,
+    model,
+    color,
+    car: `${brand} ${model} ${color}`.trim(),
+    car_info: `${brand} ${model} ${color}`.trim(),
+    mileage,
+    technician,
+    signDate: thaiFromIso(signDate),
+    payType,
+    payLabel,
+    chequeNo,
+    items: lines,
+    discount: Number(discount || 0),
+    subtotal,
+    total,
+    note,
+    warrantyText,
+    showQr,
+    promptpay: showQr ? promptPay(PROMPTPAY_ID, total) : '',
   })
 
   const save = async () => {
@@ -339,17 +387,27 @@ useEffect(() => {
     setSaving(true)
     const meta = { docType, customerType, customerTax, customerAddress, payType, payLabel, chequeNo, technician, signDate, brand, model, color, warrantyMonths, title, address: info?.address || '' }
     const row: any = {
-      bill_no: billNo, customer_name: customer || null, phone: phone || null, license_plate: plate || null,
-      car_info: `${brand} ${model} ${color}`.trim() || null, mileage: mileage ? Number(mileage) : null, items: lines,
-      discount: Number(discount || 0), total,
+      bill_no: billNo,
+      customer_name: customer || null,
+      phone: phone || null,
+      license_plate: plate || null,
+      car_info: `${brand} ${model} ${color}`.trim() || null,
+      mileage: mileage ? Number(mileage) : null,
+      items: lines,
+      discount: Number(discount || 0),
+      total,
       note: [warrantyText, note, `ชำระโดย: ${payLabel}`, technician ? `ช่าง: ${technician}` : ''].filter(Boolean).join('\n') + `\n[[meta]]${JSON.stringify(meta)}`,
       branch_id: branchId || null,
     }
     const supabase = createClient()
-    let res = savedId ? await supabase.from('bills').update(row).eq('id', savedId).select('id') : await supabase.from('bills').insert(row).select('id')
+    let res = savedId
+      ? await supabase.from('bills').update(row).eq('id', savedId).select('id')
+      : await supabase.from('bills').insert(row).select('id')
     if (res.error && String(res.error.message).includes('mileage')) {
       delete row.mileage
-      res = savedId ? await supabase.from('bills').update(row).eq('id', savedId).select('id') : await supabase.from('bills').insert(row).select('id')
+      res = savedId
+        ? await supabase.from('bills').update(row).eq('id', savedId).select('id')
+        : await supabase.from('bills').insert(row).select('id')
     }
     if (!res.error && !savedId) {
       for (const line of lines) {
@@ -374,9 +432,24 @@ useEffect(() => {
     setDateText(thaiDateOnly())
     setSignDate(isoToday())
     setItems([blank(), blank(), blank(), blank(), blank()])
-    setCustomer(''); setPhone(''); setCustomerTax(''); setCustomerAddress(''); setCustomerHits([])
-    setPlate(''); setPlateHits([]); setBrand(''); setModel(''); setColor(''); setMileage('')
-    setDiscount(0); setNote(''); setWarrantyMonths(0); setChequeNo(''); setTechnician(''); setSavedId(''); setMsg('พร้อมออกบิลใหม่')
+    setCustomer('')
+    setPhone('')
+    setCustomerTax('')
+    setCustomerAddress('')
+    setCustomerHits([])
+    setPlate('')
+    setPlateHits([])
+    setBrand('')
+    setModel('')
+    setColor('')
+    setMileage('')
+    setDiscount(0)
+    setNote('')
+    setWarrantyMonths(0)
+    setChequeNo('')
+    setTechnician('')
+    setSavedId('')
+    setMsg('พร้อมออกบิลใหม่')
   }
 
   return (
@@ -394,14 +467,14 @@ useEffect(() => {
         .shop h1 { margin:0; font-size:22px; }
         .shop p { margin:0; font-size:11px; line-height:1.35; }
         .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
-        .who-wrap { position:relative; display:block; padding-right:46mm; margin:0 0 2px; }
-        .who { font-size:13px; line-height:1.55; }
+        .who-wrap { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:0 0 2px; }
+        .who { font-size:13px; line-height:1.55; flex:1; }
         .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:1px 12px; }
         .who input { border:none; background:transparent; color:#111; font:inherit; padding:0; }
         .who input:focus { outline:none; }
         .co-name { font-weight:700; }
-        .bill-meta { position:absolute; right:0; bottom:0; width:44mm; text-align:right; font-size:13px; line-height:1.4; }
-        .items input, .note, .sum-line input, .sign-name, .sign-date { box-sizing:border-box; background:#fff; color:#111; font:inherit; }
+        .bill-meta { text-align:right; font-size:13px; line-height:1.4; white-space:nowrap; }
+        .items input, .note, .discount input, .sign-name, .sign-date { box-sizing:border-box; background:#fff; color:#111; font:inherit; }
         .items input { width:100%; border:none; padding:2px 4px; }
         .note { width:100%; border:none; background:transparent; resize:none; padding:2px 0; color:#111; }
         .note:focus { outline:none; }
@@ -410,18 +483,17 @@ useEffect(() => {
         th { background:#f5f5f5; color:#111; }
         .c { text-align:center; } .r { text-align:right; }
         .rel { position:relative; }
-        .menu { position:absolute; z-index:40; left:0; top:100%; background:#fff; border:1px solid #ddd; max-height:320px; overflow:auto; min-width:280px; width:max-content; max-width:460px; }
+        .menu { position:absolute; z-index:30; left:0; right:0; top:100%; background:#fff; border:1px solid #ddd; max-height:180px; overflow:auto; min-width:180px; }
         .menu button { display:block; width:100%; text-align:left; background:#fff; color:#111; border:0; border-bottom:1px solid #f1f1f1; padding:6px 8px; cursor:pointer; }
         .chips { display:flex; gap:4px; flex-wrap:wrap; margin:2px 0 4px; }
         .chips button { background:#fff; color:#444; border:1px solid #ddd; border-radius:999px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; }
         .rowbtn { background:#fff; color:#111; border:1px solid #ddd; border-radius:6px; padding:4px 8px; cursor:pointer; }
         .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-        .sum { min-width:230px; color:#111; line-height:1.7; }
-        .sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; align-items:center; }
-        .sum-line .amt, .sum-line input { text-align:right; }
-        .sum-line input { width:78px; border:1px solid #ddd; border-radius:4px; padding:1px 4px; background:#fff; color:#111; }
+        .sum { text-align:right; min-width:210px; color:#111; line-height:1.7; }
+        .discount { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
+        .discount input { width:72px; text-align:right; border:1px solid #ddd; border-radius:4px; padding:1px 6px; background:#fff; color:#111; }
         .grand { font-size:16px; font-weight:700; }
-        .words { font-size:12px; text-align:right; }
+        .words { font-size:12px; }
         .pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; color:#111; }
         .pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
         .pp-en { font-size:13px; font-weight:800; letter-spacing:-0.3px; line-height:1.1; }
@@ -439,15 +511,13 @@ useEffect(() => {
         .only-print { display:none; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:10px 14px; cursor:pointer; }
-        @media screen and (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } }
+        @media (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } .who-wrap { display:block; } .bill-meta { text-align:left; } }
         @media print {
           @page { size:A4 portrait; margin:8mm; }
           .no-print { display:none !important; }
           .page { background:#fff; padding:0; }
           .sheet { box-shadow:none; border-top:0; max-width:none; padding:0; }
-          .who-wrap { display:block !important; position:relative !important; padding-right:46mm !important; }
-          .bill-meta { position:absolute !important; right:0 !important; bottom:0 !important; left:auto !important; width:44mm !important; text-align:right !important; }
-          .who input, .items input, .note, .sum-line input, .sign-name { border:none !important; background:transparent !important; color:#111 !important; outline:none !important; }
+          .who input, .items input, .note, .discount input, .sign-name { border:none !important; background:transparent !important; color:#111 !important; outline:none !important; }
           .sign-date { display:none !important; }
           .only-print { display:block; }
           .who input::placeholder, .note::placeholder { color:transparent !important; }
@@ -488,7 +558,11 @@ useEffect(() => {
             <option value={12}>12 เดือน</option>
           </select>
         </label>
-        {payType === 'cheque' && <label>เลขที่เช็ค<input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} /></label>}
+        {payType === 'cheque' && (
+          <label>เลขที่เช็ค
+            <input value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} />
+          </label>
+        )}
         <div className="status" style={{ color: printerOn ? '#067a32' : '#9a3412' }}>{printerText}</div>
       </div>
 
@@ -510,10 +584,19 @@ useEffect(() => {
                 <div className="row">
                   <span className="rel co-name">
                     <input value={customer} autoComplete="off" style={fit(customer, 16)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อบริษัท" />
-                    {customerHits.length > 0 && <div className="menu no-print">{customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}</div>}
+                    {customerHits.length > 0 && (
+                      <div className="menu no-print">
+                        {customerHits.map((item) => (
+                          <button key={item.id} onClick={() => fillCustomer(item)}>{item.full_name} {item.phone || ''} {item.tax_id || ''}</button>
+                        ))}
+                      </div>
+                    )}
                   </span>
                 </div>
-                <div className="row"><span>ที่อยู่:</span><input value={customerAddress} style={{ width: '70%' }} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่บริษัท" /></div>
+                <div className="row">
+                  <span>ที่อยู่:</span>
+                  <input value={customerAddress} style={{ width: '70%' }} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="ที่อยู่บริษัท" />
+                </div>
                 <div className="row">
                   <span>เลขที่ผู้เสียภาษี</span>
                   <input value={customerTax} style={fit(customerTax, 13)} onChange={(e) => setCustomerTax(e.target.value)} placeholder="เลขภาษีลูกค้า" />
@@ -526,7 +609,13 @@ useEffect(() => {
                 <span>ลูกค้า:</span>
                 <span className="rel">
                   <input value={customer} autoComplete="off" style={fit(customer, 6)} onChange={(e) => searchCustomers(e.target.value)} placeholder="ชื่อ" />
-                  {customerHits.length > 0 && <div className="menu no-print">{customerHits.map((item) => <button key={item.id} onClick={() => { setCustomer(item.full_name || ''); setPhone(item.phone || ''); setCustomerHits([]) }}>{item.full_name} {item.phone || ''}</button>)}</div>}
+                  {customerHits.length > 0 && (
+                    <div className="menu no-print">
+                      {customerHits.map((item) => (
+                        <button key={item.id} onClick={() => fillCustomer(item)}>{item.full_name} {item.phone || ''}</button>
+                      ))}
+                    </div>
+                  )}
                 </span>
                 <span>โทร:</span>
                 <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
@@ -536,30 +625,55 @@ useEffect(() => {
               <span>รุ่นรถ:</span>
               <span className="rel">
                 <input value={brand} autoComplete="off" style={fit(brand, 6)} onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true); setSavedId('') }} placeholder="ยี่ห้อ" />
-                {brandOpen && brandHits.length > 0 && <div className="menu no-print">{brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}</div>}
+                {brandOpen && brandHits.length > 0 && (
+                  <div className="menu no-print">
+                    {brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}
+                  </div>
+                )}
               </span>
               <span className="rel">
                 <input value={model} autoComplete="off" style={fit(model, 6)} onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true); setSavedId('') }} placeholder="รุ่น" />
-                {modelOpen && modelHits.length > 0 && <div className="menu no-print">{modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}</div>}
+                {modelOpen && modelHits.length > 0 && (
+                  <div className="menu no-print">
+                    {modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}
+                  </div>
+                )}
               </span>
               <span>ทะเบียน:</span>
               <span className="rel">
                 <input value={plate} autoComplete="off" style={fit(plate, 6)} onChange={(e) => searchPlates(e.target.value)} placeholder="ป้าย" />
-                {plateHits.length > 0 && <div className="menu no-print">{plateHits.map((item) => <button key={item.id} onClick={() => { setPlate(item.license_plate || ''); setBrand(item.brand || ''); setModel(item.model || model); setColor(item.color || ''); setMileage(item.mileage ? String(item.mileage) : mileage); setCustomer(item.customers?.full_name || customer); setPhone(item.customers?.phone || phone); setPlateHits([]) }}>{item.license_plate} {item.brand} {item.model}</button>)}</div>}
+                {plateHits.length > 0 && (
+                  <div className="menu no-print">
+                    {plateHits.map((item) => (
+                      <button key={item.id} onClick={() => { setPlate(item.license_plate || ''); setBrand(item.brand || ''); setModel(item.model || model); setColor(item.color || ''); setMileage(item.mileage ? String(item.mileage) : mileage); if (item.customers) fillCustomer(item.customers); setPlateHits([]) }}>
+                        {item.license_plate} {item.brand} {item.model}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </span>
               <span>เลขที่ไมล์:</span>
-              <span><input value={mileage} style={fit(mileage, 4)} onChange={(e) => setMileage(e.target.value)} placeholder="ไมล์" /> km.</span>
-              <span className={color.trim() ? '' : 'no-print'}>สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" /></span>
+              <span>
+                <input value={mileage} style={fit(mileage, 4)} onChange={(e) => setMileage(e.target.value)} placeholder="ไมล์" /> km.
+              </span>
+              <span className={color.trim() ? '' : 'no-print'}>
+                สี: <input value={color} style={fit(color, 3)} onChange={(e) => setColor(e.target.value)} placeholder="สี" />
+              </span>
             </div>
-            <div className="row"><span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span></div>
+            <div className="row">
+              <span>ชำระโดย: {payLabel}{chequeNo ? ` ${chequeNo}` : ''}</span>
+            </div>
           </div>
           <div className="bill-meta">
             <div>เลขที่ {billNo}</div>
             <div>วันที่ {dateText}</div>
           </div>
         </div>
+
         <div className="chips no-print">
-          {COLORS.map((item) => <button key={item} onClick={() => setColor(item)} style={{ background: color === item ? '#111' : '#fff', color: color === item ? '#fff' : '#444' }}>{item}</button>)}
+          {COLORS.map((item) => (
+            <button key={item} onClick={() => setColor(item)} style={{ background: color === item ? '#111' : '#fff', color: color === item ? '#fff' : '#444' }}>{item}</button>
+          ))}
         </div>
 
         <table className="items">
@@ -581,7 +695,11 @@ useEffect(() => {
                   <input value={item.name} autoComplete="off" onFocus={() => setPartFocus(index)} onChange={(e) => { setPartFocus(index); setSavedId(''); setItems(items.map((line, i) => i === index ? { ...line, name: e.target.value } : line)) }} placeholder="พิมพ์หรือเลือกอะไหล่" />
                   {partFocus === index && partHits.length > 0 && (
                     <div className="menu no-print">
-                      {partHits.map((part) => <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0) } : line)); setPartFocus(-1); setSavedId('') }}>{part.name} · {Number(part.price || 0).toLocaleString()}{part.stock != null ? ` · คงเหลือ ${part.stock}` : ''}</button>)}
+                      {partHits.map((part) => (
+                        <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0) } : line)); setPartFocus(-1); setSavedId('') }}>
+                          {part.name} · {Number(part.price || 0).toLocaleString()}{part.stock != null ? ` · คงเหลือ ${part.stock}` : ''}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </td>
@@ -599,7 +717,9 @@ useEffect(() => {
           <div>
             {qrUrl && (
               <div className="pp">
-                <div className="pp-logo"><div className="pp-en"><b>Prompt</b><span>Pay</span></div></div>
+                <div className="pp-logo">
+                  <div className="pp-en"><b>Prompt</b><span>Pay</span></div>
+                </div>
                 <img src={qrUrl} alt="PromptPay" />
                 <div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div>
               </div>
@@ -608,15 +728,22 @@ useEffect(() => {
             {warrantyText && <div className="warn">{warrantyText}</div>}
           </div>
           <div className="sum">
-            <div className="sum-line"><span>ยอดรวม</span><span className="amt">{subtotal.toLocaleString()}</span><span>บาท</span></div>
-            <div className="sum-line"><span>ส่วนลด</span><input className="amt" value={discount} onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} /><span>บาท</span></div>
-            <div className="sum-line grand"><span>รวมทั้งสิ้น</span><span className="amt">{total.toLocaleString()}</span><span>บาท</span></div>
+            <div>ยอดรวม {subtotal.toLocaleString()} บาท</div>
+            <div className="discount">
+              <span>ส่วนลด</span>
+              <input value={discount || ''} placeholder="0" onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} />
+            </div>
+            <div className="grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
             <div className="words">{bahtText(total)}</div>
           </div>
         </div>
 
         <div className="signs">
-          <div><div className="sign-top"></div><i></i>ตรวจรับงานซ่อม</div>
+          <div>
+            <div className="sign-top"></div>
+            <i></i>
+            ตรวจรับงานซ่อม
+          </div>
           <div>
             <div className="sign-top">
               <select className="sign-name" value={technician} onChange={(e) => setTechnician(e.target.value)}>
@@ -630,7 +757,11 @@ useEffect(() => {
             <input className="sign-date" type="date" value={signDate} onChange={(e) => setSignDate(e.target.value)} />
             <div className="only-print">{thaiFromIso(signDate)}</div>
           </div>
-          <div><div className="sign-top"></div><i></i>ผู้รับเงิน</div>
+          <div>
+            <div className="sign-top"></div>
+            <i></i>
+            ผู้รับเงิน
+          </div>
         </div>
       </div>
 
