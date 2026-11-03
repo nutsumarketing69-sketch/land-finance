@@ -33,6 +33,7 @@ export const CAPS: Cap[] = [
   { id: "reports", label: "รายงาน", group: "ร้าน", detail: "รายงานรายวันและแดชบอร์ด" },
   { id: "summary", label: "สรุปทุกสาขา", group: "ร้าน", detail: "สรุปรายวัน รายเดือน รายปี และช่วงวันที่เลือก" },
   { id: "sales", label: "ยอดขาย", group: "ร้าน", detail: "ยอดขายรายวัน" },
+  { id: "credit", label: "ลูกหนี้", group: "ร้าน", detail: "ดูยอดที่ลูกค้ายังค้าง และบันทึกเมื่อรับเงินแล้ว" },
   { id: "daily_close", label: "ปิดยอดวัน", group: "ร้าน", detail: "สรุปก่อนเลิกงาน" },
   { id: "import_bills", label: "นำเข้าบิล Excel", group: "ร้าน", detail: "อัปโหลดบิลเก่าพร้อมรายการและยอด" },
   { id: "backup", label: "สำรองข้อมูล", group: "ร้าน", detail: "ส่งออก Excel ลูกค้า รถ และประวัติบิล เฉพาะผู้ดูแลระบบ" },
@@ -40,6 +41,8 @@ export const CAPS: Cap[] = [
 
 const PATHS: [string, string][] = [
   ["/backup", "backup"],
+  ["/pickup", "jobs"],
+  ["/credit", "credit"],
   ["/import-bills", "import_bills"],
   ["/report-advanced", "reports"],
   ["/jobs-by-branch", "jobs"],
@@ -89,7 +92,7 @@ function frontCaps() {
   return [
     "receive", "receipt", "receipt_edit", "see_prices", "parts", "parts_edit", "stock", "supplier",
     "customers", "history", "search", "bills", "jobs", "warranty", "media", "clock", "sales",
-    "daily_close", "reports",
+    "credit", "daily_close", "reports",
   ];
 }
 
@@ -126,4 +129,4 @@ export function explicitPermissions(account: Pick<StaffAccount, "role" | "positi
   map.backup = account.role === "admin";
   return map;
 }
-// backup stays with the admin account only
+// credit and pickup follow the staff permissions
