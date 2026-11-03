@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useStaff } from '@/app/components/AuthShell'
+import { voidBill } from '@/lib/void-bill'
 
 type Line = { name: string; qty: number; price: number }
 
@@ -75,6 +77,42 @@ function thaiFromIso(iso: string) {
   if (!iso || iso.length < 10) return ''
   const [year, month, day] = iso.split('-')
   return `${day}/${month}/${Number(year) + 543}`
+}
+
+function bangkokDay(iso: string) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(iso))
+  const pick = (type: string) => parts.find((part) => part.type === type)?.value || ''
+  const year = pick('year')
+  const month = pick('month')
+  const day = pick('day')
+  return { iso: `${year}-${month}-${day}`, thai: `${day}/${month}/${Number(year) + 543}` }
+}
+
+function unpackNote(raw: string) {
+  const text = String(raw || '')
+  const marker = text.lastIndexOf('[[meta]]')
+  let body = marker >= 0 ? text.slice(0, marker) : text
+  let meta: any = {}
+  if (marker >= 0) {
+    try { meta = JSON.parse(text.slice(marker + 8)) || {} } catch { meta = {} }
+  }
+  const lines = body.replace(/\s+$/, '').split('\n')
+  while (lines.length && (/^ชำระโดย:/.test(lines[lines.length - 1].trim()) || /^ช่าง:/.test(lines[lines.length - 1].trim()))) {
+    lines.pop()
+  }
+  body = lines.join('\n').replace(/^\s+|\s+$/g, '')
+  let warranty = Number(meta.warrantyMonths || 0)
+  const matched = body.match(/^รับประกันงาน\s*(\d+)\s*เดือน(?:\n|$)/)
+  if (matched) {
+    if (!warranty) warranty = Number(matched[1])
+    body = body.slice(matched[0].length).replace(/^\s+/, '')
+  }
+  return { note: body, meta, warranty }
 }
 
 function crc16(data: string) {
@@ -157,6 +195,8 @@ function readAge(data: any): number | null {
 }
 
 export default function ReceiptPage() {
+  const { account } = useStaff()
+  const canVoid = account?.status === 'approved' && (account.role === 'admin' || account.role === 'manager')
   const [branches, setBranches] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [parts, setParts] = useState<any[]>([])
@@ -190,6 +230,9 @@ export default function ReceiptPage() {
   const [discount, setDiscount] = useState(0)
   const [note, setNote] = useState('')
   const [savedId, setSavedId] = useState('')
+  const [billCreatedAt, setBillCreatedAt] = useState('')
+  const [voidedAt, setVoidedAt] = useState('')
+  const [voidReason, setVoidReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [printerText, setPrinterText] = useState('ยังไม่เลือกสาขา')
@@ -210,11 +253,70 @@ export default function ReceiptPage() {
         if (page.data.length < 1000) break
       }
       const partRes = { data: partRows }
-      const number = await nextBillNo(supabase)
+      const openedId = new URLSearchParams(window.location.search).get('bill')
       if (!alive) return
       setBranches(branchRes.data || [])
       setEmployees(employeeRes.data || [])
       setParts(partRes.data || [])
+      if (openedId) {
+        const opened = await supabase.from('bills').select('*').eq('id', openedId).maybeSingle()
+        if (!alive) return
+        const bill = opened.data
+        if (!bill) {
+          setMsg('ไม่พบบิลที่เลือก')
+          setBillNo(await nextBillNo(supabase))
+          setDateText(thaiDateOnly())
+          setSignDate(isoToday())
+          return
+        }
+        const parsed = unpackNote(bill.note || '')
+        const meta = parsed.meta || {}
+        const day = bangkokDay(bill.created_at || new Date().toISOString())
+        const lines = (Array.isArray(bill.items) ? bill.items : []).slice(0, 16).map((item: any) => ({
+          name: String(item?.name || ''),
+          qty: Number(item?.qty || 1),
+          price: Number(item?.price || 0),
+        }))
+        while (lines.length < 5) lines.push(blank())
+        const knownDoc = DOC_TYPES.some((item) => item.id === meta.docType)
+        const knownPay = PAY_TYPES.some((item) => item.id === meta.payType)
+        setSavedId(bill.id)
+        setBillCreatedAt(bill.created_at || '')
+        setVoidedAt(bill.voided_at || '')
+        setVoidReason(bill.void_reason || '')
+        setBillNo(bill.bill_no || '')
+        setDateText(day.thai)
+        setSignDate(/^\d{4}-\d{2}-\d{2}$/.test(String(meta.signDate || '')) ? String(meta.signDate) : day.iso)
+        setBranchId(bill.branch_id || '')
+        setDocType(knownDoc ? meta.docType : 'receipt')
+        setCustomerType(meta.customerType === 'company' ? 'company' : 'general')
+        setPayType(knownPay ? meta.payType : 'cash')
+        setChequeNo(meta.chequeNo || '')
+        setTechnician(meta.technician || '')
+        setWarrantyMonths(Number(parsed.warranty || 0))
+        setCustomer(bill.customer_name || '')
+        setPhone(bill.phone || '')
+        setCustomerTax(meta.customerTax || '')
+        setCustomerAddress(meta.customerAddress || '')
+        setPlate(bill.license_plate || '')
+        if (meta.brand || meta.model || meta.color) {
+          setBrand(meta.brand || '')
+          setModel(meta.model || '')
+          setColor(meta.color || '')
+        } else {
+          setBrand('')
+          setModel(bill.car_info || '')
+          setColor('')
+        }
+        setMileage(bill.mileage != null && bill.mileage !== '' ? String(bill.mileage) : '')
+        setItems(lines)
+        setDiscount(Number(bill.discount || 0))
+        setNote(parsed.note)
+        if (bill.voided_at) setMsg('บิลนี้ถูกยกเลิกแล้ว ยังพิมพ์ดูได้ แต่แก้หรือบันทึกทับไม่ได้')
+        return
+      }
+      const number = await nextBillNo(supabase)
+      if (!alive) return
       setBillNo(number)
       setDateText(thaiDateOnly())
       setSignDate(isoToday())
@@ -328,12 +430,10 @@ export default function ReceiptPage() {
     const companyName = name.startsWith('บริษัท') || name.startsWith('บ.') || /จำกัด|ห้าง|หจก|บจก/.test(name)
     if (address || tax || companyName) setCustomerType('company')
     setCustomerHits([])
-    setSavedId('')
   }
 
   const searchCustomers = async (value: string) => {
     setCustomer(value)
-    setSavedId('')
     const word = value.trim().replace(/[%_,()]/g, '')
     if (word.length < 1) { setCustomerHits([]); setCustomerCapped(false); return }
     const res = await createClient().from('customers').select('id, full_name, phone, address, tax_id').or(`full_name.ilike.%${word}%,phone.ilike.%${word}%`).limit(80)
@@ -344,7 +444,6 @@ export default function ReceiptPage() {
 
   const searchPlates = async (value: string) => {
     setPlate(value)
-    setSavedId('')
     const word = value.trim().replace(/[%_]/g, '')
     if (word.length < 1) { setPlateHits([]); setPlateCapped(false); return }
     const supabase = createClient()
@@ -402,8 +501,19 @@ export default function ReceiptPage() {
   })
 
   const save = async () => {
+    if (voidedAt) { setMsg('บิลนี้ถูกยกเลิกแล้ว ออกใบใหม่ได้'); return }
     if (!lines.length) { setMsg('ใส่รายการก่อนบันทึก'); return }
     setSaving(true)
+    const supabase = createClient()
+    if (savedId) {
+      const existing = await supabase.from('bills').select('voided_at').eq('id', savedId).maybeSingle()
+      if (existing.data?.voided_at) {
+        setVoidedAt(existing.data.voided_at)
+        setSaving(false)
+        setMsg('บิลนี้ถูกยกเลิกแล้ว ออกใบใหม่ได้')
+        return
+      }
+    }
     const meta = { docType, customerType, customerTax, customerAddress, payType, payLabel, chequeNo, technician, signDate, brand, model, color, warrantyMonths, title, address: info?.address || '' }
     const row: any = {
       bill_no: billNo,
@@ -418,7 +528,6 @@ export default function ReceiptPage() {
       note: [warrantyText, note, `ชำระโดย: ${payLabel}`, technician ? `ช่าง: ${technician}` : ''].filter(Boolean).join('\n') + `\n[[meta]]${JSON.stringify(meta)}`,
       branch_id: branchId || null,
     }
-    const supabase = createClient()
     let res = savedId
       ? await supabase.from('bills').update(row).eq('id', savedId).select('id')
       : await supabase.from('bills').insert(row).select('id')
@@ -435,12 +544,28 @@ export default function ReceiptPage() {
         await supabase.from('parts_services').update({ stock: Math.max(0, Number(part.stock) - Number(line.qty || 1)) }).eq('id', part.id)
       }
       setSavedId(res.data?.[0]?.id || 'saved')
+      setBillCreatedAt(new Date().toISOString())
     }
     setSaving(false)
     setMsg(res.error ? res.error.message : 'บันทึกบิลแล้ว')
   }
 
+  const cancelBill = async () => {
+    if (!savedId || voidedAt) return
+    const reason = window.prompt('เหตุผลที่ยกเลิกบิลนี้')
+    if (reason == null) return
+    if (!reason.trim()) { setMsg('ใส่เหตุผลก่อนยกเลิก'); return }
+    setSaving(true)
+    const result = await voidBill({ id: savedId, items: lines, created_at: billCreatedAt || new Date().toISOString() }, reason)
+    setSaving(false)
+    if (result.error) { setMsg(result.error); return }
+    setVoidedAt(new Date().toISOString())
+    setVoidReason(reason.trim())
+    setMsg(result.restored ? 'ยกเลิกบิลแล้ว คืนสต็อกให้รายการในบิลนี้ และยอดขายจะไม่นับบิลนี้' : 'ยกเลิกบิลแล้ว บิลเก่ายังอยู่ในประวัติ แต่ไม่นับในยอดขาย')
+  }
+
   const sendBranch = async () => {
+    if (voidedAt) { setMsg('บิลที่ยกเลิกแล้วส่งพิมพ์ไปสาขาไม่ได้'); return }
     if (!branchId) { setMsg('เลือกสาขาก่อนส่งพิมพ์'); return }
     const sender = employees.find((item) => {
       const name = item.full_name || item.name || ''
@@ -456,6 +581,7 @@ export default function ReceiptPage() {
   }
 
   const fresh = async () => {
+    if (window.location.search.includes('bill=')) window.history.replaceState(null, '', '/receipt')
     setBillNo(await nextBillNo(createClient()))
     setDateText(thaiDateOnly())
     setSignDate(isoToday())
@@ -477,6 +603,9 @@ export default function ReceiptPage() {
     setChequeNo('')
     setTechnician('')
     setSavedId('')
+    setBillCreatedAt('')
+    setVoidedAt('')
+    setVoidReason('')
     setMsg('พร้อมออกบิลใหม่')
   }
 
@@ -561,6 +690,12 @@ export default function ReceiptPage() {
         }
       `}</style>
 
+      {voidedAt && (
+        <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto 10px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
+          บิลนี้ถูกยกเลิกแล้ว{voidReason ? ` — ${voidReason}` : ''} ยังพิมพ์ดูได้ แต่บันทึกทับไม่ได้
+        </div>
+      )}
+
       <div className="toolbar no-print">
         <label>สาขา
           <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
@@ -591,6 +726,9 @@ export default function ReceiptPage() {
             <option value={3}>3 เดือน</option>
             <option value={6}>6 เดือน</option>
             <option value={12}>12 เดือน</option>
+            {warrantyMonths > 0 && ![1, 3, 6, 12].includes(warrantyMonths) && (
+              <option value={warrantyMonths}>{warrantyMonths} เดือน</option>
+            )}
           </select>
         </label>
         {payType === 'cheque' && (
@@ -637,7 +775,7 @@ export default function ReceiptPage() {
                   <span>เลขที่ผู้เสียภาษี</span>
                   <input value={customerTax} style={fit(customerTax, 13)} onChange={(e) => setCustomerTax(e.target.value)} placeholder="เลขภาษีลูกค้า" />
                   <span>โทร:</span>
-                  <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
+                  <input value={phone} style={fit(phone, 10)} onChange={(e) => setPhone(e.target.value)} placeholder="เบอร์โทร" />
                 </div>
               </>
             ) : (
@@ -655,13 +793,13 @@ export default function ReceiptPage() {
                   )}
                 </span>
                 <span>โทร:</span>
-                <input value={phone} style={fit(phone, 10)} onChange={(e) => { setPhone(e.target.value); setSavedId('') }} placeholder="เบอร์โทร" />
+                <input value={phone} style={fit(phone, 10)} onChange={(e) => setPhone(e.target.value)} placeholder="เบอร์โทร" />
               </div>
             )}
             <div className="row">
               <span>รุ่นรถ:</span>
               <span className="rel">
-                <input value={brand} autoComplete="off" style={fit(brand, 6)} onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true); setSavedId('') }} placeholder="ยี่ห้อ" />
+                <input value={brand} autoComplete="off" style={fit(brand, 6)} onFocus={() => setBrandOpen(true)} onBlur={() => setTimeout(() => setBrandOpen(false), 180)} onChange={(e) => { setBrand(e.target.value); setBrandOpen(true) }} placeholder="ยี่ห้อ" />
                 {brandOpen && brandHits.length > 0 && (
                   <div className="menu no-print">
                     {brandHits.map((item) => <button key={item} onMouseDown={() => { setBrand(item); setBrandOpen(false) }}>{item}</button>)}
@@ -669,7 +807,7 @@ export default function ReceiptPage() {
                 )}
               </span>
               <span className="rel">
-                <input value={model} autoComplete="off" style={fit(model, 6)} onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true); setSavedId('') }} placeholder="รุ่น" />
+                <input value={model} autoComplete="off" style={fit(model, 6)} onFocus={() => setModelOpen(true)} onBlur={() => setTimeout(() => setModelOpen(false), 180)} onChange={(e) => { setModel(e.target.value); setModelOpen(true) }} placeholder="รุ่น" />
                 {modelOpen && modelHits.length > 0 && (
                   <div className="menu no-print">
                     {modelHits.map((item) => <button key={item} onMouseDown={() => { setModel(item); setModelOpen(false) }}>{item}</button>)}
@@ -730,11 +868,11 @@ export default function ReceiptPage() {
               <tr key={index} className={item.name.trim() ? '' : 'spare'}>
                 <td className="c">{index + 1}</td>
                 <td className="rel">
-                  <input value={item.name} autoComplete="off" onFocus={() => setPartFocus(index)} onChange={(e) => { setPartFocus(index); setSavedId(''); setItems(items.map((line, i) => i === index ? { ...line, name: e.target.value } : line)) }} placeholder="พิมพ์หรือเลือกอะไหล่" />
+                  <input value={item.name} autoComplete="off" onFocus={() => setPartFocus(index)} onChange={(e) => { setPartFocus(index); setItems(items.map((line, i) => i === index ? { ...line, name: e.target.value } : line)) }} placeholder="พิมพ์หรือเลือกอะไหล่" />
                   {partFocus === index && partMatch.list.length > 0 && (
                     <div className="menu no-print">
                       {partMatch.list.map((part) => (
-                        <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0) } : line)); setPartFocus(-1); setSavedId('') }}>
+                        <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0) } : line)); setPartFocus(-1) }}>
                           {part.name} · {Number(part.price || 0).toLocaleString()}{part.stock != null ? ` · คงเหลือ ${part.stock}` : ''}
                         </button>
                       ))}
@@ -742,8 +880,8 @@ export default function ReceiptPage() {
                     </div>
                   )}
                 </td>
-                <td><input className="c" value={item.qty} onChange={(e) => { setSavedId(''); setItems(items.map((line, i) => i === index ? { ...line, qty: Number(e.target.value || 0) } : line)) }} /></td>
-                <td><input className="r" value={item.price} onChange={(e) => { setSavedId(''); setItems(items.map((line, i) => i === index ? { ...line, price: Number(e.target.value || 0) } : line)) }} /></td>
+                <td><input className="c" value={item.qty} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, qty: Number(e.target.value || 0) } : line)) }} /></td>
+                <td><input className="r" value={item.price} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, price: Number(e.target.value || 0) } : line)) }} /></td>
                 <td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td>
                 <td className="no-print"><button className="rowbtn" onClick={() => setItems(items.length === 1 ? [blank()] : items.filter((_, i) => i !== index))}>ลบ</button></td>
               </tr>
@@ -770,7 +908,7 @@ export default function ReceiptPage() {
             <div>ยอดรวม {subtotal.toLocaleString()} บาท</div>
             <div className="discount">
               <span>ส่วนลด</span>
-              <input value={discount || ''} placeholder="0" onChange={(e) => { setDiscount(Number(e.target.value || 0)); setSavedId('') }} />
+              <input value={discount || ''} placeholder="0" onChange={(e) => setDiscount(Number(e.target.value || 0))} />
             </div>
             <div className="grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
             <div className="words">{bahtText(total)}</div>
@@ -807,7 +945,8 @@ export default function ReceiptPage() {
       <div className="actions no-print">
         <button style={{ background: '#111' }} onClick={() => window.print()}>พิมพ์ที่เครื่องนี้</button>
         <button style={{ background: '#067a32' }} onClick={sendBranch}>ส่งพิมพ์ไปสาขานี้</button>
-        <button style={{ background: '#1d4ed8' }} onClick={save} disabled={saving}>{saving ? 'กำลังบันทึก...' : savedId ? 'บันทึกการแก้ไข' : 'บันทึกบิล'}</button>
+        <button style={{ background: '#1d4ed8' }} onClick={save} disabled={saving || !!voidedAt}>{saving ? 'กำลังบันทึก...' : savedId ? 'บันทึกการแก้ไข' : 'บันทึกบิล'}</button>
+        {canVoid && savedId && !voidedAt && <button style={{ background: '#b91c1c' }} onClick={cancelBill} disabled={saving}>ยกเลิกบิล</button>}
         <button style={{ background: '#4b5563' }} onClick={fresh}>ใบใหม่</button>
       </div>
       {msg && <p className="no-print" style={{ maxWidth: '210mm', margin: '8px auto', color: '#9a3412' }}>{msg}</p>}
