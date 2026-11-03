@@ -5,6 +5,7 @@ import AdminShortcut from '@/app/components/AdminShortcut'
 
 const MENUS: { name: string; desc: string; href: string; icon: string; cap?: string }[] = [
   { name: 'รับรถ', desc: 'ค้นหาและรับงานใหม่', href: '/receive', icon: '🚗', cap: 'receive' },
+  { name: 'นัดรับรถ', desc: 'รถที่นัดรับวันนี้และที่ค้าง', href: '/pickup', icon: '📅', cap: 'jobs' },
   { name: 'ออกบิล', desc: 'สร้างและพิมพ์บิล', href: '/receipt', icon: '🧾', cap: 'receipt' },
   { name: 'เข้างาน', desc: 'ตอกบัตรก่อน 08:00 น.', href: '/attendance', icon: '⏰', cap: 'clock' },
   { name: 'ส่งรูป', desc: 'รูปและคลิปเข้าเทเลแกรม', href: '/send-media', icon: '📸', cap: 'media' },
@@ -28,6 +29,7 @@ const MENUS: { name: string; desc: string; href: string; icon: string; cap?: str
   { name: 'แดชบอร์ด', desc: 'ภาพรวมระบบ', href: '/dashboard', icon: '🏠', cap: 'reports' },
   { name: 'อัปโหลดรูป', desc: 'ถ่ายรูปรถเข้าสู่ระบบ', href: '/upload', icon: '📷', cap: 'media' },
   { name: 'ยอดขายรายวัน', desc: 'สรุปบิลและยอดขาย', href: '/sales', icon: '💰', cap: 'sales' },
+  { name: 'ลูกหนี้', desc: 'ยอดค้างและบันทึกรับเงิน', href: '/credit', icon: '📒', cap: 'credit' },
   { name: 'งานตามสาขา', desc: 'ดูงานแยกสาขา', href: '/jobs-by-branch', icon: '🏭', cap: 'jobs' },
   { name: 'คิวพิมพ์บิล', desc: 'พิมพ์บิลที่สาขา', href: '/print-queue', icon: '🖨️', cap: 'receipt' },
   { name: 'ปิดยอดวัน', desc: 'สรุปก่อนเลิกงาน', href: '/daily-close', icon: '🌙', cap: 'daily_close' },
@@ -53,4 +55,4 @@ export default function HomeMenus() {
     </div>
   )
 }
-// backup menu is admin only
+// pickup and credit sit with the daily menus
