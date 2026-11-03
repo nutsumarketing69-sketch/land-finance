@@ -128,6 +128,19 @@ div.bg-gray-900 {
   padding: 0 !important;
 }
 
+@media screen {
+  .page .sheet input.sign-date:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]) {
+    display: block !important;
+    margin: 3px auto 0 !important;
+    text-align: center !important;
+  }
+
+  .page .sheet .sign-date::-webkit-datetime-edit,
+  .page .sheet .sign-date::-webkit-date-and-time-value {
+    text-align: center;
+  }
+}
+
 .sheet .menu button,
 .bill-sheet button {
   background: #fff !important;
@@ -184,3 +197,4 @@ div.bg-gray-900 {
     color: transparent !important;
   }
 }
+/* screen date stays centered */
