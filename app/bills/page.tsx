@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useStaff } from '@/app/components/AuthShell'
+import { useAccess } from '@/app/components/AuthShell'
 import { voidBill } from '@/lib/void-bill'
 
 export default function BillsPage() {
-  const { account } = useStaff()
-  const canVoid = account?.status === 'approved' && (account.role === 'admin' || account.role === 'manager')
+  const { can, showPrice } = useAccess()
+  const canVoid = can('void_bill')
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -61,7 +61,7 @@ export default function BillsPage() {
 
       <input
         type="text"
-        placeholder="เช่น 1 หรือ ก หรือ ชื่อลูกค้า"
+        placeholder="เลขที่บิล เช่น 69-031 หรือป้าย หรือชื่อลูกค้า"
         value={search}
         onChange={(e) => {
           const value = e.target.value
@@ -94,7 +94,7 @@ export default function BillsPage() {
                   {bill.voided_at && bill.void_reason ? <div className="text-xs text-red-300 mt-1">เหตุผล: {bill.void_reason}</div> : null}
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-lg">{Number(bill.total || 0).toLocaleString()} บาท</div>
+                  <div className="font-bold text-lg">{showPrice ? `${Number(bill.total || 0).toLocaleString()} บาท` : '—'}</div>
                   <div className="text-xs text-gray-400">
                     {new Date(bill.created_at).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' })}
                   </div>
@@ -106,7 +106,7 @@ export default function BillsPage() {
                   {bill.items.slice(0, 3).map((item: any, i: number) => (
                     <div key={i} className="flex justify-between">
                       <span>{item.name} x {item.qty}</span>
-                      <span>{(Number(item.price || 0) * (item.qty || 1)).toLocaleString()}</span>
+                      <span>{showPrice ? (Number(item.price || 0) * (item.qty || 1)).toLocaleString() : '—'}</span>
                     </div>
                   ))}
                   {bill.items.length > 3 && (
