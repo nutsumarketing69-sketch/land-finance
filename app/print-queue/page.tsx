@@ -3,311 +3,289 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Line = { name: string; qty: number; price: number }
-
-const SHOP_TAX = '3101701714063'
 const PROMPTPAY_ID = '0994102559'
-const PROMPTPAY_TEXT = '099-410-2559'
 
-const BRANCH_BOOK = [
-  { key: 'เจ้าฟ้า', title: 'รัษฎาแอร์ เจ้าฟ้าสวนหลวง', address: 'ถนนเจ้าฟ้าสวนหลวง ตำบลวิชิต อำเภอเมืองภูเก็ต จังหวัดภูเก็ต', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
-  { key: 'ท่าเรือ', title: 'รัษฎาแอร์ ท่าเรือ', address: '56/6 หมู่ที่ 5 ถนนเทพกระษัตรี ตำบลศรีสุนทร อำเภอถลาง จังหวัดภูเก็ต 83110', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
-  { key: 'สนามบิน', title: 'รัษฎาแอร์ สนามบิน', address: '201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110', phone: '099-4102559', email: 'ratsada_air@hotmail.com' },
-  { key: 'กู้กู', title: 'รัษฎาแอร์ กู้กู', address: '63/20 หมู่ที่ 3 ถนนร่วมพัฒนา ตำบลรัษฎา อำเภอเมือง จังหวัดภูเก็ต 83000', phone: '099-4102559 , 084-3057559', email: 'ratsada_air@hotmail.com' },
-]
-
-const DOC_TYPES = [
-  { id: 'receipt', title: 'ใบเสร็จรับเงิน/Receipt' },
-  { id: 'delivery', title: 'ใบส่งของ/Delivery Bill' },
-  { id: 'deposit', title: 'ใบรับเงินมัดจำ/Receive Deposit' },
-  { id: 'quotation', title: 'ใบเสนอราคา/Quotation' },
-]
-
-function crc16(data: string) {
-  let crc = 0xffff
-  for (let i = 0; i < data.length; i++) {
-    crc ^= data.charCodeAt(i) << 8
-    for (let j = 0; j < 8; j++) {
-      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1)
-      crc &= 0xffff
-    }
-  }
-  return crc.toString(16).toUpperCase().padStart(4, '0')
-}
-
-function promptPay(id: string, amount: number) {
-  const numbers = id.replace(/\D/g, '')
-  const target = numbers.length >= 13 ? numbers : ('0000000000000' + numbers.replace(/^0/, '66')).slice(-13)
-  const targetType = numbers.length >= 15 ? '03' : numbers.length >= 13 ? '02' : '01'
-  const field = (tag: string, value: string) => tag + String(value.length).padStart(2, '0') + value
-  const merchant = field('00', 'A000000677010111') + field(targetType, target)
-  const amountText = amount > 0 ? amount.toFixed(2) : ''
-  const body = [field('00', '01'), field('01', amountText ? '12' : '11'), field('29', merchant), field('58', 'TH'), field('53', '764'), amountText ? field('54', amountText) : ''].join('')
-  return body + '6304' + crc16(body + '6304')
-}
-
-function bahtText(amount: number) {
-  const digits = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
-  const units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน']
-  const group = (num: number): string => {
-    if (num >= 1000000) return group(Math.floor(num / 1000000)) + 'ล้าน' + group(num % 1000000)
-    const s = String(num)
-    let out = ''
-    for (let i = 0; i < s.length; i++) {
-      const d = Number(s[i])
-      const p = s.length - i - 1
-      if (!d) continue
-      if (p === 1 && d === 1) out += 'สิบ'
-      else if (p === 1 && d === 2) out += 'ยี่สิบ'
-      else if (p === 0 && d === 1 && s.length > 1) out += 'เอ็ด'
-      else out += digits[d] + units[p]
-    }
-    return out
-  }
-  const n = Math.round(Math.abs(Number(amount || 0)) * 100)
-  const baht = Math.floor(n / 100)
-  const satang = n % 100
-  if (!baht && !satang) return 'ศูนย์บาทถ้วน'
-  return `${baht ? group(baht) + 'บาท' : ''}${satang ? group(satang) + 'สตางค์' : 'ถ้วน'}`
-}
-
-function thaiFromDate(value: string) {
-  if (!value) return ''
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear() + 543}`
-}
-
-function readItems(value: any): Line[] {
-  let raw = value
+function asItems(raw: any) {
+  if (Array.isArray(raw)) return raw
   if (typeof raw === 'string') {
-    try { raw = JSON.parse(raw) } catch { raw = [] }
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
   }
-  if (!Array.isArray(raw)) return []
-  return raw.filter((item) => item && String(item.name || '').trim()).map((item) => ({
-    name: String(item.name),
-    qty: Number(item.qty || 1),
-    price: Number(item.price || 0),
-  }))
+  return []
 }
-
-function readMeta(note: string) {
-  const text = String(note || '')
-  const mark = text.indexOf('[[meta]]')
-  let meta: any = {}
-  let body = text
-  if (mark >= 0) {
-    body = text.slice(0, mark)
-    try { meta = JSON.parse(text.slice(mark + 8).trim()) } catch { meta = {} }
-  }
-  const rows = body.split('\n').map((line) => line.trim()).filter(Boolean)
-  return {
-    meta,
-    warranty: rows.find((line) => line.startsWith('รับประกัน')) || '',
-    note: rows.filter((line) => !line.startsWith('รับประกัน') && !line.startsWith('ชำระโดย') && !line.startsWith('ช่าง:')).join('\n'),
-  }
-}
-
-async function waitQr() {
-  const img = document.querySelector('.pp img') as HTMLImageElement | null
-  if (!img) return
-  if (img.complete && img.naturalWidth > 0) return
-  await new Promise((resolve) => {
-    img.onload = () => resolve(true)
-    img.onerror = () => resolve(true)
-    setTimeout(resolve, 3000)
-  })
-}
-
-const BILL_CSS = `
-.sheet { max-width:210mm; margin:0 auto; background:#fff; color:#111; padding:12px 14px 16px; border-top:4px solid #d00000; }
-.head { display:flex; gap:12px; align-items:center; }
-.logo { width:190px; height:auto; object-fit:contain; }
-.shop { flex:1; text-align:right; }
-.shop h1 { margin:0; font-size:22px; }
-.shop p { margin:0; font-size:11px; line-height:1.35; }
-.doc { text-align:center; font-size:18px; margin:6px 0 2px; }
-.who-wrap { position:relative; display:block; padding-right:46mm; margin:0 0 6px; }
-.who { font-size:13px; line-height:1.55; }
-.bill-meta { position:absolute; right:0; bottom:0; width:44mm; text-align:right; font-size:13px; line-height:1.4; }
-table { width:100%; border-collapse:collapse; }
-th, td { border:1px solid #222; padding:3px 5px; font-size:12px; }
-th { background:#f5f5f5; color:#111; }
-.c { text-align:center; } .r { text-align:right; }
-.foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-.sum { min-width:230px; line-height:1.7; }
-.sum-line { display:grid; grid-template-columns:92px 78px 34px; column-gap:6px; align-items:center; }
-.sum-line .amt { text-align:right; }
-.grand { font-size:16px; font-weight:700; }
-.words { font-size:12px; text-align:right; }
-.pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; }
-.pp-logo { margin:4px; border:1.5px solid #0b3b8c; text-align:center; padding:2px; }
-.pp-en { font-size:13px; font-weight:800; letter-spacing:-0.3px; line-height:1.1; }
-.pp-en b { background:#0b3b8c; color:#fff; padding:0 2px; }
-.pp-en span { color:#0b3b8c; }
-.pp img { display:block; width:92px; height:92px; margin:2px auto 3px; }
-.pp-foot { background:#1a73c7; color:#fff; text-align:center; font-size:9px; line-height:1.3; padding:3px 2px; }
-.note { white-space:pre-wrap; font-size:12px; margin-top:4px; }
-.warn { color:#b00000; font-size:12px; margin-top:4px; }
-.signs { display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:18px; text-align:center; font-size:12px; }
-.sign-top { min-height:24px; }
-.signs i { display:block; width:150px; border-bottom:1px solid #111; height:0; margin:0 auto 4px; }
-.actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; justify-content:center; }
-.actions button, .actions a { border:0; border-radius:8px; color:#fff; padding:10px 14px; text-decoration:none; cursor:pointer; }
-@media print {
-  @page { size:A4 portrait; margin:8mm; }
-  .no-print { display:none !important; }
-  .page { background:#fff; padding:0; }
-  .sheet { border-top:0; max-width:none; padding:0; }
-  .who-wrap { position:relative !important; padding-right:46mm !important; }
-  .bill-meta { position:absolute !important; right:0 !important; bottom:0 !important; left:auto !important; text-align:right !important; }
-  .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-}
-`
 
 export default function PrintQueuePage() {
+  const [bills, setBills] = useState<any[]>([])
   const [branches, setBranches] = useState<any[]>([])
   const [branchId, setBranchId] = useState('')
-  const [rows, setRows] = useState<any[]>([])
-  const [bill, setBill] = useState<any>(null)
-  const [logoOk, setLogoOk] = useState(true)
+  const [q, setQ] = useState('')
+  const [current, setCurrent] = useState<any | null>(null)
+  const [targetBranch, setTargetBranch] = useState('')
   const [msg, setMsg] = useState('')
+  const [sending, setSending] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [senders, setSenders] = useState<any[]>([])
+  const [senderId, setSenderId] = useState('')
 
-  const loadList = async (nextBranch = branchId) => {
-    let query = createClient().from('bills').select('*').limit(80)
-    if (nextBranch) query = query.eq('branch_id', nextBranch)
-    const res = await query
-    const data = res.data || []
-    data.sort((a, b) => String(b.created_at || b.bill_no || '').localeCompare(String(a.created_at || a.bill_no || '')))
-    setRows(data)
-    if (res.error) setMsg(res.error.message)
-  }
-
-  const openBill = async (id: string, push = true) => {
+  const load = async (word = q) => {
+    setLoading(true)
     const supabase = createClient()
-    let res = await supabase.from('bills').select('*').eq('id', id).maybeSingle()
-    if (!res.data) res = await supabase.from('bills').select('*').eq('bill_no', id).maybeSingle()
-    if (!res.data) { setMsg('ไม่พบบิล'); return }
-    setBill(res.data)
-    setMsg('')
-    if (push) window.history.pushState({}, '', `/print-queue?id=${res.data.id || id}`)
+    const branchRes = await supabase.from('branches').select('id, name').order('name')
+    setBranches(branchRes.data || [])
+    const people = await supabase.from('employees').select('id, full_name, nickname, role').in('role', ['admin', 'manager']).order('full_name')
+    setSenders(people.data || [])
+
+    const safe = word.trim().replace(/[,()%_]/g, '')
+    let query = supabase.from('bills').select('*, branches(name)').order('created_at', { ascending: false }).limit(40)
+    if (branchId) query = query.eq('branch_id', branchId)
+    if (safe) query = query.or(`bill_no.ilike.%${safe}%,customer_name.ilike.%${safe}%,license_plate.ilike.%${safe}%`)
+    let billRes = await query
+
+    if (billRes.error) {
+      let fallback = supabase.from('bills').select('*').order('created_at', { ascending: false }).limit(40)
+      if (branchId) fallback = fallback.eq('branch_id', branchId)
+      billRes = await fallback
+    }
+
+    if (billRes.error) {
+      setBills([])
+      setMsg('โหลดบิลไม่สำเร็จ: ' + billRes.error.message)
+    } else {
+      setBills(billRes.data || [])
+      setMsg('')
+    }
+    setLoading(false)
   }
 
   useEffect(() => {
-    createClient().from('branches').select('*').order('name').then((res) => setBranches(res.data || []))
-    const id = new URLSearchParams(window.location.search).get('id')
-    if (id) openBill(id, false)
-    else loadList('')
-    const onPop = () => {
-      const next = new URLSearchParams(window.location.search).get('id')
-      if (next) openBill(next, false)
-      else setBill(null)
+    const timer = setTimeout(() => load(q), 250)
+    return () => clearTimeout(timer)
+  }, [branchId, q])
+
+  const shown = bills
+
+  const openBill = (bill: any) => {
+    setCurrent(bill)
+    setTargetBranch(bill.branch_id || '')
+    setMsg('')
+  }
+
+  const items = asItems(current?.items)
+  const discount = Number(current?.discount || 0)
+  const lineSum = items.reduce((sum: number, item: any) => sum + Number(item.price || 0) * Number(item.qty || 1), 0)
+  const total = Number(current?.total ?? Math.max(0, lineSum - discount))
+  const subtotal = lineSum || total + discount
+  const branchName = branches.find((b) => b.id === targetBranch)?.name || current?.branches?.name || ''
+  const headerTitle = branchName ? `รัษฎาแอร์ ${branchName}` : 'รัษฎาแอร์'
+  const when = String(current?.created_at || '').replace('T', ' ').slice(0, 16)
+  const qrUrl = total > 0
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
+    : ''
+
+  const sendToBranch = async () => {
+    if (!current) return
+    if (!targetBranch) {
+      setMsg('เลือกสาขาก่อนส่งพิมพ์')
+      return
     }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
-
-  const parsed = bill ? readMeta(bill.note) : { meta: {}, note: '', warranty: '' }
-  const meta = parsed.meta || {}
-  const branch = branches.find((item) => item.id === bill?.branch_id)
-  const info = BRANCH_BOOK.find((item) => String(branch?.name || meta.title || '').includes(item.key)) || null
-  const title = info?.title || meta.title || branch?.name || 'รัษฎาแอร์'
-  const company = meta.customerType === 'company'
-  const docTitle = DOC_TYPES.find((item) => item.id === meta.docType)?.title || meta.docTitle || 'ใบเสร็จรับเงิน/Receipt'
-  const items = bill ? readItems(bill.items) : []
-  const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0)
-  const discount = Number(bill?.discount || 0)
-  const total = Number(bill?.total ?? Math.max(0, subtotal - discount))
-  const payLabel = meta.payLabel || 'เงินสด'
-  const showQr = (meta.docType || 'receipt') !== 'delivery' && (meta.docType || 'receipt') !== 'quotation' && meta.payType !== 'credit' && meta.payType !== 'cheque' && total > 0
-  const qrCode = meta.promptpay || (showQr ? promptPay(PROMPTPAY_ID, total) : '')
-  const qrUrl = qrCode ? `https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=20&ecc=M&data=${encodeURIComponent(qrCode)}` : ''
-  const dateText = thaiFromDate(meta.dateText || bill?.created_at || '')
-  const signDate = thaiFromDate(meta.signDate || bill?.created_at || '')
-  const warrantyText = meta.warrantyText || (meta.warrantyMonths > 0 ? `รับประกันงาน ${meta.warrantyMonths} เดือน` : parsed.warranty)
-
-  const printBill = async () => { await waitQr(); window.print() }
-  const sendBranch = async () => {
-    if (!bill?.branch_id) { setMsg('บิลนี้ยังไม่มีสาขา'); return }
-    await waitQr()
-    const res = await createClient().from('print_jobs').insert({
-      branch_id: bill.branch_id, bill_no: bill.bill_no, status: 'pending',
-      payload: { ...meta, ...bill, items, note: parsed.note, title, docTitle, dateText, payLabel, promptpay: qrCode, showQr: Boolean(qrCode), warrantyText, total, subtotal, discount },
+    if (!senders.some((person) => person.id === senderId)) {
+      setMsg('สั่งพิมพ์ไปสาขาได้เฉพาะแอดมินหรือผู้จัดการสาขา')
+      return
+    }
+    setSending(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('print_jobs').insert({
+      branch_id: targetBranch,
+      bill_no: current.bill_no,
+      status: 'pending',
+      payload: {
+        bill_no: current.bill_no,
+        date: when.slice(0, 10),
+        headerTitle,
+        branchName,
+        customer: current.customer_name || '',
+        phone: current.phone || '',
+        plate: current.license_plate || '',
+        car: current.car_info || '',
+        mileage: current.mileage || '',
+        items,
+        discount,
+        subtotal,
+        total,
+        note: current.note || '',
+      },
     })
-    setMsg(res.error ? res.error.message : 'ส่งพิมพ์ไปสาขาแล้ว')
+    setSending(false)
+    setMsg(error ? 'ส่งพิมพ์ไม่สำเร็จ: ' + error.message : `ส่งพิมพ์ไป${headerTitle} แล้ว`)
   }
 
   return (
-    <div className="page" style={{ background: '#ececec', minHeight: '100vh', padding: 16, fontFamily: '"Leelawadee UI",Tahoma,sans-serif' }}>
-      <style>{BILL_CSS}</style>
-      {!bill && (
-        <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto' }}>
-          <label>สาขา
-            <select value={branchId} onChange={(e) => { setBranchId(e.target.value); loadList(e.target.value) }} style={{ display: 'block', margin: '6px 0 12px', padding: 8 }}>
+    <>
+      <style jsx global>{`
+        .bill-sheet {
+          max-width: 210mm;
+          margin: 0 auto;
+          background: #fff;
+          color: #111;
+          padding: 16px 18px 20px;
+          font-family: "Leelawadee UI", Tahoma, sans-serif;
+          font-size: 12px;
+          line-height: 1.35;
+        }
+        .bill-sheet select {
+          background: #fff !important;
+          color: #111 !important;
+          border: 1px solid #ccc !important;
+          border-radius: 2px;
+        }
+        .bill-table { width: 100%; border-collapse: collapse; }
+        .bill-table th, .bill-table td { border: 1px solid #222; padding: 4px 6px; font-size: 12px; }
+        .bill-table th { background: #f3f3f3; font-weight: 600; }
+        @media print {
+          @page { size: A4 portrait; margin: 8mm 10mm; }
+          html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+          .no-print { display: none !important; }
+          .bill-sheet { max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
+          .bill-table th, .bill-table td { padding: 3px 6px !important; font-size: 11px !important; }
+        }
+      `}</style>
+
+      {!current && (
+        <div className="no-print p-4 sm:p-6 max-w-5xl mx-auto pb-24">
+          <h1 className="text-2xl font-bold mb-1">คิวพิมพ์บิล</h1>
+          <p className="text-sm text-gray-400 mb-4">โหลดบิลที่บันทึกแล้วของแต่ละสาขา กดเข้าบิลแล้วพิมพ์ได้เลย</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white">
               <option value="">ทุกสาขา</option>
-              {branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
-          </label>
-          <div style={{ background: '#fff', borderRadius: 12 }}>
-            {rows.map((item) => (
-              <button key={item.id || item.bill_no} onClick={() => openBill(item.id || item.bill_no)} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 120px 90px', gap: 8, width: '100%', textAlign: 'left', background: '#fff', border: 0, borderBottom: '1px solid #eee', padding: 12, cursor: 'pointer' }}>
-                <b>{item.bill_no}</b><span>{item.customer_name || '-'} {item.license_plate || ''}</span><span>{thaiFromDate(item.created_at || '')}</span><span>{Number(item.total || 0).toLocaleString()}</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ป้าย ชื่อ หรือเลขบิล" className="flex-1 min-w-0 w-full sm:min-w-[220px] border border-gray-600 bg-gray-800 rounded p-3 text-white text-lg" />
+            <button onClick={load} className="bg-gray-700 text-white px-4 rounded">{loading ? 'กำลังโหลด...' : 'รีเฟรช'}</button>
+          </div>
+          {msg && <p className="mb-3 text-sm text-amber-300">{msg}</p>}
+          <div className="space-y-2">
+            {shown.map((bill) => (
+              <button key={bill.id} onClick={() => openBill(bill)} className="w-full text-left border border-gray-700 rounded-lg px-4 py-3 bg-gray-900 hover:border-blue-500">
+                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-3">
+                  <div>
+                    <div className="font-semibold">{bill.bill_no} — {bill.customer_name || '-'} | {bill.license_plate || '-'}</div>
+                    <div className="text-xs text-gray-400">{bill.branches?.name || 'ไม่ได้เลือกสาขา'} · {String(bill.created_at || '').replace('T', ' ').slice(0, 16)}</div>
+                  </div>
+                  <div className="font-semibold">{Number(bill.total || 0).toLocaleString()}</div>
+                </div>
               </button>
             ))}
-            {rows.length === 0 && <p style={{ padding: 16 }}>ยังไม่มีบิล</p>}
+            {!loading && shown.length === 0 && <p className="text-gray-400">ไม่มีบิลในสาขานี้ ลองเลือกทุกสาขา</p>}
           </div>
         </div>
       )}
-      {bill && (
-        <>
-          <div className="sheet">
-            <div className="head">
-              {logoOk && <img src="/ratsada-logo.png" alt="RATSADA" className="logo" onError={() => setLogoOk(false)} />}
-              <div className="shop"><h1>{title}</h1>{info && <p>{info.address}</p>}{info && <p>Tel. {info.phone} Email. {info.email}{company ? ` เลขผู้เสียภาษีอากร ${SHOP_TAX}` : ''}</p>}</div>
+
+      {current && (
+        <div className="bill-sheet">
+          <div className="flex justify-between items-start">
+            <div className="border-2 border-red-600 px-2.5 py-1">
+              <div className="text-red-600 font-black text-lg tracking-wider leading-none">RATSADA</div>
             </div>
-            <h2 className="doc">{docTitle}</h2>
-            <div className="who-wrap">
-              <div className="who">
-                {company ? (<><div>{bill.customer_name}</div>{meta.customerAddress && <div>ที่อยู่: {meta.customerAddress}</div>}<div>เลขที่ผู้เสียภาษี {meta.customerTax || ''} โทร: {bill.phone || ''}</div></>) : (<div>ลูกค้า: {bill.customer_name || ''} โทร: {bill.phone || ''}</div>)}
-                <div>รุ่นรถ: {meta.brand || ''} {meta.model || bill.car_info || ''} ทะเบียน: {bill.license_plate || ''} เลขที่ไมล์: {bill.mileage || ''} km.{meta.color ? ` สี: ${meta.color}` : ''}</div>
-                <div>ชำระโดย: {payLabel}{meta.chequeNo ? ` ${meta.chequeNo}` : ''}</div>
-              </div>
-              <div className="bill-meta"><div>เลขที่ {bill.bill_no}</div><div>วันที่ {dateText}</div></div>
-            </div>
-            <table>
-              <thead><tr><th className="c" style={{ width: 36 }}>ลำดับ</th><th>รายการ</th><th className="c" style={{ width: 70 }}>จำนวน</th><th className="r" style={{ width: 90 }}>ราคา/หน่วย</th><th className="r" style={{ width: 100 }}>จำนวนเงิน</th></tr></thead>
-              <tbody>
-                {items.map((item, index) => <tr key={`${item.name}-${index}`}><td className="c">{index + 1}</td><td>{item.name}</td><td className="c">{item.qty}</td><td className="r">{Number(item.price || 0).toLocaleString()}</td><td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td></tr>)}
-              </tbody>
-            </table>
-            <div className="foot">
-              <div>
-                {qrUrl && <div className="pp"><div className="pp-logo"><div className="pp-en"><b>Prompt</b><span>Pay</span></div></div><img src={qrUrl} alt="PromptPay" /><div className="pp-foot">พร้อมเพย์ {PROMPTPAY_TEXT}<br />{total.toLocaleString()} บาท</div></div>}
-                {parsed.note && <div className="note">{parsed.note}</div>}
-                {warrantyText && <div className="warn">{warrantyText}</div>}
-              </div>
-              <div className="sum">
-                <div className="sum-line"><span>ยอดรวม</span><span className="amt">{subtotal.toLocaleString()}</span><span>บาท</span></div>
-                <div className="sum-line"><span>ส่วนลด</span><span className="amt">{discount.toLocaleString()}</span><span>บาท</span></div>
-                <div className="sum-line grand"><span>รวมทั้งสิ้น</span><span className="amt">{total.toLocaleString()}</span><span>บาท</span></div>
-                <div className="words">{bahtText(total)}</div>
-              </div>
-            </div>
-            <div className="signs">
-              <div><div className="sign-top"></div><i></i>ตรวจรับงานซ่อม</div>
-              <div><div className="sign-top">{meta.technician || ''}</div><i></i><div>ช่างซ่อม</div><div>{signDate}</div></div>
-              <div><div className="sign-top"></div><i></i>ผู้รับเงิน</div>
+            <div className="text-right text-[11px] leading-snug">
+              <div>เลขที่ {current.bill_no}</div>
+              <div>{when}</div>
             </div>
           </div>
-          <div className="actions no-print">
-            <a href="/print-queue" style={{ background: '#4b5563' }} onClick={(e) => { e.preventDefault(); setBill(null); window.history.pushState({}, '', '/print-queue'); loadList(branchId) }}>กลับไปรายการ</a>
-            <button style={{ background: '#1d4ed8' }} onClick={printBill}>พิมพ์ที่เครื่องนี้</button>
-            <button style={{ background: '#067a32' }} onClick={sendBranch}>ส่งพิมพ์ไปสาขานี้</button>
+
+          <div className="text-center mt-3 mb-1">
+            <h1 className="text-[15px] font-bold leading-tight">{headerTitle}</h1>
+            <p className="text-[9px] text-gray-700 mt-1">201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110</p>
+            <p className="text-[9px] text-gray-700">Tel. 099-4102559 , 076-602429 &nbsp; Email. ratsada_air@hotmail.com</p>
           </div>
-        </>
+          <h2 className="text-center font-bold text-[13px] mt-2 mb-3 border-b border-black pb-1">ใบเสร็จรับเงิน / Receipt</h2>
+
+          <div className="no-print mb-3">
+            <select value={targetBranch} onChange={(e) => setTargetBranch(e.target.value)} className="w-full p-2 text-sm">
+              <option value="">-- เลือกสาขาที่จะพิมพ์ --</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </div>
+
+          <div className="text-[11px] mb-2 leading-snug">
+            <div>ลูกค้า: {current.customer_name || '-'} &nbsp;|&nbsp; โทร: {current.phone || '-'}</div>
+            <div>รถ: {current.car_info || '-'} &nbsp;|&nbsp; ทะเบียน: {current.license_plate || '-'} &nbsp;|&nbsp; ไมล์: {current.mileage || '-'}</div>
+          </div>
+
+          <table className="bill-table">
+            <thead>
+              <tr>
+                <th className="text-left">รายการ</th>
+                <th className="w-14 text-center">จำนวน</th>
+                <th className="w-20 text-right">ราคา</th>
+                <th className="w-20 text-right">รวม</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item: any, i: number) => (
+                <tr key={i}>
+                  <td>{item.name}</td>
+                  <td className="text-center">{item.qty}</td>
+                  <td className="text-right">{Number(item.price || 0).toLocaleString()}</td>
+                  <td className="text-right">{(Number(item.price || 0) * Number(item.qty || 1)).toLocaleString()}</td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr><td colSpan={4} className="text-center">ไม่มีรายการในบิลนี้</td></tr>
+              )}
+            </tbody>
+          </table>
+
+          <div className="flex justify-between items-end mt-3">
+            <div>
+              {qrUrl && (
+                <div className="text-center">
+                  <p className="text-[9px] mb-1 text-gray-600">สแกนจ่าย PromptPay</p>
+                  <img src={qrUrl} alt="QR PromptPay" className="border mx-auto" width={80} height={80} />
+                  <p className="text-[9px] mt-0.5">{total.toLocaleString()} บาท</p>
+                </div>
+              )}
+            </div>
+            <div className="text-right text-[12px] leading-snug">
+              <div>ยอดรวม: {subtotal.toLocaleString()} บาท</div>
+              <div>ส่วนลด: {discount.toLocaleString()} บาท</div>
+              <div className="font-bold text-[13px] mt-1">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
+            </div>
+          </div>
+
+          {current.note ? <div className="mt-2 text-[11px]">หมายเหตุ: {current.note}</div> : null}
+
+          <div className="flex justify-between text-[10px] mt-8">
+            <div className="text-center w-1/3">
+              <div className="border-b border-black w-28 mx-auto mb-1 h-7"></div>
+              ตรวจรับงานซ่อม
+            </div>
+            <div className="text-center w-1/3 pt-5">ช่างซ่อม<br />{when.slice(0, 10)}</div>
+            <div className="text-center w-1/3">
+              <div className="border-b border-black w-28 mx-auto mb-1 h-7"></div>
+              ผู้รับเงิน
+            </div>
+          </div>
+
+          <div className="text-center mt-5 no-print flex flex-col gap-3">
+            <select value={senderId} onChange={(e) => setSenderId(e.target.value)} className="w-full p-3 text-base">
+              <option value="">ผู้สั่งพิมพ์ไปสาขา (แอดมินหรือผู้จัดการ)</option>
+              {senders.map((person) => <option key={person.id} value={person.id}>{person.nickname ? `${person.full_name} (${person.nickname})` : person.full_name}</option>)}
+            </select>
+            <div className="flex gap-3 justify-center flex-wrap">
+            <button onClick={() => setCurrent(null)} className="bg-gray-200 text-black px-5 py-3 rounded">กลับไปรายการ</button>
+            <button onClick={() => window.print()} className="bg-blue-600 text-white px-5 py-3 rounded">พิมพ์ที่เครื่องนี้</button>
+            <button onClick={sendToBranch} disabled={sending} className="bg-green-600 text-white px-5 py-3 rounded disabled:opacity-50">
+              {sending ? 'กำลังส่ง...' : 'ส่งพิมพ์ไปสาขานี้'}
+            </button>
+            </div>
+          </div>
+          {msg && <p className="text-center mt-2 no-print text-sm">{msg}</p>}
+        </div>
       )}
-      {msg && <p className="no-print" style={{ maxWidth: '210mm', margin: '8px auto' }}>{msg}</p>}
-    </div>
+    </>
   )
 }
