@@ -342,8 +342,14 @@ export default function PartsPage() {
 
   const load = async () => {
     const supabase = createClient()
-    const { data } = await supabase.from('parts_services').select('*').order('name')
-    setParts(data || [])
+    const all: any[] = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('parts_services').select('*').order('name').range(from, from + 999)
+      if (error || !data?.length) break
+      all.push(...data)
+      if (data.length < 1000) break
+    }
+    setParts(all)
   }
 
   useEffect(() => {
@@ -353,7 +359,7 @@ export default function PartsPage() {
   const catOf = (p: any) => p.category || CATALOG.find((r) => r.name === p.name)?.cat || 'ทั่วไป'
   const isService = (p: any) => SERVICE_NAMES.has(p.name) || catOf(p).includes('บริการ') || catOf(p).includes('ล้าง') || catOf(p).includes('เติมน้ำยา') || p.type === 'บริการ' || p.type === 'service'
 
-  const shown = useMemo(() => {
+  const matched = useMemo(() => {
     return parts.filter((p) => {
       const c = catOf(p)
       const text = `${p.name} ${c}`.toLowerCase()
@@ -362,6 +368,8 @@ export default function PartsPage() {
       return true
     })
   }, [parts, q, cat])
+  const browsing = !q.trim() && cat === 'ทั้งหมด'
+  const shown = browsing ? matched.slice(0, 40) : matched.slice(0, 200)
 
   const importStandard = async () => {
     setLoading(true)
@@ -476,7 +484,7 @@ export default function PartsPage() {
   const chosenCount = parts.filter((p) => selected[p.id]).length
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
           <h1 className="text-2xl font-bold">อะไหล่ / บริการ</h1>
@@ -508,7 +516,9 @@ export default function PartsPage() {
         </div>
       </div>
 
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ค้นหา เช่น 500 , R134a , คอม , ล้างตู้" className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white mb-3" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ตัวเดียวก็ขึ้น เช่น ก หรือ 1" className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white text-lg mb-3" />
+      {browsing && <p className="text-sm text-gray-400 mb-3">แสดง 40 รายการแรก พิมพ์ชื่อเช่น ก เพื่อดูทุกรายการที่มีคำนั้น</p>}
+      {!browsing && matched.length > shown.length && <p className="text-sm text-amber-300 mb-3">แสดง {shown.length} จาก {matched.length} พิมพ์เพิ่มอีกตัว</p>}
 
       <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
         {CATS.map((c) => (
@@ -521,8 +531,8 @@ export default function PartsPage() {
       <div className="space-y-2">
         {shown.map((p) => (
           <div key={p.id} className="border border-gray-700 rounded-lg px-3 py-2 bg-gray-900 flex flex-wrap items-center gap-3">
-            <input type="checkbox" checked={!!selected[p.id]} onChange={(e) => setSelected((s) => ({ ...s, [p.id]: e.target.checked }))} />
-            <div className="flex-1 min-w-[220px]">
+            <input type="checkbox" checked={!!selected[p.id]} onChange={(e) => setSelected((s) => ({ ...s, [p.id]: e.target.checked }))} className="w-6 h-6" />
+            <div className="flex-1 min-w-0 basis-full sm:basis-auto">
               <div className="font-medium">{p.name}</div>
               <div className="text-xs text-gray-500">{catOf(p)} · {p.type || '-'}{isService(p) ? ' · ไม่ตัดสต็อก' : ''}</div>
             </div>
@@ -544,8 +554,8 @@ export default function PartsPage() {
         {shown.length === 0 && <p className="text-gray-400">ยังไม่มีรายการในหมวดนี้</p>}
       </div>
 
-      <div className="sticky bottom-4 mt-6 flex justify-end">
-        <button onClick={sendToBill} className="bg-green-600 text-white px-5 py-3 rounded shadow-lg">นำไปออกบิล ({chosenCount})</button>
+      <div className="sticky bottom-16 mt-6">
+        <button onClick={sendToBill} className="w-full sm:w-auto bg-green-600 text-white px-5 py-4 rounded shadow-lg text-lg">นำไปออกบิล ({chosenCount})</button>
       </div>
     </div>
   )
