@@ -21,6 +21,7 @@ export default function HomePage() {
         <footer className="mt-10 text-center text-gray-500 text-sm space-y-1 break-words px-2">
           <p>Tel. 099-4102559 , 076-602429</p>
           <p>201/2 หมู่ที่ 5 ถนนสนามบินเมืองใหม่ ตำบลเทพกระษัตรี อำเภอถลาง จังหวัดภูเก็ต 83110</p>
+          {/* tools */}
         </footer>
       </main>
     </div>
