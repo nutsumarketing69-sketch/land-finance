@@ -39,6 +39,7 @@ export const STATUS_LABEL: Record<string, string> = {
 export function isOpenPath(pathname: string) {
   return (
     pathname === "/login" ||
+    pathname === "/forgot" ||
     pathname === "/signup" ||
     pathname === "/pending" ||
     pathname.startsWith("/auth") ||
@@ -108,3 +109,4 @@ export function authErrorText(error: { message?: string } | null | undefined) {
   if (low.includes("network") || low.includes("fetch")) return "เชื่อมต่อระบบไม่สำเร็จ ลองใหม่อีกครั้ง";
   return "ทำรายการไม่สำเร็จ";
 }
+// forgot password is a public page
