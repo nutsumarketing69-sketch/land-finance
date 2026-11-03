@@ -341,7 +341,7 @@ export default function ReceivePage() {
         <label className="block text-sm text-gray-400">ช่างที่ถ่ายรูป
           <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="mt-1 w-full border border-gray-600 bg-gray-800 rounded p-3 text-white">
             <option value="">ไม่ระบุ</option>
-            {employees.map((e) => <option key={e.id} value={e.id}>{e.name || e.full_name || e.code}</option>)}
+            {employees.map((e) => <option key={e.id} value={e.id}>{e.nickname ? `${e.full_name || e.name || e.code} (${e.nickname})` : (e.full_name || e.name || e.code)}</option>)}
           </select>
         </label>
       </div>
