@@ -54,7 +54,7 @@ export default function SalesPage() {
           />
         </div>
         <button
-          onClick={fetchSales}
+          onClick={() => fetchSales()}
           disabled={loading}
           className="bg-blue-600 text-white px-5 py-3 rounded disabled:opacity-50"
         >
