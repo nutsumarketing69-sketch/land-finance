@@ -37,6 +37,7 @@ export default function DashboardPage() {
         .from('bills')
         .select('total')
         .gte('created_at', start.toISOString())
+        .is('voided_at', null)
         .limit(300),
       supabase
         .from('parts_services')
@@ -45,7 +46,7 @@ export default function DashboardPage() {
         .not('type', 'in', '("labor","service")'),
       supabase
         .from('bills')
-        .select('id, bill_no, customer_name, license_plate, total, created_at, branches(name)')
+        .select('id, bill_no, customer_name, license_plate, total, created_at, voided_at, branches(name)')
         .order('created_at', { ascending: false })
         .limit(5),
     ])
@@ -100,9 +101,9 @@ export default function DashboardPage() {
       ) : (
         <div className="space-y-2">
           {recentBills.map((bill) => (
-            <a key={bill.id} href={`/history?plate=${encodeURIComponent(bill.license_plate || '')}`} className="block border border-gray-700 rounded-lg p-3 bg-gray-900 text-sm">
+            <a key={bill.id} href={`/receipt?bill=${bill.id}`} className="block border border-gray-700 rounded-lg p-3 bg-gray-900 text-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
-                <div className="font-medium break-words">{bill.license_plate || '-'} · {bill.customer_name || '-'}</div>
+                <div className="font-medium break-words">{bill.license_plate || '-'} · {bill.customer_name || '-'}{bill.voided_at ? ' · ยกเลิก' : ''}</div>
                 <div className="text-gray-300">{Number(bill.total || 0).toLocaleString()} บาท</div>
               </div>
               <div className="text-gray-400">{bill.branches?.name || '-'} · {bill.bill_no}</div>
