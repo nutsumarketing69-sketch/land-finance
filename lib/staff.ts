@@ -12,6 +12,7 @@ export type StaffAccount = {
   role: string;
   status: string;
   employee_id: string | null;
+  permissions?: Record<string, boolean> | null;
   created_at?: string;
   approved_at?: string | null;
   branches?: { name: string } | { name: string }[] | null;
