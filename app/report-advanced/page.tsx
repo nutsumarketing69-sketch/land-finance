@@ -39,6 +39,7 @@ export default function AdvancedReportPage() {
         .select('id, bill_no, customer_name, license_plate, total, created_at, items, branches(name)')
         .gte('created_at', new Date(`${startDate}T00:00:00`).toISOString())
         .lte('created_at', new Date(`${endDate}T23:59:59`).toISOString())
+        .is('voided_at', null)
         .order('created_at', { ascending: false })
         .range(from, from + 999)
       if (error || !data?.length) break
@@ -84,7 +85,7 @@ export default function AdvancedReportPage() {
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-2">รายงานขั้นสูง</h1>
-      <p className="text-sm text-gray-400 mb-4">สรุปยอดขายจากบิล ตามสาขาและรายการอะไหล่</p>
+      <p className="text-sm text-gray-400 mb-4">สรุปยอดขายจากบิล ตามสาขาและรายการอะไหล่ ไม่รวมบิลที่ยกเลิก</p>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-6 sm:items-end">
         <div className="flex-1">
