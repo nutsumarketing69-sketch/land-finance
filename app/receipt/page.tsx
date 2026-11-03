@@ -906,8 +906,8 @@ export default function ReceiptPage() {
                     </div>
                   )}
                 </td>
-                <td><input className="c" value={item.qty} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, qty: Number(e.target.value || 0) } : line)) }} /></td>
-                <td><input className="r" value={item.price} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, price: Number(e.target.value || 0) } : line)) }} /></td>
+                <td><input className="c" value={item.name.trim() ? item.qty : ''} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, qty: Number(e.target.value || 0) } : line)) }} /></td>
+                <td><input className="r" value={item.name.trim() ? item.price : ''} onChange={(e) => { setItems(items.map((line, i) => i === index ? { ...line, price: Number(e.target.value || 0) } : line)) }} /></td>
                 <td className="r">{(Number(item.price || 0) * Number(item.qty || 0)).toLocaleString()}</td>
                 <td className="no-print"><button className="rowbtn" onClick={() => setItems(items.length === 1 ? [blank()] : items.filter((_, i) => i !== index))}>ลบ</button></td>
               </tr>
