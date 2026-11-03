@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
+import { useAccess } from '@/app/components/AuthShell'
 
 function dayText(value: string) {
   if (!value) return '-'
@@ -13,6 +14,7 @@ function dayText(value: string) {
 
 function HistoryContent() {
   const searchParams = useSearchParams()
+  const { showPrice } = useAccess()
   const [plate, setPlate] = useState(searchParams.get('plate') || '')
   const [vehicles, setVehicles] = useState<any[]>([])
   const [bills, setBills] = useState<any[]>([])
@@ -109,7 +111,7 @@ function HistoryContent() {
               <div key={bill.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
                 <div className="flex justify-between gap-3">
                   <div className="font-medium">{dayText(bill.created_at)}</div>
-                  <div className="font-semibold">{Number(bill.total || 0).toLocaleString()} บาท</div>
+                  <div className="font-semibold">{showPrice ? `${Number(bill.total || 0).toLocaleString()} บาท` : '—'}</div>
                 </div>
                 <div className="text-sm mt-1">{bill.license_plate || '-'} {bill.car_info || ''}</div>
                 <div className="text-sm text-gray-400">{bill.customer_name || '-'} {bill.phone || ''}</div>
