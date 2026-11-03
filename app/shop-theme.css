@@ -1,0 +1,137 @@
+/* Shared shop look: dark red ground, white fields, readable type.
+   The printed bill and the on-screen receipt sheet keep their own colors. */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(ellipse at top, rgba(220, 38, 38, 0.34), transparent 52%),
+    #140406 !important;
+  color: #fafafa !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  color-scheme: light;
+  background-color: #fff !important;
+  color: #171717 !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 12px !important;
+  min-height: 46px;
+  font-size: 16px !important;
+  padding: 10px 12px !important;
+  box-shadow: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #737373 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid rgba(220, 38, 38, 0.35);
+  outline-offset: 1px;
+  border-color: #dc2626 !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  min-height: 0 !important;
+  accent-color: #dc2626;
+  padding: 0 !important;
+}
+
+button.bg-gray-600,
+button.bg-gray-700,
+button.bg-gray-800,
+a.bg-gray-700,
+a.bg-gray-800 {
+  background-color: #fff !important;
+  color: #1c1917 !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+}
+
+a.bg-gray-900,
+div.bg-gray-900 {
+  background-color: rgba(28, 10, 12, 0.78) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Receipt workspace stays the light desk the shop already uses on a computer. */
+.page {
+  background: #ececec !important;
+  color: #111 !important;
+}
+
+.sheet input,
+.sheet textarea,
+.sheet select,
+.bill-sheet input,
+.bill-sheet textarea,
+.bill-sheet select {
+  background: transparent !important;
+  color: #111 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  min-height: 0 !important;
+  padding: 1px 4px !important;
+  font-size: inherit !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.page .toolbar input,
+.page .toolbar select {
+  background: #fff !important;
+  color: #111 !important;
+  border: 1px solid #ccc !important;
+  border-radius: 8px !important;
+  min-height: 44px !important;
+  padding: 8px !important;
+  font-size: 16px !important;
+}
+
+.sheet .discount input,
+.sheet .sign-date {
+  background: #fff !important;
+  border: 1px solid #ddd !important;
+  border-radius: 4px !important;
+  min-height: 0 !important;
+}
+
+.sheet .menu button,
+.bill-sheet button {
+  background: #fff !important;
+  color: #111 !important;
+  border: 0 !important;
+  border-bottom: 1px solid #f1f1f1 !important;
+}
+
+@media (max-width: 640px) {
+  h1 {
+    font-size: 1.45rem;
+    line-height: 1.25;
+  }
+}
+
+@media print {
+  html,
+  body,
+  .page {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .no-print,
+  .back-home,
+  .session-bar {
+    display: none !important;
+  }
+}
