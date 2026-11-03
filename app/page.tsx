@@ -1,3 +1,5 @@
+import AdminShortcut from './components/AdminShortcut'
+
 export default function HomePage() {
   const menus = [
     { name: 'รับรถ', desc: 'ค้นหาและรับงานใหม่', href: '/receive', icon: '🚗' },
@@ -39,6 +41,7 @@ export default function HomePage() {
 
       <main className="max-w-5xl mx-auto px-3 py-6 sm:px-6 sm:py-10">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+          <AdminShortcut />
           {menus.map((menu) => (
             <a
               key={menu.href}
