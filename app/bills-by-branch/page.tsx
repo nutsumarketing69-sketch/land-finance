@@ -9,6 +9,7 @@ export default function BillsByBranchPage() {
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState({ count: 0, total: 0 })
+  const [q, setQ] = useState('')
 
   useEffect(() => {
     fetchBranches()
@@ -25,12 +26,17 @@ export default function BillsByBranchPage() {
     setLoading(true)
     const supabase = createClient()
 
-    const { data } = await supabase
+    const word = q.trim().replace(/[,()%_]/g, '')
+    let query = supabase
       .from('bills')
       .select('*')
       .eq('branch_id', selectedBranch)
       .order('created_at', { ascending: false })
-      .limit(50)
+      .limit(40)
+    if (word) {
+      query = query.or(`bill_no.ilike.%${word}%,customer_name.ilike.%${word}%,license_plate.ilike.%${word}%`)
+    }
+    const { data } = await query
 
     const list = data || []
     setBills(list)
@@ -41,16 +47,16 @@ export default function BillsByBranchPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-6">บิลแยกตามสาขา</h1>
 
-      <div className="flex gap-3 mb-6 items-end">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-end">
         <div className="flex-1">
           <label className="block text-sm text-gray-400 mb-1">เลือกสาขา</label>
           <select
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
-            className="w-full border border-gray-600 bg-gray-800 p-2 rounded text-white"
+            className="w-full border border-gray-600 bg-gray-800 p-3 rounded text-white"
           >
             <option value="">-- เลือกสาขา --</option>
             {branches.map((b) => (
@@ -61,11 +67,13 @@ export default function BillsByBranchPage() {
         <button
           onClick={fetchBills}
           disabled={loading || !selectedBranch}
-          className="bg-blue-600 text-white px-5 py-2 rounded disabled:opacity-50"
+          className="bg-blue-600 text-white px-5 py-3 rounded disabled:opacity-50"
         >
           {loading ? 'กำลังโหลด...' : 'ดูบิล'}
         </button>
       </div>
+
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ป้าย ชื่อ หรือเลขบิล แล้วกดดูบิล" className="w-full border border-gray-600 bg-gray-800 p-3 rounded mb-4 text-white text-lg" />
 
       {selectedBranch && (
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -86,7 +94,7 @@ export default function BillsByBranchPage() {
         <div className="space-y-3">
           {bills.map((bill) => (
             <div key={bill.id} className="border border-gray-700 rounded-lg p-4 bg-gray-900">
-              <div className="flex justify-between">
+              <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                 <div>
                   <div className="font-semibold">{bill.bill_no}</div>
                   <div className="text-sm text-gray-400">
