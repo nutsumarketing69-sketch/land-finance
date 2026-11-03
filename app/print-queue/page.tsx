@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 const PROMPTPAY_ID = '0994102559'
 
@@ -28,16 +29,15 @@ export default function PrintQueuePage() {
   const [msg, setMsg] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [senders, setSenders] = useState<any[]>([])
-  const [senderId, setSenderId] = useState('')
+  const { can, showPrice } = useAccess()
+  const canRemotePrint = can('print_remote')
+  const money = (value: number) => (showPrice ? Number(value || 0).toLocaleString() : '—')
 
   const load = async (word = q) => {
     setLoading(true)
     const supabase = createClient()
     const branchRes = await supabase.from('branches').select('id, name').order('name')
     setBranches(branchRes.data || [])
-    const people = await supabase.from('employees').select('id, full_name, nickname, role').in('role', ['admin', 'manager']).order('full_name')
-    setSenders(people.data || [])
 
     const safe = word.trim().replace(/[,()%_]/g, '')
     let query = supabase.from('bills').select('*, branches(name)').order('created_at', { ascending: false }).limit(40)
@@ -82,7 +82,7 @@ export default function PrintQueuePage() {
   const branchName = branches.find((b) => b.id === targetBranch)?.name || current?.branches?.name || ''
   const headerTitle = branchName ? `รัษฎาแอร์ ${branchName}` : 'รัษฎาแอร์'
   const when = String(current?.created_at || '').replace('T', ' ').slice(0, 16)
-  const qrUrl = total > 0
+  const qrUrl = showPrice && total > 0
     ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://promptpay.io/${PROMPTPAY_ID}/${total}`)}`
     : ''
 
@@ -96,8 +96,8 @@ export default function PrintQueuePage() {
       setMsg('เลือกสาขาก่อนส่งพิมพ์')
       return
     }
-    if (!senders.some((person) => person.id === senderId)) {
-      setMsg('สั่งพิมพ์ไปสาขาได้เฉพาะแอดมินหรือผู้จัดการสาขา')
+    if (!canRemotePrint) {
+      setMsg('สั่งพิมพ์ไปสาขาได้เฉพาะบัญชีที่ล็อกอินเป็นผู้ดูแลระบบหรือผู้จัดการสาขา')
       return
     }
     setSending(true)
@@ -179,7 +179,7 @@ export default function PrintQueuePage() {
                     <div className="font-semibold">{bill.bill_no} — {bill.customer_name || '-'} | {bill.license_plate || '-'}{bill.voided_at ? ' · ยกเลิก' : ''}</div>
                     <div className="text-xs text-gray-400">{bill.branches?.name || 'ไม่ได้เลือกสาขา'} · {String(bill.created_at || '').replace('T', ' ').slice(0, 16)}</div>
                   </div>
-                  <div className="font-semibold">{Number(bill.total || 0).toLocaleString()}</div>
+                  <div className="font-semibold">{money(Number(bill.total || 0))}</div>
                 </div>
               </button>
             ))}
@@ -233,8 +233,8 @@ export default function PrintQueuePage() {
                 <tr key={i}>
                   <td>{item.name}</td>
                   <td className="text-center">{item.qty}</td>
-                  <td className="text-right">{Number(item.price || 0).toLocaleString()}</td>
-                  <td className="text-right">{(Number(item.price || 0) * Number(item.qty || 1)).toLocaleString()}</td>
+                  <td className="text-right">{money(Number(item.price || 0))}</td>
+                  <td className="text-right">{money(Number(item.price || 0) * Number(item.qty || 1))}</td>
                 </tr>
               ))}
               {items.length === 0 && (
@@ -249,14 +249,14 @@ export default function PrintQueuePage() {
                 <div className="text-center">
                   <p className="text-[9px] mb-1 text-gray-600">สแกนจ่าย PromptPay</p>
                   <img src={qrUrl} alt="QR PromptPay" className="border mx-auto" width={80} height={80} />
-                  <p className="text-[9px] mt-0.5">{total.toLocaleString()} บาท</p>
+                  <p className="text-[9px] mt-0.5">{money(total)} บาท</p>
                 </div>
               )}
             </div>
             <div className="text-right text-[12px] leading-snug">
-              <div>ยอดรวม: {subtotal.toLocaleString()} บาท</div>
-              <div>ส่วนลด: {discount.toLocaleString()} บาท</div>
-              <div className="font-bold text-[13px] mt-1">รวมทั้งสิ้น: {total.toLocaleString()} บาท</div>
+              <div>ยอดรวม: {money(subtotal)} บาท</div>
+              <div>ส่วนลด: {money(discount)} บาท</div>
+              <div className="font-bold text-[13px] mt-1">รวมทั้งสิ้น: {money(total)} บาท</div>
             </div>
           </div>
 
@@ -275,17 +275,14 @@ export default function PrintQueuePage() {
           </div>
 
           <div className="text-center mt-5 no-print flex flex-col gap-3">
-            <select value={senderId} onChange={(e) => setSenderId(e.target.value)} className="w-full p-3 text-base">
-              <option value="">ผู้สั่งพิมพ์ไปสาขา (แอดมินหรือผู้จัดการ)</option>
-              {senders.map((person) => <option key={person.id} value={person.id}>{person.nickname ? `${person.full_name} (${person.nickname})` : person.full_name}</option>)}
-            </select>
             <div className="flex gap-3 justify-center flex-wrap">
             <button onClick={() => setCurrent(null)} className="bg-gray-200 text-black px-5 py-3 rounded">กลับไปรายการ</button>
             <button onClick={() => window.print()} className="bg-blue-600 text-white px-5 py-3 rounded">พิมพ์ที่เครื่องนี้</button>
-            <button onClick={sendToBranch} disabled={sending} className="bg-green-600 text-white px-5 py-3 rounded disabled:opacity-50">
+            <button onClick={sendToBranch} disabled={sending || !canRemotePrint} className="bg-green-600 text-white px-5 py-3 rounded disabled:opacity-50">
               {sending ? 'กำลังส่ง...' : 'ส่งพิมพ์ไปสาขานี้'}
             </button>
             </div>
+            {!canRemotePrint && <p className="text-sm text-gray-600">บัญชีที่ล็อกอินนี้พิมพ์ที่เครื่องนี้ได้ แต่ส่งข้ามสาขาได้เฉพาะผู้ดูแลระบบหรือผู้จัดการสาขา</p>}
           </div>
           {msg && <p className="text-center mt-2 no-print text-sm">{msg}</p>}
         </div>
