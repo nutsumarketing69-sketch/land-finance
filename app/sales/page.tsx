@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 export default function SalesPage() {
+  const { showPrice } = useAccess()
+  const money = (value: number) => (showPrice ? Number(value || 0).toLocaleString() : '—')
   const [date, setDate] = useState('')
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
@@ -70,7 +73,7 @@ export default function SalesPage() {
           <div className="text-sm text-gray-400">จำนวนบิล</div>
         </div>
         <div className="border border-gray-700 rounded-lg p-4 text-center bg-gray-900">
-          <div className="text-xl sm:text-3xl font-bold text-green-400 break-words">{summary.total.toLocaleString()}</div>
+          <div className="text-xl sm:text-3xl font-bold text-green-400 break-words">{money(summary.total)}</div>
           <div className="text-sm text-gray-400">ยอดรวม (บาท)</div>
         </div>
       </div>
@@ -88,7 +91,7 @@ export default function SalesPage() {
                   <div className="text-gray-400 text-xs">{bill.branches?.name || '-'}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold">{Number(bill.total || 0).toLocaleString()} บาท</div>
+                  <div className="font-bold">{money(Number(bill.total || 0))} บาท</div>
                   <div className="text-xs text-gray-400">
                     {new Date(bill.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                   </div>
