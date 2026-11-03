@@ -75,7 +75,7 @@ export default function BranchesPage() {
   if (loading) return <div className="p-8">กำลังโหลด...</div>
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-6">จัดการสาขา</h1>
 
       {/* ฟอร์มเพิ่ม/แก้ไข */}
