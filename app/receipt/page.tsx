@@ -498,6 +498,7 @@ export default function ReceiptPage() {
     warrantyText,
     showQr,
     promptpay: showQr ? promptPay(PROMPTPAY_ID, total) : '',
+    words: bahtText(total),
   })
 
   const save = async () => {
@@ -564,6 +565,27 @@ export default function ReceiptPage() {
     setMsg(result.restored ? 'ยกเลิกบิลแล้ว คืนสต็อกให้รายการในบิลนี้ และยอดขายจะไม่นับบิลนี้' : 'ยกเลิกบิลแล้ว บิลเก่ายังอยู่ในประวัติ แต่ไม่นับในยอดขาย')
   }
 
+  const waitImage = async (node: Element | null) => {
+    const img = node as HTMLImageElement | null
+    if (!img) return
+    if (img.complete && img.naturalWidth > 0) {
+      if (img.decode) await img.decode().catch(() => {})
+      return
+    }
+    await new Promise<void>((resolve) => {
+      const done = () => resolve()
+      img.addEventListener('load', done, { once: true })
+      img.addEventListener('error', done, { once: true })
+      window.setTimeout(done, 5000)
+    })
+    if (img.decode) await img.decode().catch(() => {})
+  }
+
+  const printHere = async () => {
+    await waitImage(document.querySelector('.sheet .pp img'))
+    window.print()
+  }
+
   const sendBranch = async () => {
     if (voidedAt) { setMsg('บิลที่ยกเลิกแล้วส่งพิมพ์ไปสาขาไม่ได้'); return }
     if (!branchId) { setMsg('เลือกสาขาก่อนส่งพิมพ์'); return }
@@ -625,14 +647,17 @@ export default function ReceiptPage() {
         .shop p { margin:0; font-size:11px; line-height:1.35; }
         .doc { text-align:center; font-size:18px; margin:6px 0 2px; }
         .who-wrap { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:0 0 2px; }
-        .who { font-size:13px; line-height:1.55; flex:1; }
-        .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:1px 12px; }
-        .who input { border:none; background:transparent; color:#111; font:inherit; padding:0; }
+        .who { font-size:15px; line-height:1.45; flex:1; }
+        .who .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:1px 10px; }
+        .who input { border:0; background:transparent; color:#111; font:inherit; line-height:inherit; padding:0; border-radius:0; }
         .who input:focus { outline:none; }
+        .who input::placeholder { color:#b5b5b5; }
         .co-name { font-weight:700; }
-        .bill-meta { text-align:right; font-size:13px; line-height:1.4; white-space:nowrap; }
-        .items input, .note, .discount input, .sign-name, .sign-date { box-sizing:border-box; background:#fff; color:#111; font:inherit; }
-        .items input { width:100%; border:none; padding:2px 4px; }
+        .bill-meta { text-align:right; font-size:15px; line-height:1.4; white-space:nowrap; }
+        .items input, .note, .discount input, .sign-name, .sign-date { box-sizing:border-box; background:transparent; color:#111; font:inherit; border:0; border-radius:0; }
+        .items input { width:100%; padding:0; }
+        .items input::placeholder { color:transparent; }
+        .items input:focus::placeholder { color:#bdbdbd; }
         .note { width:100%; border:none; background:transparent; resize:none; padding:2px 0; color:#111; }
         .note:focus { outline:none; }
         table { width:100%; border-collapse:collapse; margin-top:0; }
@@ -648,7 +673,7 @@ export default function ReceiptPage() {
         .foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
         .sum { text-align:right; min-width:210px; color:#111; line-height:1.7; }
         .discount { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
-        .discount input { width:72px; text-align:right; border:1px solid #ddd; border-radius:4px; padding:1px 6px; background:#fff; color:#111; }
+        .discount input { width:4.5em; text-align:right; border:0; border-radius:0; padding:0; background:transparent; color:#111; }
         .grand { font-size:16px; font-weight:700; }
         .words { font-size:12px; }
         .pp { width:112px; border:1.5px solid #0b3b8c; background:#fff; color:#111; }
@@ -664,7 +689,7 @@ export default function ReceiptPage() {
         .signs i { display:block; width:150px; border-bottom:1px solid #111; height:0; margin:0 auto 4px; }
         .sign-name { width:150px; text-align:center; text-align-last:center; border:none; background:transparent; color:#111; appearance:none; -webkit-appearance:none; -moz-appearance:none; }
         .sign-name::-ms-expand { display:none; }
-        .sign-date { margin-top:3px; background:#fff; color:#111; border:1px solid #ddd; border-radius:4px; }
+        .sign-date { margin-top:3px; background:transparent; color:#111; border:0; border-bottom:1px solid #111; border-radius:0; font-size:12px; width:150px; }
         .only-print { display:none; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
         .actions button { border:0; border-radius:8px; color:#fff; padding:12px 14px; cursor:pointer; font-size:16px; }
@@ -681,10 +706,11 @@ export default function ReceiptPage() {
           .no-print { display:none !important; }
           .page { background:#fff; padding:0; }
           .sheet { box-shadow:none; border-top:0; max-width:none; padding:0; }
-          .who input, .items input, .note, .discount input, .sign-name { border:none !important; background:transparent !important; color:#111 !important; outline:none !important; }
+          .who input, .items input, .note, .discount input, .sign-name, .sign-date { border:0 !important; background:transparent !important; color:#111 !important; outline:none !important; box-shadow:none !important; border-radius:0 !important; }
           .sign-date { display:none !important; }
+          .sign-empty { color:transparent !important; }
           .only-print { display:block; }
-          .who input::placeholder, .note::placeholder { color:transparent !important; }
+          .who input::placeholder, .items input::placeholder, .note::placeholder { color:transparent !important; }
           .pp, .pp-foot, .pp-en b { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
           tr.spare { display:none; }
         }
@@ -923,7 +949,7 @@ export default function ReceiptPage() {
           </div>
           <div>
             <div className="sign-top">
-              <select className="sign-name" value={technician} onChange={(e) => setTechnician(e.target.value)}>
+              <select className={`sign-name${technician ? '' : ' sign-empty'}`} value={technician} onChange={(e) => setTechnician(e.target.value)}>
                 <option value="">เลือกช่าง</option>
                 {technician && !techNames.includes(technician) && <option value={technician}>{technician}</option>}
                 {techNames.map((name) => <option key={name} value={name}>{name}</option>)}
@@ -943,7 +969,7 @@ export default function ReceiptPage() {
       </div>
 
       <div className="actions no-print">
-        <button style={{ background: '#111' }} onClick={() => window.print()}>พิมพ์ที่เครื่องนี้</button>
+        <button style={{ background: '#111' }} onClick={printHere}>พิมพ์ที่เครื่องนี้</button>
         <button style={{ background: '#067a32' }} onClick={sendBranch}>ส่งพิมพ์ไปสาขานี้</button>
         <button style={{ background: '#1d4ed8' }} onClick={save} disabled={saving || !!voidedAt}>{saving ? 'กำลังบันทึก...' : savedId ? 'บันทึกการแก้ไข' : 'บันทึกบิล'}</button>
         {canVoid && savedId && !voidedAt && <button style={{ background: '#b91c1c' }} onClick={cancelBill} disabled={saving}>ยกเลิกบิล</button>}
