@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 type Row = { cat: string; name: string; price: number; stock: number; min: number; track: boolean }
 
@@ -327,6 +328,9 @@ const SERVICE_NAMES = new Set(CATALOG.filter((r) => !r.track).map((r) => r.name)
 const CATS = ['ทั้งหมด', ...Array.from(new Set(CATALOG.map((r) => r.cat)))]
 
 export default function PartsPage() {
+  const { can, showPrice } = useAccess()
+  const canEdit = can('parts_edit')
+  const canSupplier = can('supplier')
   const [parts, setParts] = useState<any[]>([])
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('ทั้งหมด')
@@ -339,6 +343,8 @@ export default function PartsPage() {
   const [stock, setStock] = useState('100')
   const [category, setCategory] = useState('ทั่วไป')
   const [itemType, setItemType] = useState('อะไหล่')
+  const [supplier, setSupplier] = useState('')
+  const [usage, setUsage] = useState<{ id: string; rows: { license_plate: string; bill_no: string; created_at: string }[] } | null>(null)
 
   const load = async () => {
     const supabase = createClient()
@@ -435,11 +441,15 @@ export default function PartsPage() {
       return
     }
     const supabase = createClient()
-    const row = { name: name.trim(), price: Number(price), stock: Number(stock) || 0, min_stock: 0, category, type: itemType }
+    const row = { name: name.trim(), price: Number(price), stock: Number(stock) || 0, min_stock: 0, category, type: itemType, supplier: supplier.trim() || null }
     let { error } = await supabase.from('parts_services').insert(row)
     if (error) {
-      const retry = await supabase.from('parts_services').insert({ name: row.name, price: row.price, stock: row.stock, type: itemType })
+      const retry = await supabase.from('parts_services').insert({ name: row.name, price: row.price, stock: row.stock, type: itemType, supplier: row.supplier })
       error = retry.error
+      if (error) {
+        const plain = await supabase.from('parts_services').insert({ name: row.name, price: row.price, stock: row.stock, type: itemType })
+        error = plain.error
+      }
     }
     if (error) {
       setMsg('เพิ่มไม่สำเร็จ: ' + error.message)
@@ -447,15 +457,29 @@ export default function PartsPage() {
     }
     setName('')
     setPrice('')
+    setSupplier('')
     setStock('100')
     setMsg('เพิ่มรายการแล้ว')
     load()
   }
 
-  const saveField = async (id: string, field: string, value: number) => {
+  const saveField = async (id: string, field: string, value: number | string | null) => {
     const supabase = createClient()
     await supabase.from('parts_services').update({ [field]: value }).eq('id', id)
     setParts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+  }
+
+  const showUsage = async (part: any) => {
+    if (usage?.id === part.id) {
+      setUsage(null)
+      return
+    }
+    const res = await createClient().rpc('plates_for_part', { p_name: part.name })
+    if (res.error) {
+      setMsg(res.error.message)
+      return
+    }
+    setUsage({ id: part.id, rows: res.data || [] })
   }
 
   const removePart = async (id: string, partName: string) => {
@@ -495,14 +519,14 @@ export default function PartsPage() {
             ชุด “เติมน้ำยา … กรัม” รวมค่าแรงแล้ว รายการ “น้ำยา … กรัม” เป็นค่าน้ำยาอย่างเดียว อย่าเลือกทั้งสองอย่างในบิลเดียวกัน
           </p>
         </div>
-        <button onClick={importStandard} disabled={loading} className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50">
+        {canEdit && <button onClick={importStandard} disabled={loading} className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50">
           {loading ? 'กำลังนำเข้า...' : 'นำเข้าอะไหล่มาตรฐาน'}
-        </button>
+        </button>}
       </div>
 
       {msg && <p className="mb-3 text-sm text-amber-300">{msg}</p>}
 
-      <div className="grid md:grid-cols-6 gap-2 mb-4">
+      {canEdit && <div className="grid md:grid-cols-6 gap-2 mb-4">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="ชื่อรายการใหม่" className="md:col-span-2 border border-gray-600 bg-gray-800 rounded p-2 text-white" />
         <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="หมวด" className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
         <select value={itemType} onChange={(e) => setItemType(e.target.value)} className="border border-gray-600 bg-gray-800 rounded p-2 text-white">
@@ -510,11 +534,12 @@ export default function PartsPage() {
           <option value="บริการ">บริการ</option>
         </select>
         <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="ราคา" className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
+        <input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="ซื้อมาจากร้านไหน" className="border border-gray-600 bg-gray-800 rounded p-2 text-white" />
         <div className="flex gap-2">
           <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="สต็อก" className="w-24 border border-gray-600 bg-gray-800 rounded p-2 text-white" />
           <button onClick={addOne} className="bg-blue-600 text-white px-3 rounded">เพิ่ม</button>
         </div>
-      </div>
+      </div>}
 
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ตัวเดียวก็ขึ้น เช่น ก หรือ 1" className="w-full border border-gray-600 bg-gray-800 rounded p-3 text-white text-lg mb-3" />
       {browsing && <p className="text-sm text-gray-400 mb-3">แสดง 40 รายการแรก พิมพ์ชื่อเช่น ก เพื่อดูทุกรายการที่มีคำนั้น</p>}
@@ -534,28 +559,41 @@ export default function PartsPage() {
             <input type="checkbox" checked={!!selected[p.id]} onChange={(e) => setSelected((s) => ({ ...s, [p.id]: e.target.checked }))} className="w-6 h-6" />
             <div className="flex-1 min-w-0 basis-full sm:basis-auto">
               <div className="font-medium">{p.name}</div>
-              <div className="text-xs text-gray-500">{catOf(p)} · {p.type || '-'}{isService(p) ? ' · ไม่ตัดสต็อก' : ''}</div>
+              <div className="text-xs text-gray-500">{catOf(p)} · {p.type || '-'}{isService(p) ? ' · ไม่ตัดสต็อก' : ''}{canSupplier && p.supplier ? ` · ซื้อจาก ${p.supplier}` : ''}</div>
             </div>
-            <label className="text-xs text-gray-400">
+            {showPrice && <label className="text-xs text-gray-400">
               ราคา
-              <input type="number" defaultValue={p.price} onBlur={(e) => saveField(p.id, 'price', Number(e.target.value))} className="block w-28 mt-1 border border-gray-600 bg-gray-800 rounded p-1 text-white" />
-            </label>
-            <label className="text-xs text-gray-400">
+              <input type="number" defaultValue={p.price} disabled={!canEdit} onBlur={(e) => saveField(p.id, 'price', Number(e.target.value))} className="block w-28 mt-1 border border-gray-600 bg-gray-800 rounded p-1 text-white" />
+            </label>}
+            {canSupplier && <label className="text-xs text-gray-400">
+              ซื้อจาก
+              <input defaultValue={p.supplier || ''} disabled={!canEdit} onBlur={(e) => saveField(p.id, 'supplier', e.target.value.trim() || null)} placeholder="ร้านที่สั่ง" className="block w-36 mt-1 border border-gray-600 bg-gray-800 rounded p-1 text-white" />
+            </label>}
+            {canEdit && <label className="text-xs text-gray-400">
               สต็อก
               <input type="number" defaultValue={p.stock ?? 0} onBlur={(e) => saveField(p.id, 'stock', Number(e.target.value))} className="block w-20 mt-1 border border-gray-600 bg-gray-800 rounded p-1 text-white" />
-            </label>
+            </label>}
             <label className="text-xs text-gray-400">
               จำนวน
               <input type="number" min={1} value={qty[p.id] || 1} onChange={(e) => setQty((m) => ({ ...m, [p.id]: Number(e.target.value) || 1 }))} className="block w-16 mt-1 border border-gray-600 bg-gray-800 rounded p-1 text-white" />
             </label>
-            <button onClick={() => removePart(p.id, p.name)} className="text-red-400 text-sm">ลบ</button>
+            {canEdit && <button onClick={() => removePart(p.id, p.name)} className="text-red-400 text-sm">ลบ</button>}
+            {canSupplier && <button onClick={() => showUsage(p)} className="text-sm text-sky-300">ใส่รถคันไหน</button>}
+            {usage && usage.id === p.id && (
+              <div className="basis-full text-xs text-gray-300">
+                {usage.rows.length === 0 && <div>ยังไม่พบบิลที่ใส่รายการนี้</div>}
+                {usage.rows.map((row, index) => (
+                  <div key={`${row.bill_no}-${index}`}>{row.license_plate || '-'} · {row.bill_no} · {String(row.created_at || '').slice(0, 10)}</div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {shown.length === 0 && <p className="text-gray-400">ยังไม่มีรายการในหมวดนี้</p>}
       </div>
 
       <div className="sticky bottom-16 mt-6">
-        <button onClick={sendToBill} className="w-full sm:w-auto bg-green-600 text-white px-5 py-4 rounded shadow-lg text-lg">นำไปออกบิล ({chosenCount})</button>
+        {can('receipt_edit') && <button onClick={sendToBill} className="w-full sm:w-auto bg-green-600 text-white px-5 py-4 rounded shadow-lg text-lg">นำไปออกบิล ({chosenCount})</button>}
       </div>
     </div>
   )
