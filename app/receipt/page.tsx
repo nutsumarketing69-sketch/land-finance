@@ -172,11 +172,13 @@ export default function ReceiptPage() {
   const [dateText, setDateText] = useState('')
   const [customer, setCustomer] = useState('')
   const [customerHits, setCustomerHits] = useState<any[]>([])
+  const [customerCapped, setCustomerCapped] = useState(false)
   const [phone, setPhone] = useState('')
   const [customerTax, setCustomerTax] = useState('')
   const [customerAddress, setCustomerAddress] = useState('')
   const [plate, setPlate] = useState('')
   const [plateHits, setPlateHits] = useState<any[]>([])
+  const [plateCapped, setPlateCapped] = useState(false)
   const [brand, setBrand] = useState('')
   const [model, setModel] = useState('')
   const [brandOpen, setBrandOpen] = useState(false)
@@ -200,7 +202,14 @@ export default function ReceiptPage() {
       const supabase = createClient()
       const branchRes = await supabase.from('branches').select('*').order('name')
       const employeeRes = await supabase.from('employees').select('*').limit(300)
-      const partRes = await supabase.from('parts_services').select('id, name, price, stock').order('name').limit(800)
+      const partRows: any[] = []
+      for (let from = 0; ; from += 1000) {
+        const page = await supabase.from('parts_services').select('id, name, price, stock').order('name').range(from, from + 999)
+        if (page.error || !page.data?.length) break
+        partRows.push(...page.data)
+        if (page.data.length < 1000) break
+      }
+      const partRes = { data: partRows }
       const number = await nextBillNo(supabase)
       if (!alive) return
       setBranches(branchRes.data || [])
@@ -291,20 +300,21 @@ export default function ReceiptPage() {
   const brandHits = useMemo(() => {
     const q = brand.trim().toLowerCase()
     if (!q) return []
-    return Object.keys(BRANDS).filter((name) => name.toLowerCase().startsWith(q) && name.toLowerCase() !== q).slice(0, 8)
+    return Object.keys(BRANDS).filter((name) => name.toLowerCase().includes(q) && name.toLowerCase() !== q)
   }, [brand])
 
   const modelHits = useMemo(() => {
     const list = brandKey ? BRANDS[brandKey] : Object.values(BRANDS).flat()
     const q = model.trim().toLowerCase()
     if (!q) return []
-    return list.filter((name) => name.toLowerCase().includes(q) && name.toLowerCase() !== q).slice(0, 8)
+    return list.filter((name) => name.toLowerCase().includes(q) && name.toLowerCase() !== q)
   }, [brandKey, model])
 
-  const partHits = useMemo(() => {
+  const partMatch = useMemo(() => {
     const q = items[partFocus]?.name?.trim().toLowerCase() || ''
-    if (!q) return []
-    return parts.filter((part) => String(part.name || '').toLowerCase().includes(q) && String(part.name || '').toLowerCase() !== q).slice(0, 8)
+    if (!q) return { list: [] as any[], total: 0 }
+    const all = parts.filter((part) => String(part.name || '').toLowerCase().includes(q) && String(part.name || '').toLowerCase() !== q)
+    return { list: all.slice(0, 150), total: all.length }
   }, [parts, items, partFocus])
 
   const fillCustomer = (item: any) => {
@@ -324,21 +334,27 @@ export default function ReceiptPage() {
   const searchCustomers = async (value: string) => {
     setCustomer(value)
     setSavedId('')
-    if (value.trim().length < 1) { setCustomerHits([]); return }
-    const res = await createClient().from('customers').select('id, full_name, phone, address, tax_id').ilike('full_name', `%${value.trim()}%`).limit(8)
-    setCustomerHits(res.data || [])
+    const word = value.trim().replace(/[%_,()]/g, '')
+    if (word.length < 1) { setCustomerHits([]); setCustomerCapped(false); return }
+    const res = await createClient().from('customers').select('id, full_name, phone, address, tax_id').or(`full_name.ilike.%${word}%,phone.ilike.%${word}%`).limit(80)
+    const rows = res.data || []
+    setCustomerHits(rows)
+    setCustomerCapped(rows.length >= 80)
   }
 
   const searchPlates = async (value: string) => {
     setPlate(value)
     setSavedId('')
-    if (value.trim().length < 1) { setPlateHits([]); return }
+    const word = value.trim().replace(/[%_]/g, '')
+    if (word.length < 1) { setPlateHits([]); setPlateCapped(false); return }
     const supabase = createClient()
-    const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone, address, tax_id)').ilike('license_plate', `%${value.trim()}%`).limit(8)
+    const withCustomer = await supabase.from('vehicles').select('*, customers(full_name, phone, address, tax_id)').ilike('license_plate', `%${word}%`).limit(80)
     const plain = withCustomer.error
-      ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${value.trim()}%`).limit(8)
+      ? await supabase.from('vehicles').select('*').ilike('license_plate', `%${word}%`).limit(80)
       : null
-    setPlateHits((plain?.data || withCustomer.data || []) as any[])
+    const rows = (plain?.data || withCustomer.data || []) as any[]
+    setPlateHits(rows)
+    setPlateCapped(rows.length >= 80)
   }
 
   const payload = () => ({
@@ -426,6 +442,15 @@ export default function ReceiptPage() {
 
   const sendBranch = async () => {
     if (!branchId) { setMsg('เลือกสาขาก่อนส่งพิมพ์'); return }
+    const sender = employees.find((item) => {
+      const name = item.full_name || item.name || ''
+      const label = item.nickname ? `${name} (${item.nickname})` : name
+      return technician && (technician === label || technician === name)
+    })
+    if (!sender || (sender.role !== 'manager' && sender.role !== 'admin')) {
+      setMsg('สั่งพิมพ์ไปสาขาได้เฉพาะแอดมินหรือผู้จัดการสาขา เลือกชื่อในช่องช่างก่อน')
+      return
+    }
     const res = await createClient().from('print_jobs').insert({ branch_id: branchId, bill_no: billNo, status: 'pending', payload: payload() })
     setMsg(res.error ? res.error.message : `ส่งพิมพ์ไป ${title} แล้ว`)
   }
@@ -486,8 +511,8 @@ export default function ReceiptPage() {
         th { background:#f5f5f5; color:#111; }
         .c { text-align:center; } .r { text-align:right; }
         .rel { position:relative; }
-        .menu { position:absolute; z-index:30; left:0; right:0; top:100%; background:#fff; border:1px solid #ddd; max-height:180px; overflow:auto; min-width:180px; }
-        .menu button { display:block; width:100%; text-align:left; background:#fff; color:#111; border:0; border-bottom:1px solid #f1f1f1; padding:6px 8px; cursor:pointer; }
+        .menu { position:absolute; z-index:30; left:0; right:0; top:100%; background:#fff; border:1px solid #ddd; max-height:50vh; overflow:auto; min-width:180px; }
+        .menu button { display:block; width:100%; text-align:left; background:#fff; color:#111; border:0; border-bottom:1px solid #f1f1f1; padding:12px; cursor:pointer; font-size:16px; }
         .chips { display:flex; gap:4px; flex-wrap:wrap; margin:2px 0 4px; }
         .chips button { background:#fff; color:#444; border:1px solid #ddd; border-radius:999px; padding:1px 8px; font-size:11px; line-height:1.6; cursor:pointer; }
         .rowbtn { background:#fff; color:#111; border:1px solid #ddd; border-radius:6px; padding:4px 8px; cursor:pointer; }
@@ -513,8 +538,10 @@ export default function ReceiptPage() {
         .sign-date { margin-top:3px; background:#fff; color:#111; border:1px solid #ddd; border-radius:4px; }
         .only-print { display:none; }
         .actions { max-width:210mm; margin:10px auto 0; display:flex; gap:8px; flex-wrap:wrap; }
-        .actions button { border:0; border-radius:8px; color:#fff; padding:10px 14px; cursor:pointer; }
-        @media (max-width:800px) { .toolbar { grid-template-columns:1fr 1fr; } .who-wrap { display:block; } .bill-meta { text-align:left; } }
+        .actions button { border:0; border-radius:8px; color:#fff; padding:12px 14px; cursor:pointer; font-size:16px; }
+        .cap { padding:8px 12px; color:#9a3412; font-size:13px; }
+        @media (max-width:800px) { .page { padding:8px; } .toolbar { grid-template-columns:1fr; } .actions button { flex:1 1 140px; } }
+        @media screen and (max-width:800px) { .who-wrap { display:block; } .bill-meta { text-align:left; white-space:normal; } }
         @media print {
           @page { size:A4 portrait; margin:8mm; }
           .no-print { display:none !important; }
@@ -592,6 +619,7 @@ export default function ReceiptPage() {
                         {customerHits.map((item) => (
                           <button key={item.id} onClick={() => fillCustomer(item)}>{item.full_name} {item.phone || ''} {item.tax_id || ''}</button>
                         ))}
+                        {customerCapped && <div className="cap">แสดง 80 ชื่อแรก พิมพ์เพิ่มอีกตัว</div>}
                       </div>
                     )}
                   </span>
@@ -617,6 +645,7 @@ export default function ReceiptPage() {
                       {customerHits.map((item) => (
                         <button key={item.id} onClick={() => fillCustomer(item)}>{item.full_name} {item.phone || ''}</button>
                       ))}
+                      {customerCapped && <div className="cap">แสดง 80 ชื่อแรก พิมพ์เพิ่มอีกตัว</div>}
                     </div>
                   )}
                 </span>
@@ -652,6 +681,7 @@ export default function ReceiptPage() {
                         {item.license_plate} {item.brand} {item.model}
                       </button>
                     ))}
+                    {plateCapped && <div className="cap">แสดง 80 ป้ายแรก พิมพ์เพิ่มอีกตัว</div>}
                   </div>
                 )}
               </span>
@@ -696,13 +726,14 @@ export default function ReceiptPage() {
                 <td className="c">{index + 1}</td>
                 <td className="rel">
                   <input value={item.name} autoComplete="off" onFocus={() => setPartFocus(index)} onChange={(e) => { setPartFocus(index); setSavedId(''); setItems(items.map((line, i) => i === index ? { ...line, name: e.target.value } : line)) }} placeholder="พิมพ์หรือเลือกอะไหล่" />
-                  {partFocus === index && partHits.length > 0 && (
+                  {partFocus === index && partMatch.list.length > 0 && (
                     <div className="menu no-print">
-                      {partHits.map((part) => (
+                      {partMatch.list.map((part) => (
                         <button key={part.id || part.name} onMouseDown={() => { setItems(items.map((line, i) => i === index ? { ...line, name: part.name, price: Number(part.price || 0) } : line)); setPartFocus(-1); setSavedId('') }}>
                           {part.name} · {Number(part.price || 0).toLocaleString()}{part.stock != null ? ` · คงเหลือ ${part.stock}` : ''}
                         </button>
                       ))}
+                      {partMatch.total > partMatch.list.length && <div className="cap">แสดง {partMatch.list.length} จาก {partMatch.total} พิมพ์เพิ่มอีกตัว</div>}
                     </div>
                   )}
                 </td>
