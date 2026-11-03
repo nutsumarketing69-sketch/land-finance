@@ -53,11 +53,12 @@ export default function AccessPage() {
     const row = rows.find((item) => item.id === current)
     if (!row) return
     setBusy(true)
+    const next = { ...flags, backup: false }
     const { error } = await createClient().rpc('set_staff_access', {
       account_id: row.id,
       new_role: role,
       new_position: position,
-      new_permissions: flags,
+      new_permissions: next,
     })
     setBusy(false)
     if (error) {
@@ -69,7 +70,8 @@ export default function AccessPage() {
   }
 
   const selected = rows.find((item) => item.id === current)
-  const groups = [...new Set(CAPS.map((item) => item.group))]
+  const visibleCaps = CAPS.filter((item) => item.id !== 'backup')
+  const groups = [...new Set(visibleCaps.map((item) => item.group))]
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-24 text-white">
@@ -77,7 +79,7 @@ export default function AccessPage() {
       <h1 className="text-2xl font-bold">กำหนดสิทธิ์พนักงาน</h1>
       <p className="mt-2 text-sm text-gray-300">
         ช่างค่าเริ่มต้นไม่เห็นราคา แต่เปิดบิลได้ พนักงานหน้าร้านใช้งานหน้าร้าน ผู้จัดการสาขาส่งพิมพ์ข้ามสาขาได้
-        หน้านี้เปิดปิดได้ทีละฟังก์ชัน การอนุมัติคนสมัครใหม่ยังทำได้เฉพาะผู้ดูแลระบบที่หน้าอนุมัติพนักงาน
+        หน้านี้เปิดปิดได้ทีละฟังก์ชัน การอนุมัติคนสมัครใหม่และหน้าสำรองข้อมูลยังทำได้เฉพาะผู้ดูแลระบบ
       </p>
       {me?.role !== 'admin' && <p className="mt-4 text-amber-200">เฉพาะผู้ดูแลระบบกำหนดสิทธิ์ได้</p>}
       <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -108,7 +110,7 @@ export default function AccessPage() {
               <div key={group} className="mt-4">
                 <h3 className="font-semibold text-red-200">{group}</h3>
                 <div className="mt-2 space-y-2">
-                  {CAPS.filter((item) => item.group === group).map((item) => (
+                  {visibleCaps.filter((item) => item.group === group).map((item) => (
                     <label key={item.id} className="flex items-start gap-3 text-sm">
                       <input
                         type="checkbox"
@@ -131,3 +133,4 @@ export default function AccessPage() {
     </div>
   )
 }
+// backup is not a checkbox on this page
