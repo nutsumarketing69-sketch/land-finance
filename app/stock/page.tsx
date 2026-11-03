@@ -50,7 +50,7 @@ export default function StockPage() {
 
   if (loading) return <div className="p-8">กำลังโหลด...</div>
 
-  const lowStock = parts.filter(p => (p.stock || 0) <= (p.min_stock || 5))
+  const lowStock = parts.filter((p) => p.type !== 'labor' && p.type !== 'service' && (p.stock || 0) <= (p.min_stock || 5))
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-24">
