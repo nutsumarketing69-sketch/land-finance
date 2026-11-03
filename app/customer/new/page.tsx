@@ -33,7 +33,7 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <div className="p-8 max-w-md mx-auto">
+    <div className="p-4 sm:p-8 max-w-md mx-auto pb-24">
       <h1 className="text-2xl font-bold mb-6">เพิ่มลูกค้าใหม่</h1>
 
       <div className="space-y-4">
