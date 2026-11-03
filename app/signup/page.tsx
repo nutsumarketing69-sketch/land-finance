@@ -105,8 +105,18 @@ export default function SignupPage() {
         return;
       }
     }
-    await fetch("/telegram/signup", { method: "POST" }).catch(() => null);
-    window.location.href = "/pending";
+    let sent = false;
+    for (let attempt = 0; attempt < 2 && !sent; attempt += 1) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const access = sessionData.session?.access_token || "";
+      const notified = await fetch("/telegram/signup", {
+        method: "POST",
+        headers: access ? { Authorization: `Bearer ${access}` } : undefined,
+      }).catch(() => null);
+      sent = !!notified && notified.ok;
+      if (!sent) await new Promise((resolve) => setTimeout(resolve, 700));
+    }
+    window.location.href = sent ? "/pending?sent=1" : "/pending?sent=0";
   };
 
   return (
@@ -194,4 +204,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
-// signup notifies the shop group
+// signup keeps trying until the shop group receives the request
