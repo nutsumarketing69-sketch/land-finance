@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAccess } from '@/app/components/AuthShell'
 
 export default function CustomersPage() {
+  const { showPrice } = useAccess()
   const [customers, setCustomers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -264,7 +266,7 @@ export default function CustomersPage() {
                 ))}
                 {history.map((b) => (
                   <div key={b.id} className="text-xs text-gray-400">
-                    {(b.created_at || '').slice(0, 10)} {b.license_plate || ''} {b.car_info || ''} {b.mileage ? `${b.mileage} km` : ''} {b.total ?? ''} บาท
+                    {(b.created_at || '').slice(0, 10)} {b.license_plate || ''} {b.car_info || ''} {b.mileage ? `${b.mileage} km` : ''} {showPrice ? `${b.total ?? ''} บาท` : ''}
                   </div>
                 ))}
               </div>
