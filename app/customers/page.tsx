@@ -10,6 +10,8 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState<any>(null)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [taxId, setTaxId] = useState('')
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
@@ -18,8 +20,19 @@ export default function CustomersPage() {
 
   const fetchCustomers = async () => {
     const supabase = createClient()
-    const { data } = await supabase.from('customers').select('*').order('full_name')
-    setCustomers(data || [])
+    const all: any[] = []
+    const pageSize = 1000
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('full_name')
+        .range(from, from + pageSize - 1)
+      if (error || !data?.length) break
+      all.push(...data)
+      if (data.length < pageSize) break
+    }
+    setCustomers(all)
     setLoading(false)
   }
 
@@ -33,12 +46,14 @@ export default function CustomersPage() {
     const payload = {
       full_name: name.trim(),
       phone: phone.trim() || null,
+      address: address.trim() || null,
+      tax_id: taxId.trim() || null,
     }
 
     let error
     if (editing) {
-      const res = await supabase.from('customers').update(payload).eq('id', editing.id)
-      error = res.error
+      const res = await supabase.from('customers').update(payload).eq('id', editing.id).select('id')
+      error = res.error || ((res.data || []).length ? null : { message: 'blocked' })
     } else {
       const res = await supabase.from('customers').insert(payload)
       error = res.error
@@ -50,6 +65,8 @@ export default function CustomersPage() {
       setMsg(editing ? 'แก้ไขสำเร็จ!' : 'เพิ่มลูกค้าสำเร็จ!')
       setName('')
       setPhone('')
+      setAddress('')
+      setTaxId('')
       setEditing(null)
       fetchCustomers()
     }
@@ -59,7 +76,17 @@ export default function CustomersPage() {
     setEditing(c)
     setName(c.full_name)
     setPhone(c.phone || '')
+    setAddress(c.address || '')
+    setTaxId(c.tax_id || '')
     setMsg('')
+  }
+
+  const clearForm = () => {
+    setEditing(null)
+    setName('')
+    setPhone('')
+    setAddress('')
+    setTaxId('')
   }
 
   const filtered = customers.filter((c) => {
@@ -67,7 +94,9 @@ export default function CustomersPage() {
     const q = search.toLowerCase()
     return (
       c.full_name?.toLowerCase().includes(q) ||
-      c.phone?.includes(q)
+      c.phone?.includes(q) ||
+      c.address?.toLowerCase().includes(q) ||
+      c.tax_id?.includes(q)
     )
   })
 
@@ -95,17 +124,27 @@ export default function CustomersPage() {
             onChange={(e) => setPhone(e.target.value)}
             className="w-full border p-2 rounded text-black"
           />
+          <input
+            type="text"
+            placeholder="ที่อยู่"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          />
+          <input
+            type="text"
+            placeholder="เลขผู้เสียภาษี"
+            value={taxId}
+            onChange={(e) => setTaxId(e.target.value)}
+            className="w-full border p-2 rounded text-black"
+          />
           <div className="flex gap-2">
             <button onClick={saveCustomer} className="bg-blue-600 text-white px-4 py-2 rounded">
               {editing ? 'บันทึกการแก้ไข' : 'เพิ่มลูกค้า'}
             </button>
             {editing && (
               <button
-                onClick={() => {
-                  setEditing(null)
-                  setName('')
-                  setPhone('')
-                }}
+                onClick={clearForm}
                 className="bg-gray-600 text-white px-4 py-2 rounded"
               >
                 ยกเลิก
@@ -119,7 +158,7 @@ export default function CustomersPage() {
       {/* ค้นหา */}
       <input
         type="text"
-        placeholder="ค้นหาชื่อหรือเบอร์โทร..."
+        placeholder="ค้นหาชื่อ เบอร์โทร ที่อยู่ หรือเลขผู้เสียภาษี..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="w-full border border-gray-600 bg-gray-800 p-2 rounded mb-4 text-white placeholder-gray-400"
@@ -132,6 +171,8 @@ export default function CustomersPage() {
             <div>
               <div className="font-medium">{c.full_name}</div>
               <div className="text-sm text-gray-400">{c.phone || '-'}</div>
+              {c.address ? <div className="text-sm text-gray-300">{c.address}</div> : null}
+              {c.tax_id ? <div className="text-sm text-gray-400">เลขผู้เสียภาษี {c.tax_id}</div> : null}
             </div>
             <button onClick={() => startEdit(c)} className="text-blue-400 text-sm">
               แก้ไข
