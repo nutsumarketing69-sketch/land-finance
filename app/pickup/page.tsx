@@ -128,4 +128,4 @@ export default function PickupPage() {
     </div>
   )
 }
-// today's pickups and overdue cars stay on this page
+// overdue cars stay listed until the customer collects them
