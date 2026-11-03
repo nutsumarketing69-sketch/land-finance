@@ -88,6 +88,10 @@ export default function PrintQueuePage() {
 
   const sendToBranch = async () => {
     if (!current) return
+    if (current.voided_at) {
+      setMsg('บิลที่ยกเลิกแล้วส่งพิมพ์ไปสาขาไม่ได้')
+      return
+    }
     if (!targetBranch) {
       setMsg('เลือกสาขาก่อนส่งพิมพ์')
       return
@@ -172,7 +176,7 @@ export default function PrintQueuePage() {
               <button key={bill.id} onClick={() => openBill(bill)} className="w-full text-left border border-gray-700 rounded-lg px-4 py-3 bg-gray-900 hover:border-blue-500">
                 <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-3">
                   <div>
-                    <div className="font-semibold">{bill.bill_no} — {bill.customer_name || '-'} | {bill.license_plate || '-'}</div>
+                    <div className="font-semibold">{bill.bill_no} — {bill.customer_name || '-'} | {bill.license_plate || '-'}{bill.voided_at ? ' · ยกเลิก' : ''}</div>
                     <div className="text-xs text-gray-400">{bill.branches?.name || 'ไม่ได้เลือกสาขา'} · {String(bill.created_at || '').replace('T', ' ').slice(0, 16)}</div>
                   </div>
                   <div className="font-semibold">{Number(bill.total || 0).toLocaleString()}</div>
