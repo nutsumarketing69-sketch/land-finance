@@ -30,7 +30,7 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8 pb-24">
       <h1 className="text-2xl font-bold mb-6">อัปโหลดรูปรถ</h1>
       <input
         type="file"
