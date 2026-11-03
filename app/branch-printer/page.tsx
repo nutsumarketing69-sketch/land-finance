@@ -152,7 +152,7 @@ export default function BranchPrinterPage() {
         .bill-logo { width:190px; height:auto; object-fit:contain; }
         .bill-shop { flex:1; text-align:right; }
         .bill-shop h1 { margin:0; font-size:22px; color:#111; }
-        .bill-no { font-size:18px; font-weight:700; line-height:1.2; margin:0 0 2px; color:#111; }
+        .bill-no { font-size:15px; font-weight:400; line-height:1.4; margin:0 0 2px; color:#111; }
         .bill-shop p { margin:0; font-size:11px; line-height:1.35; }
         .bill-doc { text-align:center; font-size:18px; margin:6px 0 2px; }
         .bill-who { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; font-size:15px; line-height:1.45; }
@@ -162,7 +162,9 @@ export default function BranchPrinterPage() {
         .bill-table th, .bill-table td { border:1px solid #222; padding:3px 5px; font-size:12px; vertical-align:middle; color:#111; }
         .bill-table th { background:#f5f5f5; }
         .bill-foot { display:flex; justify-content:space-between; gap:16px; margin-top:8px; align-items:flex-start; }
-        .bill-sum { text-align:right; min-width:210px; line-height:1.7; font-size:13px; }
+        .bill-sum { text-align:right; min-width:230px; line-height:1.7; font-size:13px; }
+        .bill-sum-line { display:grid; grid-template-columns:auto 5em 2.6em; column-gap:6px; justify-content:end; align-items:baseline; }
+        .bill-sum-line .num { text-align:right; }
         .bill-grand { font-size:16px; font-weight:700; }
         .bill-warn { color:#b00000; font-size:12px; }
         .bill-pp { width:112px; border:1.5px solid #0b3b8c; }
@@ -301,9 +303,9 @@ export default function BranchPrinterPage() {
               {bill.warrantyText ? <div className="bill-warn">{bill.warrantyText}</div> : null}
             </div>
             <div className="bill-sum">
-              <div>ยอดรวม {Number(bill.subtotal || 0).toLocaleString()} บาท</div>
-              <div>ส่วนลด {Number(bill.discount || 0).toLocaleString()}</div>
-              <div className="bill-grand">รวมทั้งสิ้น {total.toLocaleString()} บาท</div>
+              <div className="bill-sum-line"><span>ยอดรวม</span><span className="num">{Number(bill.subtotal || 0).toLocaleString()}</span><span>บาท</span></div>
+              <div className="bill-sum-line"><span>ส่วนลด</span><span className="num">{Number(bill.discount || 0).toLocaleString()}</span><span>บาท</span></div>
+              <div className="bill-sum-line bill-grand"><span>รวมทั้งสิ้น</span><span className="num">{total.toLocaleString()}</span><span>บาท</span></div>
               {bill.words ? <div style={{ fontSize: 12 }}>{bill.words}</div> : null}
             </div>
           </div>
@@ -317,3 +319,4 @@ export default function BranchPrinterPage() {
     </>
   )
 }
+// discount line keeps the baht mark
