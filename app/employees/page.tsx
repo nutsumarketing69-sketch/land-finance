@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { authErrorText } from '@/lib/staff'
+import SectionBar from '@/app/components/SectionBar'
 
 const ROLE_TEXT: Record<string, string> = {
   staff: 'พนักงาน',
@@ -109,6 +110,7 @@ export default function EmployeesPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto">
+      <SectionBar desk="shop" />
       <h1 className="text-2xl font-bold mb-6">จัดการพนักงาน</h1>
 
       <div className="mb-6 p-4 border rounded">
