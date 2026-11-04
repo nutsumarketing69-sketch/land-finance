@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
 import { voidBill } from '@/lib/void-bill'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function BillsPage() {
   const { can, showPrice } = useAccess()
@@ -56,6 +57,7 @@ export default function BillsPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
+      <SectionBar desk="lookup" />
       <h1 className="text-2xl font-bold mb-2">ประวัติบิล</h1>
       <p className="text-sm text-gray-400 mb-4">เปิดใบจริงเพื่อพิมพ์ซ้ำหรือแก้ บิลที่ยกเลิกยังอยู่ในประวัติ แต่ไม่นับยอดขาย</p>
 
