@@ -26,6 +26,7 @@ export const SIGNUP_JOBS = [
 
 export const ROLE_LABEL: Record<string, string> = {
   staff: "พนักงาน",
+  technician: "ช่าง",
   manager: "ผู้จัดการสาขา",
   admin: "ผู้ดูแลระบบ",
 };
@@ -109,4 +110,4 @@ export function authErrorText(error: { message?: string } | null | undefined) {
   if (low.includes("network") || low.includes("fetch")) return "เชื่อมต่อระบบไม่สำเร็จ ลองใหม่อีกครั้ง";
   return "ทำรายการไม่สำเร็จ";
 }
-// forgot password is a public page
+// technician is a role label beside staff and manager
