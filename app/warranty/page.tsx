@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SectionBar from '@/app/components/SectionBar'
 
 type Card = {
   id: string
@@ -134,6 +135,7 @@ export default function WarrantyPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-28 sm:px-6">
+      <SectionBar desk="lookup" />
       <h1 className="text-2xl font-bold">รับประกันงาน</h1>
       <p className="mt-1 text-sm text-red-100/80">ค้นจากป้ายทะเบียน ชื่อลูกค้า หรือเลขบิล ระบบดูทั้งบิลที่บันทึกไว้และงานรับรถ</p>
       <form
