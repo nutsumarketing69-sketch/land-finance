@@ -143,14 +143,14 @@ export default function LoginPage() {
         >
           สมัครสมาชิก
         </a>
-        <a href="/forgot" className="-mt-2 block pr-1 text-right text-sm text-gray-500">
+        <p className="text-center text-xs leading-5 text-gray-500">
+          พนักงานใหม่สมัครเสร็จ รอผู้ดูแลระบบอนุมัติ
+        </p>
+        <a href="/forgot" className="-mt-1 block pr-0.5 text-right text-sm text-gray-500">
           ลืมรหัสผ่าน
         </a>
-        <p className="text-center text-xs leading-5 text-gray-500">
-          พนักงานใหม่สมัครได้เอง แต่ยังเปิดบิลหรือดูข้อมูลร้านไม่ได้ จนกว่าผู้ดูแลระบบจะอนุมัติ
-        </p>
       </form>
     </AuthFrame>
   );
 }
-// save sits beside the password and forgot stays under signup
+// the short approval line sits above the gray forgot link
