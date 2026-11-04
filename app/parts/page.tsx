@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 type Row = { cat: string; name: string; price: number; stock: number; min: number; track: boolean }
 
@@ -509,6 +510,7 @@ export default function PartsPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto pb-28">
+      <SectionBar desk="parts" />
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
           <h1 className="text-2xl font-bold">อะไหล่ / บริการ</h1>
