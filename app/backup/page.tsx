@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaff } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 type Customer = {
   id: string
@@ -433,6 +434,7 @@ export default function BackupPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-24 text-white">
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
+      <SectionBar desk="shop" />
       <h1 className="text-2xl font-bold">สำรองข้อมูล</h1>
       <p className="mt-2 text-sm leading-6 text-gray-300">
         ส่งออกข้อมูลจริงของร้านเป็นไฟล์ Excel ไฟล์เดียว เปิดใน Excel หรือ Google Sheets ได้ทันที
