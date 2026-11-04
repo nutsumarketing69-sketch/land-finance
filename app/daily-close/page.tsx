@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function DailyClosePage() {
   const { showPrice } = useAccess()
@@ -102,6 +103,7 @@ export default function DailyClosePage() {
       `}</style>
 
       <div className="sheet p-4 sm:p-6 max-w-4xl mx-auto pb-24">
+        <SectionBar desk="money" />
         <div className="no-print flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end mb-6">
           <div>
             <label className="block text-sm text-gray-400 mb-1">วันที่</label>
