@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function DashboardPage() {
   const { showPrice } = useAccess()
@@ -70,6 +71,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto pb-24">
+      <SectionBar desk="money" />
       <h1 className="text-2xl font-bold mb-6">แดชบอร์ด</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
