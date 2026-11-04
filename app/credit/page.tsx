@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 type Row = {
   id: string
@@ -133,6 +134,7 @@ export default function CreditPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 pb-24 text-white">
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
+      <SectionBar desk="money" />
       <h1 className="text-2xl font-bold">ลูกหนี้</h1>
       <p className="mt-2 text-sm leading-6 text-gray-300">บิลที่ออกเป็นลูกหนี้เครดิตและยังไม่บันทึกรับเงิน เมื่อรับเงินแล้วเลือกเงินสดหรือโอน บิลจะออกจากรายการค้าง</p>
       <div className="mt-4 rounded-2xl border border-gray-700 bg-gray-900 px-4 py-4">
