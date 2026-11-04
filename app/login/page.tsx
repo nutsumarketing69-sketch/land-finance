@@ -90,44 +90,44 @@ export default function LoginPage() {
         </label>
         <label className="block text-sm font-medium text-gray-700">
           รหัสผ่าน
-          <span className="mt-1 flex gap-2">
+          <span className="mt-1 flex items-stretch gap-2">
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               type={show ? "text" : "password"}
               autoComplete="current-password"
               required
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+              className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-base outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
             />
             <button
               type="button"
               onClick={() => setShow((value) => !value)}
-              className="shrink-0 rounded-xl border border-gray-300 px-3 text-sm"
+              className="shrink-0 rounded-xl border border-gray-300 px-2.5 text-sm text-gray-700"
             >
               {show ? "ซ่อน" : "แสดง"}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nameError = usernameError(username);
+                if (nameError) {
+                  setError(nameError);
+                  return;
+                }
+                if (!password) {
+                  setError("ใส่รหัสผ่านก่อนกด Save User/pass");
+                  return;
+                }
+                localStorage.setItem("ratsada-saved-login", JSON.stringify({ username: username.trim(), password }));
+                setError("");
+                setSavedNote("บันทึกในเครื่องนี้แล้ว ครั้งต่อไปไม่ต้องพิมพ์ใหม่");
+              }}
+              className="shrink-0 whitespace-nowrap rounded-xl border border-gray-300 px-2.5 text-[13px] font-semibold text-gray-800"
+            >
+              Save User/pass
+            </button>
           </span>
         </label>
-        <button
-          type="button"
-          onClick={() => {
-            const nameError = usernameError(username);
-            if (nameError) {
-              setError(nameError);
-              return;
-            }
-            if (!password) {
-              setError("ใส่รหัสผ่านก่อนกด Save User/pass");
-              return;
-            }
-            localStorage.setItem("ratsada-saved-login", JSON.stringify({ username: username.trim(), password }));
-            setError("");
-            setSavedNote("บันทึกในเครื่องนี้แล้ว ครั้งต่อไปไม่ต้องพิมพ์ใหม่");
-          }}
-          className="w-full rounded-xl border border-gray-300 py-3 text-base font-semibold text-gray-800"
-        >
-          Save User/pass
-        </button>
         {savedNote && <p className="text-center text-sm text-green-700">{savedNote}</p>}
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         <button
@@ -137,14 +137,14 @@ export default function LoginPage() {
         >
           {busy ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
         </button>
-        <a href="/forgot" className="block text-center text-sm font-medium text-red-700">
-          ลืมรหัสผ่าน
-        </a>
         <a
           href="/signup"
           className="block w-full rounded-xl border border-red-200 py-3 text-center text-base font-semibold text-red-700"
         >
           สมัครสมาชิก
+        </a>
+        <a href="/forgot" className="-mt-2 block pr-1 text-right text-sm text-gray-500">
+          ลืมรหัสผ่าน
         </a>
         <p className="text-center text-xs leading-5 text-gray-500">
           พนักงานใหม่สมัครได้เอง แต่ยังเปิดบิลหรือดูข้อมูลร้านไม่ได้ จนกว่าผู้ดูแลระบบจะอนุมัติ
@@ -153,4 +153,4 @@ export default function LoginPage() {
     </AuthFrame>
   );
 }
-// forgot password opens from this screen
+// save sits beside the password and forgot stays under signup
