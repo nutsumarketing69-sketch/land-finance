@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function NewCustomerPage() {
   const [fullName, setFullName] = useState('')
@@ -34,6 +35,7 @@ export default function NewCustomerPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-md mx-auto pb-24">
+      <SectionBar desk="customers" />
       <h1 className="text-2xl font-bold mb-6">เพิ่มลูกค้าใหม่</h1>
 
       <div className="space-y-4">
