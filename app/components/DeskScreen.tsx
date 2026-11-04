@@ -129,4 +129,4 @@ export default function DeskScreen({ desk, initial }: { desk: string; initial: s
   )
 }
 // the topic bar stays put and only the lower pane changes
-// one follow-up commit builds the desk after every screen is in place
+// the connected repository builds this desk from the complete tree
