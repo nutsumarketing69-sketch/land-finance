@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useStaff } from '@/app/components/AuthShell'
 import { CAPS, explicitPermissions } from '@/lib/access'
-import { ROLE_LABEL, type StaffAccount } from '@/lib/staff'
+import { authErrorText, ROLE_LABEL, type StaffAccount } from '@/lib/staff'
 
 const ROLES = [
   { id: 'staff', label: 'พนักงาน' },
+  { id: 'technician', label: 'ช่าง' },
   { id: 'manager', label: 'ผู้จัดการสาขา' },
   { id: 'admin', label: 'ผู้ดูแลระบบ' },
 ]
@@ -49,6 +50,28 @@ export default function AccessPage() {
     setFlags(explicitPermissions({ role, position, permissions: null }))
   }
 
+  const remove = async (row: StaffAccount) => {
+    const admins = rows.filter((item) => item.role === 'admin').length
+    if (row.role === 'admin' && admins < 2) {
+      setMsg('ต้องเหลือผู้ดูแลระบบอย่างน้อย 1 คน')
+      return
+    }
+    if (!confirm(`ลบ ${row.full_name} ออกจากหน้านี้ และออกจากรายชื่อพนักงานด้วย?`)) return
+    setBusy(true)
+    const { error } = await createClient().rpc('remove_shop_person', {
+      p_employee: row.employee_id,
+      p_account: row.id,
+    })
+    setBusy(false)
+    if (error) {
+      setMsg(authErrorText(error))
+      return
+    }
+    if (current === row.id) setCurrent('')
+    setMsg(`ลบ ${row.full_name} แล้ว ทั้งหน้านี้และหน้ารายชื่อพนักงาน`)
+    await load()
+  }
+
   const save = async () => {
     const row = rows.find((item) => item.id === current)
     if (!row) return
@@ -78,17 +101,21 @@ export default function AccessPage() {
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
       <h1 className="text-2xl font-bold">กำหนดสิทธิ์พนักงาน</h1>
       <p className="mt-2 text-sm text-gray-300">
-        ช่างค่าเริ่มต้นไม่เห็นราคา แต่เปิดบิลได้ พนักงานหน้าร้านใช้งานหน้าร้าน ผู้จัดการสาขาส่งพิมพ์ข้ามสาขาได้
+        ระดับช่างไม่เห็นราคา แต่เปิดบิลได้ พนักงานหน้าร้านใช้งานหน้าร้าน ผู้จัดการสาขาส่งพิมพ์ข้ามสาขาได้
+        ลบคนทางซ้ายแล้ว รายชื่อในหน้าพนักงานจะหายไปด้วย
         หน้านี้เปิดปิดได้ทีละฟังก์ชัน การอนุมัติคนสมัครใหม่และหน้าสำรองข้อมูลยังทำได้เฉพาะผู้ดูแลระบบ
       </p>
       {me?.role !== 'admin' && <p className="mt-4 text-amber-200">เฉพาะผู้ดูแลระบบกำหนดสิทธิ์ได้</p>}
       <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
         <div className="space-y-2">
           {rows.map((row) => (
-            <button key={row.id} onClick={() => open(row)} className={`block w-full rounded-xl border px-3 py-2 text-left ${current === row.id ? 'border-red-500 bg-red-950/40' : 'border-gray-700'}`}>
-              <div className="font-medium">{row.full_name}</div>
-              <div className="text-xs text-gray-400">{row.username} · {ROLE_LABEL[row.role] || row.role} · {row.position || '-'}</div>
-            </button>
+            <div key={row.id} className={`flex items-start gap-2 rounded-xl border px-3 py-2 ${current === row.id ? 'border-red-500 bg-red-950/40' : 'border-gray-700'}`}>
+              <button type="button" onClick={() => open(row)} className="min-w-0 flex-1 text-left">
+                <div className="font-medium">{row.full_name}</div>
+                <div className="text-xs text-gray-400">{row.username} · {ROLE_LABEL[row.role] || row.role} · {row.position || '-'}</div>
+              </button>
+              <button type="button" onClick={() => void remove(row)} disabled={busy} className="shrink-0 rounded-lg px-2 py-1 text-sm text-red-300 disabled:opacity-40">ลบ</button>
+            </div>
           ))}
         </div>
         {selected && (
@@ -96,7 +123,11 @@ export default function AccessPage() {
             <h2 className="text-xl font-semibold">{selected.full_name}</h2>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <label className="text-sm">ระดับ
-                <select value={role} onChange={(e) => setRole(e.target.value)} className="mt-1 w-full rounded border border-gray-600 bg-gray-800 p-2">
+                <select value={role} onChange={(e) => {
+                  const next = e.target.value
+                  setRole(next)
+                  if (next === 'technician') setPosition('ช่าง')
+                }} className="mt-1 w-full rounded border border-gray-600 bg-gray-800 p-2">
                   {ROLES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
               </label>
@@ -133,4 +164,4 @@ export default function AccessPage() {
     </div>
   )
 }
-// backup is not a checkbox on this page
+// deleting a person here removes the same person from the employee list
