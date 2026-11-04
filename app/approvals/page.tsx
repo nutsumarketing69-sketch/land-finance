@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useStaff } from "@/app/components/AuthShell";
 import { authErrorText, branchName, formatBangkok, ROLE_LABEL, STATUS_LABEL, type StaffAccount } from "@/lib/staff";
+import SectionBar from "@/app/components/SectionBar";
 
 type Branch = { id: string; name: string };
 type Draft = { role: string; branchId: string };
@@ -102,6 +103,7 @@ export default function ApprovalsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-950 to-black px-3 py-6 text-white sm:px-6">
       <div className="mx-auto max-w-3xl pb-24">
+        <SectionBar desk="shop" />
         <h1 className="text-2xl font-bold">อนุมัติพนักงาน</h1>
         <p className="mt-1 text-sm text-gray-400">
           คนที่สมัครใหม่ยังเข้าหน้าร้านไม่ได้ จนกว่าจะกดอนุมัติ จากนั้นชื่อจะไปอยู่ในรายชื่อพนักงาน และใช้สิทธิ์ตามที่กำหนด
