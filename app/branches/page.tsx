@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function BranchesPage() {
   const [branches, setBranches] = useState<any[]>([])
@@ -76,6 +77,7 @@ export default function BranchesPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-2xl mx-auto pb-24">
+      <SectionBar desk="shop" />
       <h1 className="text-2xl font-bold mb-6">จัดการสาขา</h1>
 
       {/* ฟอร์มเพิ่ม/แก้ไข */}
