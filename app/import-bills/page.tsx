@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SectionBar from '@/app/components/SectionBar'
 
 type Line = { name: string; qty: number; price: number }
 type Draft = {
@@ -339,6 +340,7 @@ export default function ImportBillsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-24 text-white">
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
+      <SectionBar desk="shop" />
       <h1 className="text-2xl font-bold">นำเข้าบิลจาก Excel</h1>
       <p className="mt-2 text-sm text-gray-300">
         อัปโหลดไฟล์บิลเก่าหรือใหม่ หนึ่งแถวต่อหนึ่งรายการ ใช้หัวตารางเช่น สาขา เลขที่ วันที่ ชื่อหรือบริษัท ที่อยู่ เบอร์ ยี่ห้อ รุ่น ป้ายทะเบียน เลขไมล์ สี รายการ จำนวน ราคา จำนวนเงิน ส่วนลด
