@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<any[]>([])
@@ -62,6 +63,7 @@ export default function JobsPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
+      <SectionBar desk="lookup" />
       <h1 className="text-2xl font-bold mb-6">จัดการงานซ่อม</h1>
 
       <input
