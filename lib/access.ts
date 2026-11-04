@@ -99,7 +99,7 @@ function frontCaps() {
 export function defaultCapIds(account: Pick<StaffAccount, "role" | "position">) {
   if (account.role === "admin") return CAPS.map((item) => item.id);
   if (account.role === "manager") return CAPS.map((item) => item.id).filter((id) => id !== "access" && id !== "backup");
-  if ((account.position || "").includes("ช่าง")) return techCaps();
+  if (account.role === "technician" || (account.position || "").includes("ช่าง")) return techCaps();
   return frontCaps();
 }
 
@@ -129,4 +129,4 @@ export function explicitPermissions(account: Pick<StaffAccount, "role" | "positi
   map.backup = account.role === "admin";
   return map;
 }
-// credit and pickup follow the staff permissions
+// a technician level uses the same limits as a technician position
