@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function SalesPage() {
   const { showPrice } = useAccess()
@@ -45,6 +46,7 @@ export default function SalesPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
+      <SectionBar desk="money" />
       <h1 className="text-2xl font-bold mb-6">สรุปยอดขายรายวัน</h1>
       <p className="text-sm text-gray-400 -mt-4 mb-6">ไม่รวมบิลที่ยกเลิก</p>
 
