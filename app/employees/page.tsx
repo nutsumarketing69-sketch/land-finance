@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { authErrorText } from '@/lib/staff'
+
+const ROLE_TEXT: Record<string, string> = {
+  staff: 'พนักงาน',
+  technician: 'ช่าง',
+  manager: 'ผู้จัดการสาขา',
+  admin: 'ผู้ดูแลระบบ',
+}
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([])
@@ -77,10 +85,23 @@ export default function EmployeesPage() {
     setMsg('')
   }
 
-  const deleteEmployee = async (id: string) => {
-    if (!confirm('ต้องการลบพนักงานคนนี้?')) return
-    const supabase = createClient()
-    await supabase.from('employees').delete().eq('id', id)
+  const deleteEmployee = async (emp: any) => {
+    if (!confirm(`ลบ ${emp.full_name} ออกจากรายชื่อพนักงาน และออกจากหน้ากำหนดสิทธิ์ด้วย?`)) return
+    const { error } = await createClient().rpc('remove_shop_person', { p_employee: emp.id, p_account: null })
+    if (error) {
+      setMsg(authErrorText(error))
+      return
+    }
+    setMsg(`ลบ ${emp.full_name} แล้ว ทั้งหน้ารายชื่อและหน้ากำหนดสิทธิ์`)
+    if (editing?.id === emp.id) {
+      setEditing(null)
+      setName('')
+      setNickname('')
+      setPosition('')
+      setPhone('')
+      setRole('staff')
+      setBranchId('')
+    }
     fetchData()
   }
 
@@ -97,8 +118,13 @@ export default function EmployeesPage() {
           <input type="text" placeholder="ชื่อเล่น เช่น ช่างทอม" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full border p-2 rounded text-black" />
           <input type="text" placeholder="ตำแหน่ง เช่น ช่างซ่อม เสมียน" value={position} onChange={(e) => setPosition(e.target.value)} className="w-full border p-2 rounded text-black" />
           <input type="text" placeholder="เบอร์โทร" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full border p-2 rounded text-black" />
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full border p-2 rounded text-black">
+          <select value={role} onChange={(e) => {
+            const next = e.target.value
+            setRole(next)
+            if (next === 'technician' && !position.trim()) setPosition('ช่าง')
+          }} className="w-full border p-2 rounded text-black">
             <option value="staff">พนักงาน</option>
+            <option value="technician">ช่าง</option>
             <option value="manager">ผู้จัดการสาขา</option>
             <option value="admin">แอดมิน สั่งพิมพ์ได้ทุกสาขา</option>
           </select>
@@ -129,9 +155,9 @@ export default function EmployeesPage() {
               <div className="text-sm text-gray-400">{emp.branches?.name || '-'}</div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm bg-gray-700 px-3 py-1 rounded">{emp.role}</span>
+              <span className="text-sm bg-gray-700 px-3 py-1 rounded">{ROLE_TEXT[emp.role] || emp.role || 'พนักงาน'}</span>
               <button onClick={() => startEdit(emp)} className="text-blue-400 text-sm">แก้ไข</button>
-              <button onClick={() => deleteEmployee(emp.id)} className="text-red-400 text-sm">ลบ</button>
+              <button onClick={() => deleteEmployee(emp)} className="text-red-400 text-sm">ลบ</button>
             </div>
           </div>
         ))}
@@ -139,3 +165,4 @@ export default function EmployeesPage() {
     </div>
   )
 }
+// deleting here also removes the login on the access page
