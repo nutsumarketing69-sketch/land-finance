@@ -3,17 +3,27 @@
 import { useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
+
+type Seek = 'all' | 'vehicle' | 'bill' | 'customer'
+const SEEKS: { id: Seek; label: string }[] = [
+  { id: 'all', label: 'ทั้งหมด' },
+  { id: 'vehicle', label: 'รถ' },
+  { id: 'bill', label: 'บิล' },
+  { id: 'customer', label: 'ลูกค้า' },
+]
 
 export default function SearchPage() {
   const { showPrice } = useAccess()
   const [keyword, setKeyword] = useState('')
+  const [mode, setMode] = useState<Seek>('all')
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const [capped, setCapped] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleSearch = async (value = keyword) => {
+  const handleSearch = async (value = keyword, seek: Seek = mode) => {
     const word = value.trim().replace(/[,()%_]/g, '')
     if (!word) {
       setResults([])
@@ -26,26 +36,35 @@ export default function SearchPage() {
 
     const supabase = createClient()
     const q = `%${word}%`
+    const wantVehicle = seek === 'all' || seek === 'vehicle'
+    const wantCustomer = seek === 'all' || seek === 'customer'
+    const wantBill = seek === 'all' || seek === 'bill'
 
     const [vehiclesRes, customersRes, billsRes] = await Promise.all([
-      supabase
-        .from('vehicles')
-        .select('*, customers(full_name, phone, address)')
-        .or(`license_plate.ilike.${q},brand.ilike.${q},model.ilike.${q},color.ilike.${q}`)
-        .limit(40),
+      wantVehicle
+        ? supabase
+          .from('vehicles')
+          .select('*, customers(full_name, phone, address)')
+          .or(`license_plate.ilike.${q},brand.ilike.${q},model.ilike.${q},color.ilike.${q}`)
+          .limit(40)
+        : Promise.resolve({ data: [] }),
 
-      supabase
-        .from('customers')
-        .select('id, full_name, phone, address, tax_id')
-        .or(`full_name.ilike.${q},phone.ilike.${q},address.ilike.${q},tax_id.ilike.${q}`)
-        .limit(30),
+      wantCustomer
+        ? supabase
+          .from('customers')
+          .select('id, full_name, phone, address, tax_id')
+          .or(`full_name.ilike.${q},phone.ilike.${q},address.ilike.${q},tax_id.ilike.${q}`)
+          .limit(30)
+        : Promise.resolve({ data: [] }),
 
-      supabase
-        .from('bills')
-        .select('id, bill_no, customer_name, phone, license_plate, car_info, total, created_at, voided_at')
-        .or(`license_plate.ilike.${q},customer_name.ilike.${q},car_info.ilike.${q},bill_no.ilike.${q}`)
-        .order('created_at', { ascending: false })
-        .limit(30),
+      wantBill
+        ? supabase
+          .from('bills')
+          .select('id, bill_no, customer_name, phone, license_plate, car_info, total, created_at, voided_at')
+          .or(`license_plate.ilike.${q},customer_name.ilike.${q},car_info.ilike.${q},bill_no.ilike.${q}`)
+          .order('created_at', { ascending: false })
+          .limit(30)
+        : Promise.resolve({ data: [] }),
     ])
 
     const vehicles = vehiclesRes.data || []
@@ -63,8 +82,9 @@ export default function SearchPage() {
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
       <a href="/" className="inline-block mb-4 border border-gray-600 rounded-full px-4 py-2 text-sm">กลับหน้าหลัก</a>
-      <h1 className="text-2xl font-bold mb-2">ค้นหาขั้นสูง</h1>
-      <p className="text-sm text-gray-400 mb-4">พิมพ์ตัวเดียวก็ขึ้น ทั้งป้าย ชื่อ เบอร์ ยี่ห้อ และเลขที่บิล เช่น 69-031</p>
+      <SectionBar desk="lookup" />
+      <h1 className="text-2xl font-bold mb-2">ค้นหา</h1>
+      <p className="text-sm text-gray-400 mb-4">เลือกก่อนว่าจะหาอะไร แล้วพิมพ์ได้ตั้งแต่ตัวเดียว ทั้งป้าย ชื่อ เบอร์ ยี่ห้อ และเลขที่บิล เช่น 69-031</p>
 
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <input
@@ -87,6 +107,22 @@ export default function SearchPage() {
         >
           {loading ? 'กำลังค้นหา...' : 'ค้นหา'}
         </button>
+      </div>
+
+      <div className="mb-4 flex gap-2 overflow-x-auto">
+        {SEEKS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              setMode(item.id)
+              void handleSearch(keyword, item.id)
+            }}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm ${mode === item.id ? 'bg-red-600 font-semibold text-white' : 'border border-gray-600 text-gray-100'}`}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       {capped && <p className="text-amber-300 text-sm mb-3">แสดงเฉพาะชุดแรก พิมพ์เพิ่มอีกตัวเพื่อให้แคบลง</p>}
@@ -148,3 +184,4 @@ export default function SearchPage() {
     </div>
   )
 }
+// search stays on this page and the chips pick car bill or customer
