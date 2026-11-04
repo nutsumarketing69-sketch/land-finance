@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams } from 'next/navigation'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 function dayText(value: string) {
   if (!value) return '-'
@@ -59,6 +60,7 @@ function HistoryContent() {
   return (
     <div className="p-4 sm:p-8 max-w-3xl mx-auto pb-24">
       <a href="/" className="inline-block mb-4 border border-gray-600 rounded-full px-4 py-2 text-sm">กลับหน้าหลัก</a>
+      <SectionBar desk="lookup" />
       <h1 className="text-2xl font-bold mb-4">ประวัติรถ</h1>
       <p className="text-sm text-gray-400 mb-4">พิมพ์เลขในป้าย แม้แค่ตัวเดียว แล้วเลือกคันที่ต้องการ</p>
 
