@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useStaff } from '@/app/components/AuthShell'
 import { CAPS, explicitPermissions } from '@/lib/access'
 import { authErrorText, ROLE_LABEL, type StaffAccount } from '@/lib/staff'
+import SectionBar from '@/app/components/SectionBar'
 
 const ROLES = [
   { id: 'staff', label: 'พนักงาน' },
@@ -99,6 +100,7 @@ export default function AccessPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 pb-24 text-white">
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
+      <SectionBar desk="shop" />
       <h1 className="text-2xl font-bold">กำหนดสิทธิ์พนักงาน</h1>
       <p className="mt-2 text-sm text-gray-300">
         ระดับช่างไม่เห็นราคา แต่เปิดบิลได้ พนักงานหน้าร้านใช้งานหน้าร้าน ผู้จัดการสาขาส่งพิมพ์ข้ามสาขาได้
