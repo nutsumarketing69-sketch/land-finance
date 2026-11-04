@@ -16,11 +16,10 @@ export const DESKS: Desk[] = [
   {
     id: 'lookup',
     title: 'ค้นหาและประวัติ',
-    note: 'สลับหัวข้อในแถบนี้ได้เลย ไม่ต้องกลับหน้าหลัก',
+    note: 'กดหัวข้อแล้วเปลี่ยนเฉพาะด้านล่างทันที ไม่โหลดหน้าใหม่',
     items: [
       { href: '/search', label: 'ค้นหา', cap: 'search' },
       { href: '/bills', label: 'ประวัติบิล', cap: 'bills' },
-      { href: '/bills-by-branch', label: 'บิลตามสาขา', cap: 'bills' },
       { href: '/history', label: 'ประวัติรถ', cap: 'history' },
       { href: '/jobs', label: 'งานซ่อม', cap: 'jobs' },
       { href: '/jobs-by-branch', label: 'งานตามสาขา', cap: 'jobs' },
@@ -30,7 +29,7 @@ export const DESKS: Desk[] = [
   {
     id: 'parts',
     title: 'อะไหล่และสต็อก',
-    note: 'รายการสินค้ากับจำนวนคงเหลืออยู่ในชุดเดียวกัน',
+    note: 'กดหัวข้อแล้วเปลี่ยนเฉพาะด้านล่างทันที ไม่โหลดหน้าใหม่',
     items: [
       { href: '/parts', label: 'อะไหล่ / บริการ', cap: 'parts' },
       { href: '/stock', label: 'สต็อก', cap: 'stock' },
@@ -39,7 +38,7 @@ export const DESKS: Desk[] = [
   {
     id: 'customers',
     title: 'ลูกค้า',
-    note: 'รายชื่อ การเพิ่มลูกค้า และการเพิ่มรถอยู่ในชุดเดียวกัน',
+    note: 'กดหัวข้อแล้วเปลี่ยนเฉพาะด้านล่างทันที ไม่โหลดหน้าใหม่',
     items: [
       { href: '/customers', label: 'รายชื่อลูกค้า', cap: 'customers' },
       { href: '/customer/new', label: 'เพิ่มลูกค้า', cap: 'customers' },
@@ -49,7 +48,7 @@ export const DESKS: Desk[] = [
   {
     id: 'money',
     title: 'รายงาน',
-    note: 'ยอดเงินทุกแบบสลับได้จากแถบนี้',
+    note: 'กดหัวข้อแล้วเปลี่ยนเฉพาะด้านล่างทันที ไม่โหลดหน้าใหม่',
     items: [
       { href: '/report', label: 'รายวัน', cap: 'reports' },
       { href: '/report-advanced', label: 'ช่วงเวลา', cap: 'reports' },
@@ -63,7 +62,7 @@ export const DESKS: Desk[] = [
   {
     id: 'shop',
     title: 'ดูแลร้าน',
-    note: 'งานตั้งค่าร้านอยู่ชุดนี้ที่เดียว สลับได้จากแถบนี้',
+    note: 'กดหัวข้อแล้วเปลี่ยนเฉพาะด้านล่างทันที ไม่โหลดหน้าใหม่',
     items: [
       { href: '/approvals', label: 'อนุมัติ', admin: true },
       { href: '/access', label: 'กำหนดสิทธิ์', cap: 'access' },
@@ -99,3 +98,4 @@ export function firstDeskHref(
   return desk.items.find((item) => canOpenDeskItem(item, can, role))?.href || ''
 }
 // home cards and the in-page bars share this desk list
+// topic changes stay on this list and do not open another address
