@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import SectionBar from '@/app/components/SectionBar'
 
 type Bill = {
   id: string
@@ -100,6 +101,7 @@ export default function SummaryPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 pb-24 text-white">
       <a href="/" className="mb-4 inline-block rounded-full border border-gray-600 px-4 py-2 text-sm">กลับหน้าหลัก</a>
+      <SectionBar desk="money" />
       <h1 className="text-2xl font-bold">สรุปทุกสาขา</h1>
       <p className="mt-2 text-sm text-gray-300">ดูรวมทุกสาขาหรือแยกสาขา เป็นรายวัน รายเดือน รายปี หรือเลือกช่วงวันที่เอง บิลที่ยกเลิกไม่นับในยอดเงิน</p>
       <div className="mt-4 flex flex-wrap gap-2">
