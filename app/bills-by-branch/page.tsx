@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function BillsByBranchPage() {
   const { showPrice } = useAccess()
@@ -51,6 +52,7 @@ export default function BillsByBranchPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-24">
+      <SectionBar desk="lookup" />
       <h1 className="text-2xl font-bold mb-6">บิลแยกตามสาขา</h1>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-end">
