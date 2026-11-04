@@ -194,7 +194,7 @@ function readAge(data: any): number | null {
 }
 
 export default function ReceiptPage() {
-  const { can, showPrice } = useAccess()
+  const { can, showPrice, account } = useAccess()
   const canManage = can('print_remote')
   const canVoid = can('void_bill')
   const canEdit = can('receipt_edit')
@@ -211,6 +211,9 @@ export default function ReceiptPage() {
   const [signDate, setSignDate] = useState('')
   const [warrantyMonths, setWarrantyMonths] = useState(0)
   const [billNo, setBillNo] = useState('')
+  const adminOnlyBill = billNo.trim() === '69-008'
+  const isAdmin = account?.role === 'admin'
+  const canEditThis = canEdit && (!adminOnlyBill || isAdmin)
   const [dateText, setDateText] = useState('')
   const [customer, setCustomer] = useState('')
   const [customerHits, setCustomerHits] = useState<any[]>([])
@@ -535,6 +538,10 @@ export default function ReceiptPage() {
   }
 
   const save = async () => {
+    if (billNoRef.current.trim() === '69-008' && account?.role !== 'admin') {
+      setMsg('บิลเลขที่ 69-008 แก้ได้เฉพาะผู้ดูแลระบบ')
+      return
+    }
     if (!canEdit) { setMsg('บัญชีนี้ดูบิลได้ แต่บันทึกบิลไม่ได้'); return }
     if (voidedAt) { setMsg('บิลนี้ถูกยกเลิกแล้ว ออกใบใหม่ได้'); return }
     if (!lines.length) { setMsg('ใส่รายการก่อนบันทึก'); return }
@@ -761,6 +768,12 @@ export default function ReceiptPage() {
           tr.spare { display:none; }
         }
       `}</style>
+
+      {adminOnlyBill && !isAdmin && (
+        <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto 10px', background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 12px' }}>
+          บิลเลขที่ 69-008 แก้ได้เฉพาะผู้ดูแลระบบ บัญชีนี้เปิดดูและพิมพ์ได้
+        </div>
+      )}
 
       {voidedAt && (
         <div className="no-print" style={{ maxWidth: '210mm', margin: '0 auto 10px', background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px' }}>
@@ -1021,7 +1034,7 @@ export default function ReceiptPage() {
       <div className="actions no-print">
         <button style={{ background: '#111' }} onClick={printHere}>พิมพ์ที่เครื่องนี้</button>
         <button style={{ background: canManage ? '#067a32' : '#9ca3af' }} onClick={sendBranch} disabled={!canManage} title={canManage ? 'ส่งตามสิทธิ์ของบัญชีที่ล็อกอิน' : 'บัญชีนี้พิมพ์ที่เครื่องนี้ได้ แต่ส่งข้ามสาขาไม่ได้'}>ส่งพิมพ์ไปสาขานี้</button>
-        <button style={{ background: canEdit ? '#1d4ed8' : '#9ca3af' }} onClick={save} disabled={!canEdit || saving || !!voidedAt}>{saving ? 'กำลังบันทึก...' : savedId ? 'บันทึกการแก้ไข' : 'บันทึกบิล'}</button>
+        <button style={{ background: canEditThis ? '#1d4ed8' : '#9ca3af' }} onClick={save} disabled={!canEditThis || saving || !!voidedAt}>{saving ? 'กำลังบันทึก...' : savedId ? 'บันทึกการแก้ไข' : 'บันทึกบิล'}</button>
         {canVoid && savedId && !voidedAt && <button style={{ background: '#b91c1c' }} onClick={cancelBill} disabled={saving}>ยกเลิกบิล</button>}
         <button style={{ background: '#4b5563' }} onClick={fresh}>ใบใหม่</button>
       </div>
@@ -1029,4 +1042,4 @@ export default function ReceiptPage() {
     </div>
   )
 }
-// bill number stays visible and follows the branch counter
+// bill 69-008 can be changed by the admin account only
