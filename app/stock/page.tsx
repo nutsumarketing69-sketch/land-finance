@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 export default function StockPage() {
   const { showPrice } = useAccess()
@@ -56,6 +57,7 @@ export default function StockPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-24">
+      <SectionBar desk="parts" />
       <h1 className="text-2xl font-bold mb-4">จัดการสต็อกอะไหล่</h1>
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="พิมพ์ชื่ออะไหล่ เช่น ก" className="w-full border border-gray-600 bg-gray-800 p-3 rounded mb-4 text-white text-lg" />
 
