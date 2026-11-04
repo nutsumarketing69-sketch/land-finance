@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccess } from '@/app/components/AuthShell'
+import SectionBar from '@/app/components/SectionBar'
 
 function localDate() {
   const date = new Date()
@@ -51,6 +52,7 @@ export default function ReportPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto pb-24">
+      <SectionBar desk="money" />
       <h1 className="text-2xl font-bold mb-2">รายงานประจำวัน</h1>
       <p className="text-sm text-gray-400 mb-4">ยอดจากบิลที่บันทึกในวันที่เลือก ไม่รวมบิลที่ยกเลิก</p>
 
