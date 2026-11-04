@@ -17,7 +17,7 @@ const DAILY: { name: string; desc: string; href: string; icon: string; cap?: str
 ]
 
 const HUBS: { desk: string; name: string; desc: string; icon: string }[] = [
-  { desk: 'lookup', name: 'ค้นหาและประวัติ', desc: 'ค้นรถ ค้นบิล เปิดบิลจริง งาน และรับประกัน', icon: '🔍' },
+  { desk: 'lookup', name: 'ค้นหาและประวัติ', desc: 'ค้นรถ ค้นบิล เปิดใบจริงตามสาขา งาน และรับประกัน', icon: '🔍' },
   { desk: 'parts', name: 'อะไหล่และสต็อก', desc: 'รายการสินค้ากับจำนวนคงเหลือ', icon: '🔧' },
   { desk: 'customers', name: 'ลูกค้า', desc: 'รายชื่อ เพิ่มลูกค้า และเพิ่มรถ', icon: '👥' },
   { desk: 'money', name: 'รายงาน', desc: 'รายวัน ยอดขาย ปิดยอด สาขา และภาพรวม', icon: '📊' },
@@ -102,3 +102,4 @@ export default function HomeMenus() {
   )
 }
 // the home screen keeps the daily work first and groups the rest
+// bill history includes the branch choice on the same page
