@@ -69,6 +69,7 @@ export async function POST(request: Request) {
     const rejected = state === 'rejected'
     const missing = state === 'missing'
     const toast = saved ? 'บันทึกพนักงานแล้ว' : rejected ? 'ไม่บันทึก' : 'บันทึกไม่สำเร็จ'
+    await telegram(token, 'answerCallbackQuery', { callback_query_id: query.id, text: toast })
     if ((saved || rejected || missing) && query.message?.chat?.id && query.message?.message_id) {
       const caption = clockCaption(String(query.message.caption || query.message.text || ''), saved ? 'บันทึกพนักงานแล้ว' : 'ไม่บันทึก')
       const edit = {
@@ -82,7 +83,6 @@ export async function POST(request: Request) {
         await telegram(token, 'editMessageText', { ...edit, text: caption })
       }
     }
-    await telegram(token, 'answerCallbackQuery', { callback_query_id: query.id, text: toast })
     return NextResponse.json({ ok: true })
   }
   const decision = data.startsWith('a:') ? 'approved' : data.startsWith('r:') ? 'rejected' : ''
@@ -109,4 +109,4 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ ok: true })
 }
-// clock approval edits the same photo caption after the row is saved
+// the button is answered before the same photo caption is updated
