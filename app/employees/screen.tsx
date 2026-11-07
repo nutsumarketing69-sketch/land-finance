@@ -86,13 +86,13 @@ export default function EmployeesPage() {
   }
 
   const deleteEmployee = async (emp: any) => {
-    if (!confirm(`ลบ ${emp.full_name} ออกจากรายชื่อพนักงาน และออกจากหน้ากำหนดสิทธิ์ด้วย?`)) return
+    if (!confirm(`ลบ ${emp.full_name} ออกจากรายชื่อทุกหน้า และหน้ากำหนดสิทธิ์? สรุปเข้างานยังเก็บวันเข้างานไว้ให้บัญชีปิดเดือน`)) return
     const { error } = await createClient().rpc('remove_shop_person', { p_employee: emp.id, p_account: null })
     if (error) {
       setMsg(authErrorText(error))
       return
     }
-    setMsg(`ลบ ${emp.full_name} แล้ว ทั้งหน้ารายชื่อและหน้ากำหนดสิทธิ์`)
+    setMsg(`ลบ ${emp.full_name} แล้วจากรายชื่อทุกหน้า สรุปเข้างานยังเก็บวันที่เข้างานไว้`)
     if (editing?.id === emp.id) {
       setEditing(null)
       setName('')
@@ -166,4 +166,5 @@ export default function EmployeesPage() {
   )
 }
 // deleting here also removes the login on the access page
+// removed staff stay on the attendance summary only
 // shown inside the desk without loading a new page
