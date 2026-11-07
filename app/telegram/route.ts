@@ -78,8 +78,19 @@ export async function POST(request: Request) {
     }
     const sent = await telegram(token, 'sendPhoto', body)
     if (clock && sent.ok) {
+      const gate = reviewGate(token)
       const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-      await supabase.rpc('clock_photo_sent', { punch_id: clock, gate: reviewGate(token) })
+      await supabase.rpc('telegram_bind_gate', { gate })
+      await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: 'https://aircon.tppth.cam/telegram/hook',
+          secret_token: gate,
+          allowed_updates: ['callback_query'],
+        }),
+      }).catch(() => null)
+      await supabase.rpc('clock_photo_sent', { punch_id: clock, gate })
     }
     return sent
   }
@@ -94,4 +105,4 @@ export async function POST(request: Request) {
   files.forEach((file, i) => body.append(`file${i}`, file, `car${i}.jpg`))
   return telegram(token, 'sendMediaGroup', body)
 }
-// a clock photo carries an approve button and other photos stay plain
+// a clock photo carries an approve button and keeps the telegram hook listening
