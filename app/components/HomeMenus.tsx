@@ -6,7 +6,7 @@ import { useAccess } from '@/app/components/AuthShell'
 import { firstDeskHref } from '@/lib/desks'
 
 const DAILY: { name: string; desc: string; href: string; icon: string; cap?: string }[] = [
-  { name: 'เข้างาน', desc: 'ถ่ายรูปยืนยันเวลาก่อน 08:00 น.', href: '/attendance', icon: '⏰', cap: 'clock' },
+  { name: 'เข้างาน', desc: 'ถ่ายรูป แล้วรออนุมัติในกลุ่ม', href: '/attendance', icon: '⏰', cap: 'clock' },
   { name: 'รับรถ', desc: 'เปิดงานใหม่ ค้นป้าย และถ่ายรถ', href: '/receive', icon: '🚗', cap: 'receive' },
   { name: 'นัดรับรถ', desc: 'วันนี้ เลยกำหนด และวันหน้า', href: '/pickup', icon: '📅', cap: 'jobs' },
   { name: 'ออกบิล', desc: 'ทำใบเสร็จ พิมพ์ และบันทึก', href: '/receipt', icon: '🧾', cap: 'receipt' },
@@ -103,3 +103,4 @@ export default function HomeMenus() {
 }
 // the home screen keeps the daily work first and groups the rest
 // bill history includes the branch choice on the same page
+// clock in waits for a telegram approval before the monthly sheet
