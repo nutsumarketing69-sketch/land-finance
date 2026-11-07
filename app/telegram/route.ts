@@ -1,6 +1,12 @@
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from '@/lib/supabase/public'
 
 const PHOTO_KEYS = Array.from({ length: 15 }, (_, i) => `photo${i}`).concat('photo')
+
+function reviewGate(token: string) {
+  return (token.split(':')[1] || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)
+}
 
 async function telegram(token: string, method: string, body: FormData) {
   const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: 'POST', body })
@@ -54,11 +60,28 @@ export async function POST(request: Request) {
   }
 
   if (files.length === 1) {
+    const clock = String(incoming.get('clock') || '')
+    if (clock && !/^[0-9a-f-]{36}$/i.test(clock)) {
+      return NextResponse.json({ ok: false, message: 'รหัสเข้างานไม่ถูกต้อง' }, { status: 400 })
+    }
     const body = new FormData()
     body.append('chat_id', chatId)
     body.append('caption', caption)
-    body.append('photo', files[0], 'car.jpg')
-    return telegram(token, 'sendPhoto', body)
+    body.append('photo', files[0], clock ? 'clock.jpg' : 'car.jpg')
+    if (clock) {
+      body.append('reply_markup', JSON.stringify({
+        inline_keyboard: [[
+          { text: 'อนุมัติ', callback_data: `c:${clock}` },
+          { text: 'ไม่ผ่าน', callback_data: `x:${clock}` },
+        ]],
+      }))
+    }
+    const sent = await telegram(token, 'sendPhoto', body)
+    if (clock && sent.ok) {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      await supabase.rpc('clock_photo_sent', { punch_id: clock, gate: reviewGate(token) })
+    }
+    return sent
   }
 
   const body = new FormData()
@@ -71,4 +94,4 @@ export async function POST(request: Request) {
   files.forEach((file, i) => body.append(`file${i}`, file, `car${i}.jpg`))
   return telegram(token, 'sendMediaGroup', body)
 }
-// clips are sent one at a time so each stays under the host limit
+// a clock photo carries an approve button and other photos stay plain
