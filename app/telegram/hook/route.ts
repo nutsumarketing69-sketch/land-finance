@@ -7,11 +7,20 @@ function reviewGate(token: string) {
 }
 
 async function telegram(token: string, method: string, body: Record<string, unknown>) {
-  await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+  const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  const data = await res.json().catch(() => ({ ok: false }))
+  return data.ok === true
+}
+
+function clockCaption(caption: string, status: string) {
+  const lines = String(caption || '').replace(/\r/g, '').split('\n').filter((line) => line.trim() && !line.startsWith('สถานะ:'))
+  if (!lines.length) lines.push('เข้างาน รัษฎาแอร์')
+  lines.push(`สถานะ: ${status}`)
+  return lines.join('\n').slice(0, 1024)
 }
 
 export async function GET() {
@@ -42,6 +51,40 @@ export async function POST(request: Request) {
   const query = update?.callback_query
   if (!query) return NextResponse.json({ ok: true })
   const data = String(query.data || '')
+  if (data.startsWith('c:') || data.startsWith('x:')) {
+    const punchId = data.slice(2)
+    const approve = data.startsWith('c:')
+    if (!/^[0-9a-f-]{36}$/i.test(punchId)) {
+      await telegram(token, 'answerCallbackQuery', { callback_query_id: query.id, text: 'คำสั่งไม่ถูกต้อง' })
+      return NextResponse.json({ ok: true })
+    }
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const reviewed = await supabase.rpc('telegram_clock', {
+      punch_id: punchId,
+      decision: approve ? 'approved' : 'rejected',
+      gate,
+    })
+    const state = reviewed.error ? '' : String(reviewed.data || '')
+    const saved = state === 'saved' || state === 'already'
+    const rejected = state === 'rejected'
+    const missing = state === 'missing'
+    const toast = saved ? 'บันทึกพนักงานแล้ว' : rejected ? 'ไม่บันทึก' : 'บันทึกไม่สำเร็จ'
+    if ((saved || rejected || missing) && query.message?.chat?.id && query.message?.message_id) {
+      const caption = clockCaption(String(query.message.caption || query.message.text || ''), saved ? 'บันทึกพนักงานแล้ว' : 'ไม่บันทึก')
+      const edit = {
+        chat_id: query.message.chat.id,
+        message_id: query.message.message_id,
+        reply_markup: { inline_keyboard: [] },
+      }
+      if (query.message.photo) {
+        await telegram(token, 'editMessageCaption', { ...edit, caption })
+      } else {
+        await telegram(token, 'editMessageText', { ...edit, text: caption })
+      }
+    }
+    await telegram(token, 'answerCallbackQuery', { callback_query_id: query.id, text: toast })
+    return NextResponse.json({ ok: true })
+  }
   const decision = data.startsWith('a:') ? 'approved' : data.startsWith('r:') ? 'rejected' : ''
   const accountId = data.slice(2)
   if (!decision || !/^[0-9a-f-]{36}$/i.test(accountId)) {
@@ -66,4 +109,4 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ ok: true })
 }
-// the approve button is answered here
+// clock approval edits the same photo caption after the row is saved
