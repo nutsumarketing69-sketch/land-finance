@@ -56,7 +56,7 @@ export default function AccessPage() {
       setMsg('ต้องเหลือผู้ดูแลระบบอย่างน้อย 1 คน')
       return
     }
-    if (!confirm(`ลบ ${row.full_name} ออกจากหน้านี้ และออกจากรายชื่อพนักงานด้วย?`)) return
+    if (!confirm(`ลบ ${row.full_name} ออกจากหน้านี้ รายชื่อพนักงาน และรายชื่อทุกหน้า? สรุปเข้างานยังเก็บวันเข้างานไว้ให้บัญชีปิดเดือน`)) return
     setBusy(true)
     const { error } = await createClient().rpc('remove_shop_person', {
       p_employee: row.employee_id,
@@ -68,7 +68,7 @@ export default function AccessPage() {
       return
     }
     if (current === row.id) setCurrent('')
-    setMsg(`ลบ ${row.full_name} แล้ว ทั้งหน้านี้และหน้ารายชื่อพนักงาน`)
+    setMsg(`ลบ ${row.full_name} แล้วจากรายชื่อทุกหน้า สรุปเข้างานยังเก็บวันที่เข้างานไว้`)
     await load()
   }
 
@@ -165,4 +165,5 @@ export default function AccessPage() {
   )
 }
 // deleting a person here removes the same person from the employee list
+// removed staff stay on the attendance summary only
 // shown inside the desk without loading a new page
