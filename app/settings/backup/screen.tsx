@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import LandNav from "@/app/components/LandNav";
 import * as XLSX from "xlsx";
 import {
   backupToWorkbook,
@@ -82,6 +83,7 @@ export default function BackupScreen({
   }
 
   return (
+    <LandNav preview={preview}>
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100 sm:px-6">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
         <header>
@@ -110,8 +112,9 @@ export default function BackupScreen({
         </label>
         {summary ? <p data-testid="restore-summary" className="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-emerald-200">{summary}</p> : null}
         {busy ? <p className="text-sm text-slate-400">กำลังตรวจสอบไฟล์</p> : null}
-        <Link href="/dashboard" className="text-sm text-amber-200">กลับแดชบอร์ด</Link>
+        <Link href={preview ? "/dashboard?preview=1" : "/dashboard"} className="text-sm text-amber-200">กลับแดชบอร์ด</Link>
       </div>
     </main>
+    </LandNav>
   );
 }

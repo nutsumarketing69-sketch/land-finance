@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import LandNav from "@/app/components/LandNav";
 import { createClient } from "@/lib/supabase/server";
 import { CONTRACT_TYPE_LABELS, formatBaht, type ContractType } from "@/lib/financeCalculator";
 
@@ -40,6 +41,7 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
   }
 
   return (
+    <LandNav>
     <main className="min-h-screen bg-[#0c1210] px-4 py-8 text-white sm:px-6">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
         <p className="text-xs font-semibold tracking-[0.18em] text-emerald-200/80">สัญญาที่บันทึกแล้ว</p>
@@ -73,5 +75,6 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
         </Link>
       </div>
     </main>
+    </LandNav>
   );
 }

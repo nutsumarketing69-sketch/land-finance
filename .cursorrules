@@ -1,0 +1,14 @@
+# Project Rules: Land Finance & Brokerage Management System
+
+## Tech Stack & Architecture
+- Framework: Next.js 14+ (App Router) with TypeScript (Strict mode).
+- Styling: Tailwind CSS with Lucide React icons, mobile-first responsive design.
+- Database & Auth: Supabase (PostgreSQL with RLS enabled).
+- Math & Financial Calculations: `decimal.js` (MANDATORY for all interest, LTV, and commission calculations to ensure 100% precision).
+- Date Handling: `date-fns` for contract durations and expiry tracking.
+
+## Coding Standards
+1. NEVER use native JS `number` or `Math` operations for financial calculations (interest, principal, splits). Always use `Decimal` from `decimal.js`.
+2. All components must be fully responsive: optimized for touch targets on Mobile and iPad, and structured with multi-column grids for Desktop.
+3. Use Supabase Server Actions or Route Handlers securely with RLS verification.
+4. Keep code modular, clean, and well-commented in Thai/English where appropriate for business logic.

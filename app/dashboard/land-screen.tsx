@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Calculator, Search } from "lucide-react";
+import { Bell, Calculator, Copy, Phone, Search } from "lucide-react";
+import LandNav from "@/app/components/LandNav";
 import ReferralProfile from "@/app/components/ReferralProfile";
 import { playAlertChime } from "@/lib/alertSound";
 import {
@@ -65,6 +66,7 @@ export default function DashboardScreen({
   const [notice, setNotice] = useState("");
   const [payoffId, setPayoffId] = useState("");
   const [payoffDate, setPayoffDate] = useState("");
+  const [copiedDeed, setCopiedDeed] = useState("");
   const played = useRef(false);
 
   useEffect(() => {
@@ -72,6 +74,8 @@ export default function DashboardScreen({
     setToday(current);
     setPayoffDate(current);
     setSoundOn(window.localStorage.getItem(SOUND_KEY) === "1");
+    if (window.location.hash === "#land-omnibox") document.getElementById("land-omnibox")?.focus();
+    if (window.location.hash === "#land-profile") document.getElementById("land-profile")?.scrollIntoView();
   }, []);
 
   const alerts = useMemo(() => {
@@ -129,7 +133,24 @@ export default function DashboardScreen({
     setNotice(`ส่งแล้ว ${count} สัญญา`);
   }
 
+  async function copyDeed(deed: string) {
+    if (!deed) return;
+    try {
+      await navigator.clipboard.writeText(deed);
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = deed;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    setCopiedDeed(deed);
+    window.setTimeout(() => setCopiedDeed(""), 1500);
+  }
+
   return (
+    <LandNav preview={preview}>
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
         <header className="flex flex-col gap-4">
@@ -152,13 +173,16 @@ export default function DashboardScreen({
               โหมดตัวอย่าง ข้อมูลนี้ไม่ได้มาจากบัญชีที่เข้าสู่ระบบ และยังไม่ถูกเขียนลงฐานข้อมูล
             </p>
           ) : null}
-          <ReferralProfile profile={profile} />
+          <div id="land-profile">
+            <ReferralProfile profile={profile} />
+          </div>
         </header>
 
         <label className="relative block">
           <span className="sr-only">ค้นหาสัญญา</span>
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-amber-300" />
           <input
+            id="land-omnibox"
             data-testid="omnibox"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -215,40 +239,60 @@ export default function DashboardScreen({
 
             {notice ? <p data-testid="upline-notice" className="text-sm text-amber-200">{notice}</p> : null}
 
-            <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {visible.map((contract) => (
-                <article key={contract.id} data-testid="contract-card" className="flex flex-col gap-3 rounded-3xl border border-slate-700 bg-slate-900 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs text-amber-300">{typeLabel(contract.contractType)}</p>
-                      <h3 className="text-lg font-semibold text-white">{contract.contractNumber || "ไม่มีเลขสัญญา"}</h3>
-                      <p className="text-sm text-slate-300">{contract.customerName || "ไม่ระบุชื่อ"} · {contract.customerPhone || "ไม่มีเบอร์"}</p>
-                    </div>
-                    {tab === "owned" ? (
-                      <input
-                        data-testid={`select-${contract.id}`}
-                        type="checkbox"
-                        className="mt-1 h-5 w-5 accent-amber-400"
-                        checked={selected.includes(contract.id)}
-                        onChange={() => toggleSelected(contract.id)}
-                        aria-label={`เลือก ${contract.contractNumber}`}
-                      />
-                    ) : null}
-                  </div>
-                  <p className="text-emerald-300">{money(contract.principal)}</p>
-                  <p className="text-sm text-slate-400">โฉนด {contract.deedNumber || "-"} · {contract.district} {contract.province}</p>
-                  <p className="text-sm text-slate-400">ถึง {contract.endDate || "-"}</p>
-                  <button
-                    type="button"
-                    data-testid={`payoff-${contract.id}`}
-                    onClick={() => { setPayoffId(contract.id); setPayoffDate(today || contract.endDate); }}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-300/40 px-3 py-2 text-sm text-emerald-200"
-                  >
-                    <Calculator className="h-4 w-4" />
-                    คำนวณยอดปิด
-                  </button>
-                </article>
-              ))}
+            <section>
+              <div data-testid="contract-cards" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:hidden">
+                {visible.map((contract) => (
+                  <article key={contract.id} data-testid="contract-card" className="flex flex-col gap-3 rounded-3xl border border-slate-700 bg-slate-900 p-4">
+                    <ContractHeading contract={contract} owned={tab === "owned"} selected={selected.includes(contract.id)} onSelect={() => toggleSelected(contract.id)} />
+                    <p className="text-emerald-300">{money(contract.principal)}</p>
+                    <p className="text-sm text-slate-400">{contract.district} {contract.province} · ถึง {contract.endDate || "-"}</p>
+                    <ContractTools
+                      contract={contract}
+                      copied={copiedDeed === contract.deedNumber}
+                      onCopy={() => void copyDeed(contract.deedNumber)}
+                      onPayoff={() => { setPayoffId(contract.id); setPayoffDate(today || contract.endDate); }}
+                    />
+                  </article>
+                ))}
+              </div>
+              <div data-testid="contract-table" className="hidden overflow-x-auto rounded-3xl border border-slate-700 xl:block">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="text-slate-400">
+                    <tr>
+                      <th className="px-4 py-3">สัญญา</th>
+                      <th className="px-4 py-3">ลูกค้า</th>
+                      <th className="px-4 py-3">เงินต้น</th>
+                      <th className="px-4 py-3">โฉนด</th>
+                      <th className="px-4 py-3">ถึง</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((contract) => (
+                      <tr key={contract.id} className="border-t border-slate-800">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {tab === "owned" ? (
+                              <input type="checkbox" className="h-5 w-5 accent-amber-400" checked={selected.includes(contract.id)} onChange={() => toggleSelected(contract.id)} aria-label={`เลือก ${contract.contractNumber}`} />
+                            ) : null}
+                            <span>{contract.contractNumber || "ไม่มีเลขสัญญา"}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{contract.customerName || "ไม่ระบุชื่อ"}</td>
+                        <td className="px-4 py-3 text-emerald-300">{money(contract.principal)}</td>
+                        <td className="px-4 py-3">
+                          <ContractTools
+                            contract={contract}
+                            copied={copiedDeed === contract.deedNumber}
+                            onCopy={() => void copyDeed(contract.deedNumber)}
+                            onPayoff={() => { setPayoffId(contract.id); setPayoffDate(today || contract.endDate); }}
+                          />
+                        </td>
+                        <td className="px-4 py-3">{contract.endDate || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               {!visible.length ? <p className="text-sm text-slate-400">ยังไม่มีสัญญาในแท็บนี้</p> : null}
             </section>
           </>
@@ -256,7 +300,7 @@ export default function DashboardScreen({
       </div>
 
       {tab === "owned" && selected.length > 0 ? (
-        <div data-testid="upline-bar" className="fixed inset-x-3 bottom-4 z-40 mx-auto flex max-w-3xl flex-col gap-3 rounded-3xl border border-amber-300/50 bg-slate-900/95 p-4 shadow-2xl sm:flex-row sm:items-center sm:justify-between">
+        <div data-testid="upline-bar" className="fixed inset-x-3 bottom-24 z-40 mx-auto flex max-w-3xl flex-col gap-3 rounded-3xl border border-amber-300/50 bg-slate-900/95 p-4 shadow-2xl sm:flex-row sm:items-center sm:justify-between md:bottom-4">
           <p className="text-sm text-amber-100">เลือกแล้ว {selected.length} สัญญา</p>
           <button type="button" data-testid="send-upline" onClick={() => setConfirming(true)} className="rounded-full bg-amber-400 px-4 py-3 text-sm font-semibold text-slate-950">
             ส่งสัญญาขึ้นต้นทาง (Send Selected to Upline)
@@ -281,6 +325,77 @@ export default function DashboardScreen({
         <PayoffModal contract={payoff} date={payoffDate} onDate={setPayoffDate} onClose={() => setPayoffId("")} />
       ) : null}
     </main>
+    </LandNav>
+  );
+}
+
+function ContractHeading({
+  contract,
+  owned,
+  selected,
+  onSelect,
+}: {
+  contract: DashboardContract;
+  owned: boolean;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-xs text-amber-300">{typeLabel(contract.contractType)}</p>
+        <h3 className="text-lg font-semibold text-white">{contract.contractNumber || "ไม่มีเลขสัญญา"}</h3>
+        <p className="text-sm text-slate-300">{contract.customerName || "ไม่ระบุชื่อ"}</p>
+      </div>
+      {owned ? (
+        <input
+          data-testid={`select-${contract.id}`}
+          type="checkbox"
+          className="mt-1 h-5 w-5 accent-amber-400"
+          checked={selected}
+          onChange={onSelect}
+          aria-label={`เลือก ${contract.contractNumber}`}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ContractTools({
+  contract,
+  copied,
+  onCopy,
+  onPayoff,
+}: {
+  contract: DashboardContract;
+  copied: boolean;
+  onCopy: () => void;
+  onPayoff: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <a
+        data-testid="call-customer"
+        href={contract.customerPhone ? `tel:${contract.customerPhone}` : undefined}
+        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-400 px-3 text-sm font-semibold text-slate-950"
+      >
+        <Phone className="h-4 w-4" />
+        โทร
+      </a>
+      <button type="button" data-testid="copy-deed" onClick={onCopy} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-amber-300/50 px-3 text-sm text-amber-100">
+        <Copy className="h-4 w-4" />
+        {copied ? "คัดลอกแล้ว" : `คัดลอกโฉนด ${contract.deedNumber || "-"}`}
+      </button>
+      <button
+        type="button"
+        data-testid={`payoff-${contract.id}`}
+        onClick={onPayoff}
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-emerald-300/40 px-3 text-sm text-emerald-200"
+      >
+        <Calculator className="h-4 w-4" />
+        คำนวณยอดปิด
+      </button>
+    </div>
   );
 }
 
