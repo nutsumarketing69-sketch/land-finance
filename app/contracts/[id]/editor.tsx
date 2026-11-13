@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { calculateContractPayoff } from "@/lib/financeEngine";
+import { calculateContractPayoff, validateLTV } from "@/lib/financeEngine";
 import { CONTRACT_TYPE_LABELS, CONTRACT_TYPES, PRESET_INTEREST_RATES, formatBaht, type ContractType } from "@/lib/financeCalculator";
 import { createClient } from "@/lib/supabase/client";
 
@@ -294,6 +294,12 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
           </button>
         ))}
       </div>
+      <p data-testid="detail-ltv" className="text-sm text-emerald-100">
+        {(() => {
+          const check = validateLTV(contractType, Number(principal) || 0, Number(appraised) || 0);
+          return `LTV ${check.ltvPercentage.toFixed(2)}% · ช่วงแนะนำ ${check.minAllowed.toLocaleString("th-TH")}–${check.maxAllowed.toLocaleString("th-TH")} บาท${check.warning ? ` · ${check.warning}` : ""}`;
+        })()}
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">เงินต้น<input data-testid="principal" className={field} value={principal} onChange={(event) => setPrincipal(event.target.value)} /></label>
         <label className="text-sm">งวดดอกเบี้ย
