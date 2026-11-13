@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Phone, ShieldAlert, UserRound } from "lucide-react";
+import { Eye, EyeOff, Lock, Phone, UserRound } from "lucide-react";
+import LandScreen, { landButtonClass, landFieldClass } from "@/app/components/LandScreen";
 import { createClient } from "@/lib/supabase/client";
 import { asUuid } from "@/lib/landProfile";
 import {
@@ -163,31 +164,17 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
 
   if (gate === "restricted") {
     return (
-      <main className="min-h-screen bg-[#0c1210] px-4 py-10 text-white">
-        <div className="mx-auto w-full max-w-md rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-            <ShieldAlert className="h-6 w-6" aria-hidden="true" />
-          </div>
-          <p className="mt-5 text-xs font-semibold tracking-[0.16em] text-amber-700">Access Restricted</p>
-          <h1 className="mt-1 text-2xl font-semibold">ต้องใช้ลิงก์แนะนำ</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            Referral Link Required. หน้าสมัครเปิดเฉพาะผู้ที่ได้รับลิงก์แนะนำ หากไม่มีรหัสเชิญ หรือรหัสไม่ตรงกับระบบ แบบฟอร์มจะไม่แสดง
-          </p>
-          <Link href="/login" className="mt-6 block rounded-2xl bg-slate-900 py-3 text-center text-base font-semibold text-white">
-            กลับไปเข้าสู่ระบบ
-          </Link>
-        </div>
-      </main>
+      <LandScreen title="Access Restricted" lede="Referral Link Required. หน้านี้เปิดเฉพาะผู้ที่ได้รับลิงก์แนะนำ หากไม่มีรหัสเชิญ หรือรหัสไม่ตรงกับระบบ แบบฟอร์มจะไม่แสดง">
+        <Link href="/login" className={`block text-center ${landButtonClass()}`}>
+          กลับไปเข้าสู่ระบบ
+        </Link>
+      </LandScreen>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#0c1210] px-4 py-10 text-white">
-      <div className="mx-auto w-full max-w-md">
-        <p className="text-xs font-semibold tracking-[0.16em] text-emerald-200/80">ขายฝาก · จำนอง · จำนำโฉนด</p>
-        <h1 className="mt-1 text-2xl font-semibold">สมัครสมาชิก</h1>
-        <p className="mt-1 text-sm text-emerald-50/80">รหัสแนะนำมาจากลิงก์ที่เปิดหน้านี้อยู่แล้ว</p>
-        <form onSubmit={submit} className="mt-5 rounded-3xl bg-white p-5 text-slate-900 shadow-2xl sm:p-6">
+    <LandScreen title="เปิดบัญชีจากลิงก์แนะนำ" lede="รหัสแนะนำมาจากลิงก์ที่เปิดหน้านี้อยู่แล้ว">
+      <form onSubmit={submit}>
           <Field id="full-name" label="ชื่อ-นามสกุล" icon={<UserRound className="h-4 w-4 text-slate-400" />}>
             <input
               id="full-name"
@@ -231,17 +218,16 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
               className="w-full bg-transparent py-3 text-base outline-none"
             />
           </Field>
-          {inviterId && <p className="mt-3 text-xs text-emerald-700">ลิงก์แนะนำนี้ใช้สมัครได้</p>}
-          {error && <p className="mt-4 rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-          <button type="submit" disabled={busy} className="mt-5 w-full rounded-2xl bg-emerald-700 py-3 text-base font-semibold text-white disabled:opacity-60">
-            {busy ? "กำลังสมัคร..." : "สมัครสมาชิก"}
+          {inviterId && <p className="mt-3 text-xs text-emerald-300">ลิงก์แนะนำนี้ใช้เปิดบัญชีได้</p>}
+          {error && <p className="mt-4 rounded-2xl bg-rose-950 px-3 py-2 text-sm text-rose-200">{error}</p>}
+          <button type="submit" disabled={busy} className={`mt-5 ${landButtonClass()}`}>
+            {busy ? "กำลังบันทึก..." : "สร้างบัญชี"}
           </button>
-          <Link href="/login" className="mt-4 block text-center text-sm font-medium text-emerald-800">
+          <Link href="/login" className="mt-4 block text-center text-sm font-medium text-amber-100">
             มีบัญชีแล้ว เข้าสู่ระบบ
           </Link>
         </form>
-      </div>
-    </main>
+    </LandScreen>
   );
 }
 
@@ -257,9 +243,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="mt-4 block text-sm font-medium first:mt-0" htmlFor={id}>
+    <label className="mt-4 block text-sm font-medium text-slate-200 first:mt-0" htmlFor={id}>
       {label}
-      <span className="mt-1 flex items-center gap-2 rounded-2xl border border-slate-200 px-3 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-100">
+      <span className={landFieldClass()}>
         {icon}
         {children}
       </span>

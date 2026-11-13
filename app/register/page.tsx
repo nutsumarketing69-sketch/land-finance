@@ -14,8 +14,8 @@ export default function RegisterPage({
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[#0c1210] px-6 text-sm text-emerald-100">
-          กำลังเปิดหน้าสมัคร
+        <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-sm text-slate-300">
+          กำลังเปิดหน้า
         </main>
       }
     >

@@ -137,16 +137,7 @@ export default function LoginPage() {
         >
           {busy ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
         </button>
-        <a
-          href="/signup"
-          className="block w-full rounded-xl border border-red-200 py-3 text-center text-base font-semibold text-red-700"
-        >
-          สมัครสมาชิก
-        </a>
-        <p className="text-center text-xs leading-5 text-gray-500">
-          พนักงานใหม่สมัครเสร็จ รอผู้ดูแลระบบอนุมัติ
-        </p>
-        <a href="/forgot" className="-mt-1 block pr-0.5 text-right text-sm text-gray-500">
+        <a href="/forgot" className="block pr-0.5 text-right text-sm text-gray-500">
           ลืมรหัสผ่าน
         </a>
       </form>

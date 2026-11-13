@@ -25,7 +25,7 @@ export default function AuthFrame({
           <div className="px-5 py-6 sm:px-7">{children}</div>
         </div>
         <p className="mt-4 text-center text-xs leading-5 text-red-100/80">
-          ระบบพนักงานรัษฎาแอร์ · สมัครได้จากหน้านี้ และใช้งานได้หลังผู้ดูแลระบบอนุมัติ
+          ระบบพนักงานรัษฎาแอร์ · ใช้งานได้หลังผู้ดูแลระบบอนุมัติ
         </p>
       </div>
     </div>

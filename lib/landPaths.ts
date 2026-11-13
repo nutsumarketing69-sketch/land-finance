@@ -16,6 +16,6 @@ export function isLandMemberPath(pathname: string) {
 }
 
 export function signedOutEntry(pathname: string) {
-  if (isLandMemberPath(pathname)) return "/login";
+  if (pathname === "/" || isLandMemberPath(pathname)) return "/login";
   return "/staff-login";
 }
