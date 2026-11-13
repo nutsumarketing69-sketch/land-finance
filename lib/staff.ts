@@ -40,6 +40,8 @@ export const STATUS_LABEL: Record<string, string> = {
 export function isOpenPath(pathname: string) {
   return (
     pathname === "/login" ||
+    pathname === "/staff-login" ||
+    pathname === "/register" ||
     pathname === "/forgot" ||
     pathname === "/signup" ||
     pathname === "/pending" ||

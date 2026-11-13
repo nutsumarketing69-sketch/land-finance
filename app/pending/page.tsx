@@ -45,7 +45,7 @@ export default function PendingPage() {
 
   const logout = async () => {
     await createClient().auth.signOut();
-    window.location.href = "/login";
+    window.location.href = "/staff-login";
   };
 
   const status = account?.status || "";
@@ -60,7 +60,7 @@ export default function PendingPage() {
         {signedOut && (
           <>
             <p>ยังไม่ได้เข้าสู่ระบบ</p>
-            <a href="/login" className="block rounded-xl bg-red-600 py-3 text-center font-semibold text-white">
+            <a href="/staff-login" className="block rounded-xl bg-red-600 py-3 text-center font-semibold text-white">
               ไปหน้าเข้าสู่ระบบ
             </a>
           </>

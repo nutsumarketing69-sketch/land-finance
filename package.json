@@ -6,7 +6,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:finance": "tsx --test lib/financeCalculator.test.ts"
+    "test:finance": "tsx --test lib/financeCalculator.test.ts",
+    "test:auth": "tsx --test lib/phoneAuth.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.1",

@@ -37,7 +37,9 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (isOpenPath(path)) return supabaseResponse;
-  if (!userId) return redirectTo(request, "/login", supabaseResponse);
+  if (!userId) {
+    return redirectTo(request, path === "/dashboard" ? "/login" : "/staff-login", supabaseResponse);
+  }
 
   const { data: account } = await supabase
     .from("staff_accounts")
@@ -46,6 +48,11 @@ export async function updateSession(request: NextRequest) {
     .maybeSingle();
 
   if (!account || account.status !== "approved") {
+    const { data: profile } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
+    if (profile) {
+      if (path === "/dashboard") return supabaseResponse;
+      return redirectTo(request, "/dashboard", supabaseResponse);
+    }
     return redirectTo(request, "/pending", supabaseResponse);
   }
   if (path.startsWith("/approvals") && account.role !== "admin") {

@@ -15,7 +15,7 @@ export default function AccountPage() {
 
   const logout = async () => {
     await createClient().auth.signOut();
-    window.location.href = "/login";
+    window.location.href = "/staff-login";
   };
 
   const changePassword = async (event: React.FormEvent<HTMLFormElement>) => {

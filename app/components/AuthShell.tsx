@@ -51,7 +51,7 @@ export function SessionBar() {
 
   const logout = async () => {
     await createClient().auth.signOut();
-    window.location.href = "/login";
+    window.location.href = "/staff-login";
   };
 
   return (
@@ -108,10 +108,26 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
       if (!user) {
         setAllowed(false);
         setReady(true);
-        router.replace("/login");
+        router.replace(current === "/dashboard" ? "/login" : "/staff-login");
         return;
       }
       if (!row || row.status !== "approved") {
+        const { data: profile } = await createClient()
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile) {
+          if (current === "/dashboard") {
+            setAllowed(true);
+            setReady(true);
+            return;
+          }
+          setAllowed(false);
+          setReady(true);
+          router.replace("/dashboard");
+          return;
+        }
         setAllowed(false);
         setReady(true);
         router.replace("/pending");

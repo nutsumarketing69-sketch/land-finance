@@ -58,7 +58,7 @@ export default function ForgotPage() {
         <button type="submit" disabled={busy} className="w-full rounded-xl bg-red-600 py-3 text-base font-semibold text-white disabled:opacity-60">
           {busy ? 'กำลังส่ง...' : 'ส่งรหัสชั่วคราวเข้าเทเลแกรม'}
         </button>
-        <a href="/login" className="block text-center text-sm font-medium text-red-700">กลับไปเข้าสู่ระบบ</a>
+        <a href="/staff-login" className="block text-center text-sm font-medium text-red-700">กลับไปเข้าสู่ระบบ</a>
       </form>
     </AuthFrame>
   )

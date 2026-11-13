@@ -182,7 +182,7 @@ export default function SignupPage() {
         <button type="submit" disabled={busy} className="w-full rounded-xl bg-red-600 py-3 text-base font-semibold text-white disabled:opacity-60">
           {busy ? "กำลังสมัคร..." : "สมัครสมาชิก"}
         </button>
-        <a href="/login" className="block text-center text-sm font-medium text-red-700">
+        <a href="/staff-login" className="block text-center text-sm font-medium text-red-700">
           มีบัญชีแล้ว เข้าสู่ระบบ
         </a>
         <p className="text-center text-xs leading-5 text-gray-500">
