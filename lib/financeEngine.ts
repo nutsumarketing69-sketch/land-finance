@@ -2,9 +2,11 @@ import Decimal from "decimal.js";
 import { differenceInDays, parseISO } from "date-fns";
 
 /**
- * เครื่องนี้คือตัวที่ .cursorrules กำหนด: นับวันแบบ 30 วันต่องวดเดือน หรือ 365 วันต่อปี
- * This day-count (30 or 365) is the engine the rules file names.
- * lib/financeCalculator.ts remains the anniversary-month engine already used by the wizard and the dashboard payoff modal.
+ * ดอกเบี้ยของสัญญาขายฝาก จำนอง และจำนำโฉนดใช้กติกาเดียวกัน
+ * นับจากวันเริ่มถึงวันที่เลือก และนับวันเริ่มเป็นหนึ่งวัน
+ * วันเดียวกันจึงได้ 1 วัน ถ้าวันปิดอยู่ก่อนวันเริ่มได้ 0 วัน
+ * ตัวหารของอัตราคือ 1 รายวัน, 30 รายเดือน, 365 รายปี
+ * lib/financeCalculator.ts ยังเป็นเครื่องนับเดือนครบรอบของตัวช่วยสร้างสัญญา
  */
 Decimal.set({
   precision: 40,
@@ -47,6 +49,30 @@ function parseDay(iso: string): Date {
   return parseISO(iso.length === 10 ? `${iso}T00:00:00` : iso);
 }
 
+export function inclusiveDayCount(startDateStr: string, targetDateStr: string): number {
+  const rawDays = differenceInDays(parseDay(targetDateStr), parseDay(startDateStr));
+  return rawDays < 0 ? 0 : rawDays + 1;
+}
+
+export function dayDivisorForPeriod(period: string): number {
+  if (period === "yearly") return 365;
+  if (period === "daily") return 1;
+  return 30;
+}
+
+function accrue(principalAmount: number | string, ratePercent: number | string, totalDays: number, divisor: number): InterestPayoff {
+  const principal = money(principalAmount);
+  const percent = money(ratePercent);
+  const dailyRate = percent.div(100).div(divisor);
+  const accrued = principal.mul(dailyRate).mul(totalDays);
+  return {
+    totalDays,
+    accruedInterest: round2(accrued),
+    totalPayoffAmount: round2(principal.plus(accrued)),
+    monthlyEstimate: round2(principal.mul(percent).div(100)),
+  };
+}
+
 export function validateLTV(contractType: string, principal: number, appraisedValue: number): LtvCheck {
   const band = BANDS[contractType as ContractBand];
   const label = band?.label ?? "ไม่ทราบประเภท";
@@ -87,23 +113,31 @@ export function validateLTV(contractType: string, principal: number, appraisedVa
 }
 
 export function calculateInterestAndPayoff(
-  principalAmount: number,
-  annualInterestRatePercent: number,
+  principalAmount: number | string,
+  annualInterestRatePercent: number | string,
   startDateStr: string,
   targetDateStr: string,
   isMonthlyRate = true,
 ): InterestPayoff {
-  const principal = money(principalAmount);
-  const percent = money(annualInterestRatePercent);
-  const rawDays = differenceInDays(parseDay(targetDateStr), parseDay(startDateStr));
-  const totalDays = rawDays < 0 ? 0 : rawDays;
-  const dayDivisor = isMonthlyRate ? money(30) : money(365);
-  const dailyRate = percent.div(100).div(dayDivisor);
-  const accrued = principal.mul(dailyRate).mul(totalDays);
-  return {
-    totalDays,
-    accruedInterest: round2(accrued),
-    totalPayoffAmount: round2(principal.plus(accrued)),
-    monthlyEstimate: round2(principal.mul(percent).div(100)),
-  };
+  return accrue(
+    principalAmount,
+    annualInterestRatePercent,
+    inclusiveDayCount(startDateStr, targetDateStr),
+    isMonthlyRate ? 30 : 365,
+  );
+}
+
+export function calculateContractPayoff(
+  principalAmount: number | string,
+  annualInterestRatePercent: number | string,
+  period: string,
+  startDateStr: string,
+  targetDateStr: string,
+): InterestPayoff {
+  return accrue(
+    principalAmount,
+    annualInterestRatePercent,
+    inclusiveDayCount(startDateStr, targetDateStr),
+    dayDivisorForPeriod(period),
+  );
 }

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { LAND_BRAND } from "@/lib/brand";
 import LoginScreen from "./screen";
 
 export const metadata: Metadata = {
-  title: "เข้าสู่ระบบ",
+  title: { absolute: LAND_BRAND },
 };
 
 export default function LoginPage() {

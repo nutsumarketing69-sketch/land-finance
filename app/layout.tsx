@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { LAND_BRAND, LAND_SHORT } from "@/lib/brand";
 import "./globals.css";
 import "./shop-theme.css";
 import AuthShell from "./components/AuthShell";
 import BackHome from "./components/BackHome";
+import RegisterPwa from "./components/RegisterPwa";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -12,8 +14,25 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "รัษฎาแอร์",
-  description: "ระบบจัดการร้านแอร์รถยนต์แบบหลายสาขา",
+  applicationName: LAND_SHORT,
+  title: {
+    default: LAND_BRAND,
+    template: `%s · ${LAND_BRAND}`,
+  },
+  description: LAND_BRAND,
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: LAND_SHORT,
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#d4a017",
 };
 
 const geistSans = Geist({
@@ -36,6 +55,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
+          <RegisterPwa />
           <AuthShell>
             <BackHome />
             {children}

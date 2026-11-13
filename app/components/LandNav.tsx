@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import LandMark from "@/app/components/LandMark";
 import { FilePlus, Home, Scale, Search, UserRound } from "lucide-react";
 
 const itemClass =
@@ -14,22 +15,19 @@ export default function LandNav({ children, preview = false }: { children: React
   const suffix = preview ? "?preview=1" : "";
 
   function goSearch() {
+    const params = new URLSearchParams();
+    if (preview) params.set("preview", "1");
+    params.set("focus", "search");
     const box = document.getElementById("land-omnibox");
     if (box instanceof HTMLInputElement) {
       box.focus();
       box.scrollIntoView({ block: "center" });
-      return;
     }
-    router.push(`/dashboard${suffix}#land-omnibox`);
+    router.push(`/dashboard?${params.toString()}`);
   }
 
   function goProfile() {
-    const profile = document.getElementById("land-profile");
-    if (profile) {
-      profile.scrollIntoView({ block: "start" });
-      return;
-    }
-    router.push(`/dashboard${suffix}#land-profile`);
+    router.push(preview ? "/profile?preview=1" : "/profile");
   }
 
   const homeActive = pathname === "/dashboard";
@@ -39,7 +37,9 @@ export default function LandNav({ children, preview = false }: { children: React
   return (
     <div className="min-h-screen bg-slate-950 md:grid md:grid-cols-[240px_minmax(0,1fr)]">
       <aside data-testid="land-sidebar" className="hidden border-r border-slate-800 bg-slate-900 md:flex md:flex-col md:gap-2 md:p-4">
-        <p className="px-3 pb-2 text-xs font-semibold tracking-[0.16em] text-amber-300">สัญญาที่ดิน</p>
+        <div className="px-2 pb-3">
+          <LandMark />
+        </div>
         <Link href={`/dashboard${suffix}`} className={`${itemClass} ${homeActive ? "bg-amber-400 text-slate-950" : "text-slate-100"}`}>
           <Home className="h-5 w-5" />
           หน้าแรก

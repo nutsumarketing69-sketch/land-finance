@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { capForPath, capLabel, hasCap } from "@/lib/access";
+import { LAND_BRAND } from "@/lib/brand";
 import { isLandMemberPath, signedOutEntry } from "@/lib/landPaths";
 import { isOpenPath, ROLE_LABEL, type StaffAccount } from "@/lib/staff";
 
@@ -193,10 +194,11 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
       ) : show ? (
         children
       ) : (
-        <div className="flex min-h-screen items-center justify-center bg-[#140406] px-6 text-white">
-          <div className="text-center">
-            <img src="/ratsada-logo.png" alt="รัษฎาแอร์" className="mx-auto h-20 w-20 rounded-2xl bg-white p-2" />
-            <p className="mt-4 text-sm text-red-100">กำลังตรวจสอบสิทธิ์เข้าใช้งาน</p>
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
+          <div className="max-w-sm text-center">
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-emerald-950 ring-2 ring-amber-200" />
+            <p className="mt-4 text-sm leading-6 text-amber-100">{LAND_BRAND}</p>
+            <p className="mt-2 text-sm text-slate-400">กำลังเปิดระบบ</p>
           </div>
         </div>
       )}

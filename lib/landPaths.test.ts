@@ -9,6 +9,7 @@ describe("ทางเข้าเมื่อยังไม่เข้าส�
     assert.equal(signedOutEntry("/contracts/new"), "/login");
     assert.equal(signedOutEntry("/valuation"), "/login");
     assert.equal(signedOutEntry("/settings/backup"), "/login");
+    assert.equal(signedOutEntry("/profile"), "/login");
   });
 
   it("หน้าร้านแอร์ยังไปที่เข้าสู่ระบบพนักงาน", () => {

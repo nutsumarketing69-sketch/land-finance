@@ -1,4 +1,5 @@
 import LandMark from "@/app/components/LandMark";
+import { LAND_BRAND } from "@/lib/brand";
 
 export default function LandScreen({
   title,
@@ -14,7 +15,7 @@ export default function LandScreen({
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(148,163,184,0.16),transparent_55%)]" />
       <div className="relative mx-auto flex w-full max-w-md flex-col">
         <LandMark />
-        <p className="mt-4 text-[11px] font-semibold tracking-[0.22em] text-amber-100/70">ขายฝาก · จำนอง · จำนำโฉนด</p>
+        <p className="mt-4 text-sm leading-6 text-amber-100/80">{LAND_BRAND}</p>
         <section className="mt-5 rounded-[28px] border border-slate-800 bg-slate-900/90 p-5 shadow-2xl shadow-black/50 sm:p-6">
           <h1 className="text-2xl font-semibold tracking-tight text-white">{title}</h1>
           {lede ? <p className="mt-2 text-sm leading-6 text-slate-400">{lede}</p> : null}

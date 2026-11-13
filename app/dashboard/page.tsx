@@ -7,7 +7,7 @@ import { loadContractCards, type ScopeClient } from "@/lib/landScope";
 import { createClient } from "@/lib/supabase/server";
 import DashboardScreen from "./land-screen";
 
-export default function Page({ searchParams }: { searchParams: Promise<{ preview?: string | string[] }> }) {
+export default function Page({ searchParams }: { searchParams: Promise<{ preview?: string | string[]; focus?: string | string[] }> }) {
   return (
     <Suspense fallback={<main className="bg-slate-950 p-8 text-center text-slate-200">กำลังโหลดแดชบอร์ด</main>}>
       <DashboardContent searchParams={searchParams} />
@@ -15,9 +15,10 @@ export default function Page({ searchParams }: { searchParams: Promise<{ preview
   );
 }
 
-async function DashboardContent({ searchParams }: { searchParams: Promise<{ preview?: string | string[] }> }) {
+async function DashboardContent({ searchParams }: { searchParams: Promise<{ preview?: string | string[]; focus?: string | string[] }> }) {
   const query = await searchParams;
   const previewFlag = (Array.isArray(query.preview) ? query.preview[0] : query.preview) === "1";
+  const focusSearch = (Array.isArray(query.focus) ? query.focus[0] : query.focus) === "search";
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   const user = authData.user;
@@ -35,7 +36,7 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<{ prev
 
   if (!user && previewFlag) {
     const sample = previewContracts();
-    return <DashboardScreen profile={PREVIEW_PROFILE} owned={sample.owned} incoming={sample.incoming} preview loadError="" />;
+    return <DashboardScreen profile={PREVIEW_PROFILE} owned={sample.owned} incoming={sample.incoming} preview loadError="" focusSearch={focusSearch} />;
   }
 
   if (profile && !staffApproved) {
@@ -51,6 +52,7 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<{ prev
         incoming={incoming.cards}
         preview={false}
         loadError={owned.error || incoming.error}
+        focusSearch={focusSearch}
       />
     );
   }

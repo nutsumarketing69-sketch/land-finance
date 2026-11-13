@@ -9,11 +9,13 @@ import { playAlertChime } from "@/lib/alertSound";
 import {
   CONTRACT_TYPE_LABELS,
   INTEREST_PERIOD_LABELS,
-  calculateInterest,
   formatBaht,
   type ContractType,
   type InterestPeriodType,
 } from "@/lib/financeCalculator";
+import { calculateContractPayoff } from "@/lib/financeEngine";
+import { LAND_BRAND } from "@/lib/brand";
+import ContractFacts from "./contract-facts";
 import type { LandProfile } from "@/lib/landProfile";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -50,12 +52,14 @@ export default function DashboardScreen({
   incoming,
   preview,
   loadError,
+  focusSearch = false,
 }: {
   profile: LandProfile;
   owned: DashboardContract[];
   incoming: DashboardContract[];
   preview: boolean;
   loadError: string;
+  focusSearch?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"owned" | "incoming">("owned");
@@ -74,9 +78,14 @@ export default function DashboardScreen({
     setToday(current);
     setPayoffDate(current);
     setSoundOn(window.localStorage.getItem(SOUND_KEY) === "1");
-    if (window.location.hash === "#land-omnibox") document.getElementById("land-omnibox")?.focus();
-    if (window.location.hash === "#land-profile") document.getElementById("land-profile")?.scrollIntoView();
-  }, []);
+    if (window.location.hash === "#land-omnibox" || focusSearch) {
+      const box = document.getElementById("land-omnibox");
+      if (box instanceof HTMLInputElement) {
+        box.focus();
+        box.scrollIntoView({ block: "center" });
+      }
+    }
+  }, [focusSearch]);
 
   const alerts = useMemo(() => {
     if (!today) return { upcoming: [] as DashboardContract[], overdue: [] as DashboardContract[] };
@@ -156,7 +165,7 @@ export default function DashboardScreen({
         <header className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-semibold tracking-[0.2em] text-amber-300">สัญญาที่ดิน</p>
+              <p className="text-xs font-semibold tracking-[0.08em] text-amber-300">{LAND_BRAND}</p>
               <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">แดชบอร์ด</h1>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -224,7 +233,9 @@ export default function DashboardScreen({
           <ul data-testid="search-results" className="flex flex-col gap-2">
             {hits.length ? hits.map((hit) => (
               <li key={hit.contract.id} data-testid="search-hit" className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm">
-                <p className="font-medium text-white">{hit.contract.customerName || "ไม่ระบุชื่อ"} · {hit.contract.contractNumber || "ไม่มีเลขสัญญา"}</p>
+                <a href={`/contracts/${hit.contract.id}`} className="font-medium text-white underline-offset-4 hover:underline">
+                  {hit.contract.customerName || "ไม่ระบุชื่อ"} · {hit.contract.contractNumber || "ไม่มีเลขสัญญา"}
+                </a>
                 <p className="mt-1 text-amber-200">ตรงกับ{hit.reasons.map((reason) => MATCH_REASON_LABELS[reason]).join(" ")}</p>
               </li>
             )) : <li className="text-sm text-slate-400">ไม่พบรายการที่ตรงกับคำค้น</li>}
@@ -245,10 +256,10 @@ export default function DashboardScreen({
             <section>
               <div data-testid="contract-cards" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:hidden">
                 {visible.map((contract) => (
-                  <article key={contract.id} data-testid="contract-card" className="flex flex-col gap-3 rounded-3xl border border-slate-700 bg-slate-900 p-4">
+                  <article key={contract.id} data-testid="contract-card" onClick={() => { window.location.href = `/contracts/${contract.id}`; }} className="flex cursor-pointer flex-col gap-3 rounded-3xl border border-slate-700 bg-slate-900 p-4">
                     <ContractHeading contract={contract} owned={tab === "owned"} selected={selected.includes(contract.id)} onSelect={() => toggleSelected(contract.id)} />
                     <p className="text-emerald-300">{money(contract.principal)}</p>
-                    <p className="text-sm text-slate-400">{contract.district} {contract.province} · ถึง {contract.endDate || "-"}</p>
+                    <ContractFacts contract={contract} today={today} />
                     <ContractTools
                       contract={contract}
                       copied={copiedDeed === contract.deedNumber}
@@ -271,13 +282,16 @@ export default function DashboardScreen({
                   </thead>
                   <tbody>
                     {visible.map((contract) => (
-                      <tr key={contract.id} className="border-t border-slate-800">
+                      <tr key={contract.id} data-testid="contract-row" onClick={() => { window.location.href = `/contracts/${contract.id}`; }} className="cursor-pointer border-t border-slate-800">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-start gap-3">
                             {tab === "owned" ? (
-                              <input type="checkbox" className="h-5 w-5 accent-amber-400" checked={selected.includes(contract.id)} onChange={() => toggleSelected(contract.id)} aria-label={`เลือก ${contract.contractNumber}`} />
+                              <input type="checkbox" className="mt-1 h-5 w-5 accent-amber-400" checked={selected.includes(contract.id)} onChange={() => toggleSelected(contract.id)} onClick={(event) => event.stopPropagation()} aria-label={`เลือก ${contract.contractNumber}`} />
                             ) : null}
-                            <span>{contract.contractNumber || "ไม่มีเลขสัญญา"}</span>
+                            <div>
+                              <span>{contract.contractNumber || "ไม่มีเลขสัญญา"}</span>
+                              <ContractFacts contract={contract} today={today} />
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">{contract.customerName || "ไม่ระบุชื่อ"}</td>
@@ -347,7 +361,9 @@ function ContractHeading({
     <div className="flex items-start justify-between gap-3">
       <div>
         <p className="text-xs text-amber-300">{typeLabel(contract.contractType)}</p>
-        <h3 className="text-lg font-semibold text-white">{contract.contractNumber || "ไม่มีเลขสัญญา"}</h3>
+        <a href={`/contracts/${contract.id}`} data-testid={`open-${contract.id}`} className="text-lg font-semibold text-white underline-offset-4 hover:underline" onClick={(event) => event.stopPropagation()}>
+          {contract.contractNumber || "ไม่มีเลขสัญญา"}
+        </a>
         <p className="text-sm text-slate-300">{contract.customerName || "ไม่ระบุชื่อ"}</p>
       </div>
       {owned ? (
@@ -357,6 +373,7 @@ function ContractHeading({
           className="mt-1 h-5 w-5 accent-amber-400"
           checked={selected}
           onChange={onSelect}
+          onClick={(event) => event.stopPropagation()}
           aria-label={`เลือก ${contract.contractNumber}`}
         />
       ) : null}
@@ -376,7 +393,7 @@ function ContractTools({
   onPayoff: () => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
       <a
         data-testid="call-customer"
         href={contract.customerPhone ? `tel:${contract.customerPhone}` : undefined}
@@ -398,6 +415,9 @@ function ContractTools({
         <Calculator className="h-4 w-4" />
         คำนวณยอดปิด
       </button>
+      <a href={`/contracts/${contract.id}`} data-testid={`detail-${contract.id}`} className="inline-flex min-h-11 items-center rounded-full border border-amber-200/50 px-3 text-sm text-amber-100">
+        ดูรายละเอียด / แก้ไข
+      </a>
     </div>
   );
 }
@@ -428,6 +448,7 @@ function PayoffModal({
 }) {
   let accrued = "";
   let total = "";
+  let days = "";
   let error = "";
   const period = contract.interestPeriodType;
   const periodOk = period === "daily" || period === "monthly" || period === "yearly";
@@ -435,15 +456,16 @@ function PayoffModal({
   else if (!periodOk) error = "งวดดอกเบี้ยของสัญญานี้ไม่ถูกต้อง";
   else {
     try {
-      const result = calculateInterest({
-        principal: contract.principal || "0",
-        interestRate: contract.interestRate || "0",
-        interestPeriodType: period,
-        startDate: contract.startDate,
-        payoffDate: date,
-      });
-      accrued = formatBaht(result.accruedInterest.exact);
-      total = formatBaht(result.totalPayoff.exact);
+      const result = calculateContractPayoff(
+        contract.principal || "0",
+        contract.interestRate || "0",
+        period,
+        contract.startDate,
+        date,
+      );
+      days = String(result.totalDays);
+      accrued = formatBaht(String(result.accruedInterest));
+      total = formatBaht(String(result.totalPayoffAmount));
     } catch {
       error = "ยังคำนวณยอดปิดไม่ได้";
     }
@@ -461,6 +483,7 @@ function PayoffModal({
         </label>
         {error ? <p className="mt-4 text-sm text-amber-200">{error}</p> : (
           <dl className="mt-4 space-y-2 text-sm">
+            <div className="flex justify-between gap-3"><dt>จำนวนวัน</dt><dd data-testid="payoff-days" className="text-emerald-300">{days}</dd></div>
             <div className="flex justify-between gap-3"><dt>ดอกเบี้ยค้าง</dt><dd data-testid="payoff-accrued" className="text-emerald-300">{accrued}</dd></div>
             <div className="flex justify-between gap-3"><dt>ยอดปิด</dt><dd data-testid="payoff-total" className="text-emerald-300">{total}</dd></div>
           </dl>

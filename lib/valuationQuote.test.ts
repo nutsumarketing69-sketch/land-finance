@@ -27,16 +27,17 @@ describe("quoteInterest", () => {
     assert.equal(half?.dailyInterest, 16.67);
     assert.equal(half?.monthlyInterest, 500);
     assert.equal(half?.yearlyInterest, 6000);
-    assert.equal(half?.accruedInterest, 500);
-    assert.equal(half?.totalPayoffAmount, 100500);
+    assert.equal(half?.totalDays, 31);
+    assert.equal(half?.accruedInterest, 516.67);
+    assert.equal(half?.totalPayoffAmount, 100516.67);
 
     const high = quoteInterest("100000", "60", "2026-01-01", "2026-01-31", true);
-    assert.equal(high?.accruedInterest, 60000);
-    assert.equal(high?.totalPayoffAmount, 160000);
+    assert.equal(high?.accruedInterest, 62000);
+    assert.equal(high?.totalPayoffAmount, 162000);
 
     const yearly = quoteInterest("100000", "0.5", "2026-01-01", "2026-01-31", false);
-    assert.equal(yearly?.totalDays, 30);
-    assert.equal(yearly?.accruedInterest, 41.1);
+    assert.equal(yearly?.totalDays, 31);
+    assert.equal(yearly?.accruedInterest, 42.47);
     assert.equal(yearly?.yearlyInterest, 500);
   });
 });

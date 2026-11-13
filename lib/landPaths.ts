@@ -11,8 +11,12 @@ export function isLandValuationPath(pathname: string) {
   return pathname === "/valuation" || pathname.startsWith("/valuation/");
 }
 
+export function isLandProfilePath(pathname: string) {
+  return pathname === "/profile" || pathname.startsWith("/profile/");
+}
+
 export function isLandMemberPath(pathname: string) {
-  return pathname === "/dashboard" || isLandContractPath(pathname) || isLandBackupPath(pathname) || isLandValuationPath(pathname);
+  return pathname === "/dashboard" || isLandContractPath(pathname) || isLandBackupPath(pathname) || isLandValuationPath(pathname) || isLandProfilePath(pathname);
 }
 
 export function signedOutEntry(pathname: string) {
