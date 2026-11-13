@@ -163,6 +163,9 @@ export default function DashboardScreen({
               <Link href="/contracts/new" className="rounded-full bg-amber-400 px-4 py-3 text-center text-sm font-semibold text-slate-950">
                 สร้างสัญญาใหม่
               </Link>
+              <Link href={preview ? "/valuation?preview=1" : "/valuation"} data-testid="open-valuation" className="inline-flex min-h-11 items-center justify-center rounded-full border border-emerald-300/50 px-4 py-3 text-center text-sm font-semibold text-emerald-200">
+                ประเมินราคา
+              </Link>
               <Link href="/settings/backup" className="rounded-full border border-amber-300/50 px-4 py-3 text-center text-sm font-semibold text-amber-200">
                 สำรองข้อมูล
               </Link>

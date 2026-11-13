@@ -10,7 +10,8 @@
     "test:auth": "tsx --test lib/phoneAuth.test.ts",
     "test:wizard": "tsx --test lib/mapLink.test.ts lib/contractAlert.test.ts",
     "test:dashboard": "tsx --test lib/dashboardData.test.ts lib/backupFile.test.ts",
-    "test:engine": "tsx --test lib/financeEngine.test.ts"
+    "test:engine": "tsx --test lib/financeEngine.test.ts",
+    "test:valuation": "tsx --test lib/valuationQuote.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.1",

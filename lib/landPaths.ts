@@ -7,8 +7,12 @@ export function isLandBackupPath(pathname: string) {
   return pathname === "/settings/backup" || pathname.startsWith("/settings/backup/");
 }
 
+export function isLandValuationPath(pathname: string) {
+  return pathname === "/valuation" || pathname.startsWith("/valuation/");
+}
+
 export function isLandMemberPath(pathname: string) {
-  return pathname === "/dashboard" || isLandContractPath(pathname) || isLandBackupPath(pathname);
+  return pathname === "/dashboard" || isLandContractPath(pathname) || isLandBackupPath(pathname) || isLandValuationPath(pathname);
 }
 
 export function signedOutEntry(pathname: string) {
