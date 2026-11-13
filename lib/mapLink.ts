@@ -56,6 +56,26 @@ export function parseGoogleMapsUrl(input: string): MapParseResult {
   return { status: "unparsed" };
 }
 
+export const BANGKOK_LATITUDE = 13.7563;
+export const BANGKOK_LONGITUDE = 100.5018;
+export const BANGKOK_ZOOM = 11;
+
+export function mapCamera(latitude: string, longitude: string) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  const pin =
+    latitude.trim() !== "" &&
+    longitude.trim() !== "" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180;
+  if (pin) return { lat, lng, zoom: BANGKOK_ZOOM };
+  return { lat: BANGKOK_LATITUDE, lng: BANGKOK_LONGITUDE, zoom: BANGKOK_ZOOM };
+}
+
 const TILE = 256;
 
 export function latLngToWorld(lat: number, lng: number, zoom: number) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { latLngToWorld, parseGoogleMapsUrl, worldToLatLng } from "./mapLink";
+import { latLngToWorld, mapCamera, parseGoogleMapsUrl, worldToLatLng } from "./mapLink";
 
 describe("parseGoogleMapsUrl", () => {
   it("อ่านพิกัดจาก @lat,lng", () => {
@@ -35,6 +35,18 @@ describe("parseGoogleMapsUrl", () => {
     assert.deepEqual(parseGoogleMapsUrl("https://maps.app.goo.gl/abc123"), { status: "short" });
     assert.deepEqual(parseGoogleMapsUrl("  "), { status: "empty" });
     assert.deepEqual(parseGoogleMapsUrl("https://maps.google.com/?q=95,100"), { status: "unparsed" });
+  });
+});
+
+describe("mapCamera", () => {
+  it("เปิดที่กรุงเทพ และให้หมุดจากลิงก์ทับค่าเริ่มต้น", () => {
+    const bangkok = mapCamera("", "");
+    assert.equal(bangkok.lat, 13.7563);
+    assert.equal(bangkok.lng, 100.5018);
+    assert.equal(bangkok.zoom, 11);
+    assert.notEqual(bangkok.lat, 38.7946);
+    assert.notEqual(bangkok.lng, -106.5348);
+    assert.deepEqual(mapCamera("13.7000", "100.5000"), { lat: 13.7, lng: 100.5, zoom: 11 });
   });
 });
 

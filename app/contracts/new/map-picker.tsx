@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { MapPin, Minus, Plus } from "lucide-react";
 import { latLngToWorld, worldToLatLng } from "@/lib/mapLink";
+import GoogleMap from "./google-map";
 
 const TILE = 256;
 const FALLBACK = { lat: 13.7563, lng: 100.5018 };
@@ -16,7 +17,37 @@ function centerOf(latitude: string, longitude: string, zoom: number) {
   return latLngToWorld(lat, lng, zoom);
 }
 
+const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
+
 export default function MapPicker({
+  latitude,
+  longitude,
+  onChange,
+}: {
+  latitude: string;
+  longitude: string;
+  onChange: (latitude: string, longitude: string) => void;
+}) {
+  const [keyless, setKeyless] = useState(!mapsKey);
+  if (keyless) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p data-testid="map-key-note" className="text-sm text-amber-100">
+          {mapsKey ? "โหลดแผนที่ Google ไม่สำเร็จ ใช้หมุดแบบไม่ใช้คีย์" : "ยังไม่ได้ตั้งคีย์แผนที่ Google ใช้หมุดแบบไม่ใช้คีย์"}
+        </p>
+        <KeylessMap latitude={latitude} longitude={longitude} onChange={onChange} />
+      </div>
+    );
+  }
+  return (
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+      <GoogleMap apiKey={mapsKey} latitude={latitude} longitude={longitude} onChange={onChange} onFail={() => setKeyless(true)} />
+      <p className="px-3 py-2 text-xs text-emerald-100/70">แตะแผนที่เพื่อปักหมุดที่ดิน</p>
+    </div>
+  );
+}
+
+function KeylessMap({
   latitude,
   longitude,
   onChange,
