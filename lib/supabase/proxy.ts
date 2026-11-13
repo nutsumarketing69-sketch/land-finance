@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isLandContractPath, signedOutEntry } from "../landPaths";
 import { isOpenPath } from "../staff";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./public";
 
@@ -38,7 +39,7 @@ export async function updateSession(request: NextRequest) {
 
   if (isOpenPath(path)) return supabaseResponse;
   if (!userId) {
-    return redirectTo(request, path === "/dashboard" ? "/login" : "/staff-login", supabaseResponse);
+    return redirectTo(request, signedOutEntry(path), supabaseResponse);
   }
 
   const { data: account } = await supabase
@@ -46,6 +47,13 @@ export async function updateSession(request: NextRequest) {
     .select("status, role")
     .eq("user_id", userId)
     .maybeSingle();
+
+  if (isLandContractPath(path)) {
+    const { data: profile } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
+    if (profile) return supabaseResponse;
+    if (account?.status === "approved") return redirectTo(request, "/", supabaseResponse);
+    return redirectTo(request, "/pending", supabaseResponse);
+  }
 
   if (!account || account.status !== "approved") {
     const { data: profile } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
