@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { capForPath, capLabel, hasCap } from "@/lib/access";
-import { isLandContractPath, signedOutEntry } from "@/lib/landPaths";
+import { isLandMemberPath, signedOutEntry } from "@/lib/landPaths";
 import { isOpenPath, ROLE_LABEL, type StaffAccount } from "@/lib/staff";
 
 type StaffState = {
@@ -112,14 +112,14 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         router.replace(signedOutEntry(current));
         return;
       }
-      if (isLandContractPath(current)) {
+      if (isLandMemberPath(current)) {
         const { data: profile } = await createClient()
           .from("profiles")
           .select("id")
           .eq("id", user.id)
           .maybeSingle();
         if (cancel) return;
-        if (profile) {
+        if (profile || (row?.status === "approved" && current === "/dashboard")) {
           setAllowed(true);
           setReady(true);
           return;

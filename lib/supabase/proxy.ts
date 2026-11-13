@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isLandContractPath, signedOutEntry } from "../landPaths";
+import { isLandMemberPath, signedOutEntry } from "../landPaths";
 import { isOpenPath } from "../staff";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./public";
 
@@ -48,9 +48,10 @@ export async function updateSession(request: NextRequest) {
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (isLandContractPath(path)) {
+  if (isLandMemberPath(path)) {
     const { data: profile } = await supabase.from("profiles").select("id").eq("id", userId).maybeSingle();
     if (profile) return supabaseResponse;
+    if (account?.status === "approved" && path === "/dashboard") return supabaseResponse;
     if (account?.status === "approved") return redirectTo(request, "/", supabaseResponse);
     return redirectTo(request, "/pending", supabaseResponse);
   }

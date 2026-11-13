@@ -1,19 +1,23 @@
 import { Suspense } from "react";
 import DeskScreen from "@/app/components/DeskScreen";
-import LandHome from "@/app/components/LandHome";
 import ReferralProfile from "@/app/components/ReferralProfile";
+import { previewContracts, PREVIEW_PROFILE } from "@/lib/dashboardData";
 import { asLandProfile, type LandProfile } from "@/lib/landProfile";
+import { loadContractCards, type ScopeClient } from "@/lib/landScope";
 import { createClient } from "@/lib/supabase/server";
+import DashboardScreen from "./land-screen";
 
-export default function Page() {
+export default function Page({ searchParams }: { searchParams: Promise<{ preview?: string | string[] }> }) {
   return (
-    <Suspense fallback={<main className="p-8 text-center text-white">กำลังโหลด...</main>}>
-      <DashboardContent />
+    <Suspense fallback={<main className="bg-slate-950 p-8 text-center text-slate-200">กำลังโหลดแดชบอร์ด</main>}>
+      <DashboardContent searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function DashboardContent() {
+async function DashboardContent({ searchParams }: { searchParams: Promise<{ preview?: string | string[] }> }) {
+  const query = await searchParams;
+  const previewFlag = (Array.isArray(query.preview) ? query.preview[0] : query.preview) === "1";
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   const user = authData.user;
@@ -22,15 +26,33 @@ async function DashboardContent() {
 
   if (user) {
     const [profileRes, staffRes] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, phone, invite_code").eq("id", user.id).maybeSingle(),
+      supabase.from("profiles").select("id, full_name, phone, invite_code, referred_by").eq("id", user.id).maybeSingle(),
       supabase.from("staff_accounts").select("status").eq("user_id", user.id).maybeSingle(),
     ]);
     if (!profileRes.error) profile = asLandProfile(profileRes.data);
     staffApproved = staffStatus(staffRes.data) === "approved";
   }
 
+  if (!user && previewFlag) {
+    const sample = previewContracts();
+    return <DashboardScreen profile={PREVIEW_PROFILE} owned={sample.owned} incoming={sample.incoming} preview loadError="" />;
+  }
+
   if (profile && !staffApproved) {
-    return <LandHome profile={profile} />;
+    const client = supabase as unknown as ScopeClient;
+    const [owned, incoming] = await Promise.all([
+      loadContractCards(client, "owner_id", profile.id),
+      loadContractCards(client, "shared_with_upline_id", profile.id),
+    ]);
+    return (
+      <DashboardScreen
+        profile={profile}
+        owned={owned.cards}
+        incoming={incoming.cards}
+        preview={false}
+        loadError={owned.error || incoming.error}
+      />
+    );
   }
 
   return (

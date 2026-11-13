@@ -3,7 +3,15 @@ export function isLandContractPath(pathname: string) {
   return pathname === "/contracts" || pathname.startsWith("/contracts/");
 }
 
+export function isLandBackupPath(pathname: string) {
+  return pathname === "/settings/backup" || pathname.startsWith("/settings/backup/");
+}
+
+export function isLandMemberPath(pathname: string) {
+  return pathname === "/dashboard" || isLandContractPath(pathname) || isLandBackupPath(pathname);
+}
+
 export function signedOutEntry(pathname: string) {
-  if (pathname === "/dashboard" || isLandContractPath(pathname)) return "/login";
+  if (isLandMemberPath(pathname)) return "/login";
   return "/staff-login";
 }

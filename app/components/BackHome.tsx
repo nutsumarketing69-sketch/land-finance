@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 
 export default function BackHome() {
   const path = usePathname()
-  if (!path || path === '/' || path.startsWith('/login') || path.startsWith('/staff-login') || path.startsWith('/register') || path.startsWith('/signup') || path.startsWith('/pending') || path.startsWith('/auth') || path.startsWith('/branch-printer') || path.startsWith('/contracts')) return null
+  if (!path || path === '/' || path.startsWith('/login') || path.startsWith('/staff-login') || path.startsWith('/register') || path.startsWith('/signup') || path.startsWith('/pending') || path.startsWith('/auth') || path.startsWith('/branch-printer') || path.startsWith('/contracts') || path.startsWith('/dashboard') || path.startsWith('/settings')) return null
   return (
     <>
       <style>{`@media print { .back-home { display: none !important; } }`}</style>

@@ -3,6 +3,7 @@ export type LandProfile = {
   full_name: string | null;
   phone: string | null;
   invite_code: string | null;
+  referred_by: string | null;
 };
 
 export function asLandProfile(value: unknown): LandProfile | null {
@@ -14,6 +15,7 @@ export function asLandProfile(value: unknown): LandProfile | null {
     full_name: typeof row.full_name === "string" ? row.full_name : null,
     phone: typeof row.phone === "string" ? row.phone : null,
     invite_code: typeof row.invite_code === "string" ? row.invite_code : null,
+    referred_by: asUuid(row.referred_by),
   };
 }
 
