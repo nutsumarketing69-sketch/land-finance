@@ -3,6 +3,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CONTRACT_TYPE_LABELS, formatBaht, type ContractType } from "@/lib/financeCalculator";
 
+export const instant = false;
+
 export default function ContractPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={<main className="min-h-screen bg-[#0c1210] px-4 py-10 text-white">กำลังเปิดสัญญา</main>}>
