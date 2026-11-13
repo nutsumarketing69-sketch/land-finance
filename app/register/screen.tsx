@@ -10,6 +10,7 @@ import { asUuid } from "@/lib/landProfile";
 import {
   generateInviteCode,
   landAuthError,
+  landPasswordError,
   normalizeThaiPhone,
   phoneAuthError,
   phoneToAuthEmail,
@@ -66,8 +67,9 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
       setError(phoneProblem);
       return;
     }
-    if (password.length < 8) {
-      setError("รหัสผ่านต้องมีอย่างน้อย 8 ตัว");
+    const passwordProblem = landPasswordError(password);
+    if (passwordProblem) {
+      setError(passwordProblem);
       return;
     }
     if (password !== confirm) {

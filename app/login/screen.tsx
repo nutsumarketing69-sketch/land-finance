@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Phone } from "lucide-react";
 import LandScreen, { landButtonClass, landFieldClass } from "@/app/components/LandScreen";
 import { createClient } from "@/lib/supabase/client";
-import { landAuthError, normalizeThaiPhone, phoneAuthError, phoneToAuthEmail } from "@/lib/phoneAuth";
+import { landAuthError, landPasswordError, normalizeThaiPhone, phoneAuthError, phoneToAuthEmail } from "@/lib/phoneAuth";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,8 +22,9 @@ export default function LoginScreen() {
       setError(problem);
       return;
     }
-    if (password.length < 8) {
-      setError("รหัสผ่านต้องมีอย่างน้อย 8 ตัว");
+    const passwordProblem = landPasswordError(password);
+    if (passwordProblem) {
+      setError(passwordProblem);
       return;
     }
     const normalized = normalizeThaiPhone(phone);

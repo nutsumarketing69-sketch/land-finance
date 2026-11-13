@@ -4,6 +4,7 @@ import {
   LAND_AUTH_EMAIL_DOMAIN,
   generateInviteCode,
   landAuthError,
+  landPasswordError,
   normalizeThaiPhone,
   phoneAuthError,
   phoneToAuthEmail,
@@ -32,6 +33,9 @@ describe("เบอร์โทรสำหรับเข้าสู่ระ�
   it("รหัสแนะนำสั้นและไม่มีตัวอักษรที่สับสน และไม่โชว์อีเมลในข้อความผิดพลาด", () => {
     const code = generateInviteCode();
     assert.match(code, /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/);
+    assert.equal(landPasswordError("12345"), "รหัสผ่านต้องมีอย่างน้อย 6 ตัว");
+    assert.equal(landPasswordError("123456"), null);
+    assert.equal(landAuthError({ message: "Password should be at least 6 characters" }), "รหัสผ่านต้องมีอย่างน้อย 6 ตัว");
     assert.equal(landAuthError({ message: "Invalid login credentials" }), "เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง");
     assert.doesNotMatch(
       landAuthError({ message: "User already registered as 0891234567@landfinance.local" }),

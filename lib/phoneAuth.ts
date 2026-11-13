@@ -5,6 +5,8 @@
 
 export const LAND_AUTH_EMAIL_DOMAIN = "landfinance.local";
 
+export const MIN_LAND_PASSWORD_LENGTH = 6;
+
 const INVITE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 export function normalizeThaiPhone(raw: string): string | null {
@@ -27,6 +29,13 @@ export function phoneToAuthEmail(phone: string): string {
 export function phoneAuthError(raw: string): string | null {
   if (!raw.trim()) return "กรุณากรอกเบอร์โทรศัพท์";
   if (!normalizeThaiPhone(raw)) return "เบอร์โทรศัพท์ไม่ถูกต้อง ใช้รูปแบบ 0891234567";
+  return null;
+}
+
+export function landPasswordError(password: string): string | null {
+  if (password.length < MIN_LAND_PASSWORD_LENGTH) {
+    return `รหัสผ่านต้องมีอย่างน้อย ${MIN_LAND_PASSWORD_LENGTH} ตัว`;
+  }
   return null;
 }
 
@@ -60,7 +69,7 @@ export function landAuthError(error: { message?: string } | null | undefined): s
   if (low.includes("already") || low.includes("registered") || low.includes("duplicate") || low.includes("unique")) {
     return "เบอร์นี้ถูกใช้สมัครแล้ว";
   }
-  if (low.includes("password")) return "รหัสผ่านต้องมีอย่างน้อย 8 ตัว";
+  if (low.includes("password")) return `รหัสผ่านต้องมีอย่างน้อย ${MIN_LAND_PASSWORD_LENGTH} ตัว`;
   if (low.includes("rate") || low.includes("too many")) return "ทำรายการถี่เกินไป รอสักครู่แล้วลองใหม่";
   if (message.includes("@")) return "ทำรายการไม่สำเร็จ";
   return "ทำรายการไม่สำเร็จ";
