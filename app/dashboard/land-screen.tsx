@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Calculator, Copy, Phone, Search } from "lucide-react";
+import AndroidInstallButton from "@/app/components/AndroidInstallButton";
 import LandNav from "@/app/components/LandNav";
 import ReferralProfile from "@/app/components/ReferralProfile";
 import { playAlertChime } from "@/lib/alertSound";
@@ -178,6 +179,7 @@ export default function DashboardScreen({
               <Link href="/settings/backup" className="rounded-full border border-amber-300/50 px-4 py-3 text-center text-sm font-semibold text-amber-200">
                 สำรองข้อมูล
               </Link>
+              <AndroidInstallButton />
             </div>
           </div>
           {preview ? (
