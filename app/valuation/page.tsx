@@ -31,11 +31,12 @@ async function ValuationContent({ searchParams }: { searchParams: Promise<{ prev
   }
   if (!user) redirect("/login");
 
-  const { data: profileRow } = await supabase.from("profiles").select("id, full_name, phone, invite_code, referred_by").eq("id", user.id).maybeSingle();
+  const { data: profileRow } = await supabase.from("profiles").select("id, full_name, phone, invite_code, referred_by, role").eq("id", user.id).maybeSingle();
   const profile = asLandProfile(profileRow);
   if (!profile) redirect("/login");
 
-  const { data } = await supabase.from("customers").select("id, full_name, phone").eq("owner_id", profile.id).order("full_name");
+  const customerQuery = supabase.from("customers").select("id, full_name, phone").order("full_name");
+  const { data } = profile.role === "owner" ? await customerQuery : await customerQuery.eq("owner_id", profile.id);
   const customers = (data ?? []).flatMap((row) => {
     if (!row || typeof row.id !== "string") return [];
     return [{

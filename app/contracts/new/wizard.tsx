@@ -148,11 +148,14 @@ export default function ContractWizard() {
         if (!cancel) setCustomerNote("เข้าสู่ระบบเพื่อค้นหาลูกค้าเดิม หรือสร้างลูกค้าใหม่ในหน้านี้");
         return;
       }
-      const { data, error } = await supabase
+      const profile = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+      const customerQuery = supabase
         .from("customers")
         .select("id, full_name, phone, id_card, address")
-        .eq("owner_id", userId)
         .order("full_name");
+      const { data, error } = profile.data?.role === "owner"
+        ? await customerQuery
+        : await customerQuery.eq("owner_id", userId);
       if (cancel) return;
       if (error) {
         setCustomerNote("โหลดรายชื่อลูกค้าไม่สำเร็จ ยังสร้างลูกค้าใหม่ในหน้านี้ได้");

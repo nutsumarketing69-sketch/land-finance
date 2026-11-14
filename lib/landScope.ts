@@ -73,10 +73,11 @@ async function related(
 
 export async function loadContractCards(
   supabase: ScopeClient,
-  column: "owner_id" | "shared_with_upline_id",
+  column: "owner_id" | "shared_with_upline_id" | "all",
   profileId: string,
 ) {
-  const { data, error } = await supabase.from("contracts").select("*").eq(column, profileId);
+  const query = supabase.from("contracts").select("*");
+  const { data, error } = column === "all" ? await query : await query.eq(column, profileId);
   if (error) return { cards: [] as DashboardContract[], error: "โหลดสัญญาไม่สำเร็จ" };
   const contracts = rowsOf(data);
   const customerIds = [...new Set(contracts.map((row) => text(row.customer_id)).filter(Boolean))];
@@ -91,12 +92,16 @@ export async function loadContractCards(
   };
 }
 
-export async function loadOwnedBackup(supabase: ScopeClient, ownerId: string): Promise<{ file: BackupFile; error: string }> {
+export async function loadOwnedBackup(supabase: ScopeClient, ownerId: string, role = "member"): Promise<{ file: BackupFile; error: string }> {
   const empty: BackupFile = { customers: [], land_assets: [], contracts: [], commission_splits: [] };
+  const everyRow = role === "owner";
+  const customersQuery = supabase.from("customers").select("*");
+  const landsQuery = supabase.from("land_assets").select("*");
+  const contractsQuery = supabase.from("contracts").select("*");
   const [customers, lands, contracts] = await Promise.all([
-    supabase.from("customers").select("*").eq("owner_id", ownerId),
-    supabase.from("land_assets").select("*").eq("owner_id", ownerId),
-    supabase.from("contracts").select("*").eq("owner_id", ownerId),
+    everyRow ? customersQuery : customersQuery.eq("owner_id", ownerId),
+    everyRow ? landsQuery : landsQuery.eq("owner_id", ownerId),
+    everyRow ? contractsQuery : contractsQuery.eq("owner_id", ownerId),
   ]);
   if (customers.error || lands.error || contracts.error) return { file: empty, error: "โหลดข้อมูลสำรองไม่สำเร็จ" };
   const contractRows = rowsOf(contracts.data);

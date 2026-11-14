@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { landControlClass } from "@/app/components/LandScreen";
 import { calculateContractPayoff, validateLTV } from "@/lib/financeEngine";
 import { CONTRACT_TYPE_LABELS, CONTRACT_TYPES, PRESET_INTEREST_RATES, formatBaht, type ContractType } from "@/lib/financeCalculator";
@@ -18,7 +19,9 @@ function text(value: unknown) {
 }
 
 export default function ContractEditor({ contractId }: { contractId: string }) {
+  const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [canDelete, setCanDelete] = useState(false);
   const [missing, setMissing] = useState(false);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -83,8 +86,9 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
     const land = (landRes.data || {}) as Record<string, unknown>;
     const userId = userRes.data.user?.id;
     if (userId) {
-      const profile = await supabase.from("profiles").select("referred_by").eq("id", userId).maybeSingle();
+      const profile = await supabase.from("profiles").select("referred_by, role").eq("id", userId).maybeSingle();
       setReferredBy(text(profile.data?.referred_by));
+      setCanDelete(profile.data?.role === "owner" || text(row.owner_id) === userId);
     }
     setCustomerId(text(row.customer_id));
     setLandId(text(row.land_id));
@@ -234,6 +238,18 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
     setMessage("บันทึกแล้ว");
   }
 
+  async function removeContract() {
+    if (!canDelete) return;
+    if (!window.confirm("ลบสัญญานี้ทั้งหมด?")) return;
+    const { error } = await createClient().from("contracts").delete().eq("id", contractId);
+    if (error) {
+      setMessage("ลบสัญญาไม่สำเร็จ");
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
   async function shareUpline() {
     if (!referredBy) {
       setMessage("บัญชีนี้ไม่มีต้นทาง");
@@ -353,6 +369,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
           {saving ? "กำลังบันทึก" : "บันทึก"}
         </button>
         {!uplineId ? <button type="button" onClick={() => void shareUpline()} className="rounded-full border border-amber-200 px-4 py-3 text-sm">ส่งขึ้นต้นทาง</button> : null}
+        {canDelete ? <button type="button" data-testid="delete-contract" onClick={() => void removeContract()} className="rounded-full border border-rose-300 px-4 py-3 text-sm text-rose-200">ลบสัญญา</button> : null}
         <Link href="/dashboard" className="rounded-full border border-slate-600 px-4 py-3 text-sm">กลับแดชบอร์ด</Link>
       </div>
       {message ? <p className="text-sm text-amber-100">{message}</p> : null}

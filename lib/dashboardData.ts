@@ -70,6 +70,7 @@ export const PREVIEW_PROFILE = {
   phone: "0800000000",
   invite_code: "PREVIEW1",
   referred_by: "00000000-0000-4000-8000-000000000099",
+  role: "member" as const,
 };
 
 export function previewContracts(today = PREVIEW_TODAY): { owned: DashboardContract[]; incoming: DashboardContract[] } {

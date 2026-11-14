@@ -143,6 +143,17 @@ export default function DashboardScreen({
     setNotice(`ส่งแล้ว ${count} สัญญา`);
   }
 
+  async function removeContract(id: string) {
+    if (preview || profile.role !== "owner") return;
+    if (!window.confirm("ลบสัญญานี้ทั้งหมด?")) return;
+    const { error } = await createClient().from("contracts").delete().eq("id", id);
+    if (error) {
+      setNotice("ลบสัญญาไม่สำเร็จ");
+      return;
+    }
+    window.location.reload();
+  }
+
   async function copyDeed(deed: string) {
     if (!deed) return;
     try {
@@ -267,6 +278,7 @@ export default function DashboardScreen({
                       copied={copiedDeed === contract.deedNumber}
                       onCopy={() => void copyDeed(contract.deedNumber)}
                       onPayoff={() => { setPayoffId(contract.id); setPayoffDate(today || contract.endDate); }}
+                      onDelete={profile.role === "owner" ? () => void removeContract(contract.id) : undefined}
                     />
                   </article>
                 ))}
@@ -304,6 +316,7 @@ export default function DashboardScreen({
                             copied={copiedDeed === contract.deedNumber}
                             onCopy={() => void copyDeed(contract.deedNumber)}
                             onPayoff={() => { setPayoffId(contract.id); setPayoffDate(today || contract.endDate); }}
+                            onDelete={profile.role === "owner" ? () => void removeContract(contract.id) : undefined}
                           />
                         </td>
                         <td className="px-4 py-3">{contract.endDate || "-"}</td>
@@ -388,11 +401,13 @@ function ContractTools({
   copied,
   onCopy,
   onPayoff,
+  onDelete,
 }: {
   contract: DashboardContract;
   copied: boolean;
   onCopy: () => void;
   onPayoff: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div className="flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
@@ -420,6 +435,11 @@ function ContractTools({
       <a href={`/contracts/${contract.id}`} data-testid={`detail-${contract.id}`} className="inline-flex min-h-11 items-center rounded-full border border-amber-200/50 px-3 text-sm text-amber-100">
         ดูรายละเอียด / แก้ไข
       </a>
+      {onDelete ? (
+        <button type="button" data-testid={`delete-${contract.id}`} onClick={onDelete} className="inline-flex min-h-11 items-center rounded-full border border-rose-300/50 px-3 text-sm text-rose-200">
+          ลบสัญญา
+        </button>
+      ) : null}
     </div>
   );
 }

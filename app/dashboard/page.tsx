@@ -27,7 +27,7 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<{ prev
 
   if (user) {
     const [profileRes, staffRes] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, phone, invite_code, referred_by").eq("id", user.id).maybeSingle(),
+      supabase.from("profiles").select("id, full_name, phone, invite_code, referred_by, role").eq("id", user.id).maybeSingle(),
       supabase.from("staff_accounts").select("status").eq("user_id", user.id).maybeSingle(),
     ]);
     if (!profileRes.error) profile = asLandProfile(profileRes.data);
@@ -42,7 +42,7 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<{ prev
   if (profile && !staffApproved) {
     const client = supabase as unknown as ScopeClient;
     const [owned, incoming] = await Promise.all([
-      loadContractCards(client, "owner_id", profile.id),
+      loadContractCards(client, profile.role === "owner" ? "all" : "owner_id", profile.id),
       loadContractCards(client, "shared_with_upline_id", profile.id),
     ]);
     return (

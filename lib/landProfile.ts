@@ -1,10 +1,17 @@
+export type LandRole = "owner" | "admin" | "member";
+
 export type LandProfile = {
   id: string;
   full_name: string | null;
   phone: string | null;
   invite_code: string | null;
   referred_by: string | null;
+  role: LandRole;
 };
+
+export function landRole(value: unknown): LandRole {
+  return value === "owner" || value === "admin" ? value : "member";
+}
 
 export function asLandProfile(value: unknown): LandProfile | null {
   if (!value || typeof value !== "object") return null;
@@ -16,6 +23,7 @@ export function asLandProfile(value: unknown): LandProfile | null {
     phone: typeof row.phone === "string" ? row.phone : null,
     invite_code: typeof row.invite_code === "string" ? row.invite_code : null,
     referred_by: asUuid(row.referred_by),
+    role: landRole(row.role),
   };
 }
 

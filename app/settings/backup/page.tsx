@@ -41,7 +41,7 @@ async function BackupContent({ searchParams }: { searchParams: Promise<{ preview
 
   const { data: profileRow, error } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, invite_code, referred_by")
+    .select("id, full_name, phone, invite_code, referred_by, role")
     .eq("id", user.id)
     .maybeSingle();
   const profile = error ? null : asLandProfile(profileRow);
@@ -49,7 +49,7 @@ async function BackupContent({ searchParams }: { searchParams: Promise<{ preview
     return <main className="bg-slate-950 p-8 text-slate-200">หน้านี้สำหรับสมาชิกสัญญาที่ดิน</main>;
   }
 
-  const loaded = await loadOwnedBackup(supabase as unknown as ScopeClient, profile.id);
+  const loaded = await loadOwnedBackup(supabase as unknown as ScopeClient, profile.id, profile.role);
   const ids = (rows: Record<string, unknown>[]) => rows.map((row) => String(row.id ?? "")).filter(Boolean);
   return (
     <BackupScreen
