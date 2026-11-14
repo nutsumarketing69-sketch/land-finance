@@ -75,6 +75,7 @@
 }
 
 .land-field {
+  overflow: hidden;
   box-shadow: inset 0 0 0 2px #0f172a;
 }
 
@@ -84,6 +85,8 @@
 
 .land-field input {
   appearance: none;
+  margin-top: -1px;
+  margin-bottom: -1px;
   border: 0 !important;
   outline: none !important;
   background-color: #0f172a !important;
