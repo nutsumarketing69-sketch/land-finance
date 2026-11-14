@@ -27,7 +27,7 @@ export default function LandScreen({
 }
 
 export function landFieldClass() {
-  return "land-field mt-1 flex min-h-11 items-center gap-2 rounded-2xl border border-slate-600 bg-slate-900 px-3 text-slate-100 focus-within:border-amber-300 focus-within:ring-2 focus-within:ring-emerald-400/70";
+  return "land-field mt-1 flex min-h-11 items-center gap-2 rounded-2xl border border-slate-600 bg-slate-900 px-3 text-slate-100 focus-within:border-amber-300";
 }
 
 export function landControlClass() {
