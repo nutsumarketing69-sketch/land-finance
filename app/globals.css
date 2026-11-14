@@ -74,6 +74,14 @@
   caret-color: #f1f5f9;
 }
 
+.land-field input {
+  appearance: none;
+  border: 0 !important;
+  outline: none !important;
+  background-color: #0f172a !important;
+  box-shadow: none;
+}
+
 .land-control:-webkit-autofill,
 .land-control:-webkit-autofill:hover,
 .land-control:-webkit-autofill:focus,
@@ -82,9 +90,12 @@
 .land-field input:-webkit-autofill:focus {
   -webkit-text-fill-color: #f1f5f9 !important;
   caret-color: #f1f5f9;
+  border: 0 !important;
+  outline: none !important;
   border-radius: inherit;
   box-shadow: 0 0 0 1000px #0f172a inset !important;
   -webkit-box-shadow: 0 0 0 1000px #0f172a inset !important;
   background-color: #0f172a !important;
+  background-image: none !important;
   transition: background-color 99999s ease-out;
 }

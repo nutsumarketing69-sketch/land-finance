@@ -183,7 +183,7 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
               autoComplete="name"
-              className="land-control h-11 min-h-11 w-full bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-400"
+              className="land-control h-11 min-h-11 w-full border-0 bg-slate-900 text-base text-slate-100 outline-none placeholder:text-slate-400"
             />
           </Field>
           <Field id="phone" label="เบอร์โทรศัพท์" icon={<Phone className="h-4 w-4 text-slate-400" />}>
@@ -194,7 +194,7 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
               inputMode="tel"
               autoComplete="tel"
               placeholder="0891234567"
-              className="land-control h-11 min-h-11 w-full bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-400"
+              className="land-control h-11 min-h-11 w-full border-0 bg-slate-900 text-base text-slate-100 outline-none placeholder:text-slate-400"
             />
           </Field>
           <Field id="password" label="รหัสผ่าน" icon={<Lock className="h-4 w-4 text-slate-400" />}>
@@ -204,7 +204,7 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
               onChange={(event) => setPassword(event.target.value)}
               type={show ? "text" : "password"}
               autoComplete="new-password"
-              className="land-control h-11 min-h-11 w-full bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-400"
+              className="land-control h-11 min-h-11 w-full border-0 bg-slate-900 text-base text-slate-100 outline-none placeholder:text-slate-400"
             />
             <button type="button" onClick={() => setShow((value) => !value)} className="text-slate-500" aria-label={show ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}>
               {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -217,7 +217,7 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
               onChange={(event) => setConfirm(event.target.value)}
               type={show ? "text" : "password"}
               autoComplete="new-password"
-              className="land-control h-11 min-h-11 w-full bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-400"
+              className="land-control h-11 min-h-11 w-full border-0 bg-slate-900 text-base text-slate-100 outline-none placeholder:text-slate-400"
             />
           </Field>
           {inviterId && <p className="mt-3 text-xs text-emerald-300">ลิงก์แนะนำนี้ใช้เปิดบัญชีได้</p>}
