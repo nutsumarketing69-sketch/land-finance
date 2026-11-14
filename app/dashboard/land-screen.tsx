@@ -199,7 +199,7 @@ export default function DashboardScreen({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="ค้นชื่อ เบอร์โทร เลขโฉนด หรือเลขสัญญา"
-            className="w-full rounded-2xl border border-amber-300/40 bg-slate-900 py-4 pl-12 pr-4 text-base text-white outline-none placeholder:text-slate-500 focus:border-amber-300"
+            className="land-control min-h-11 w-full rounded-2xl border border-slate-600 bg-slate-900 py-3 pl-12 pr-4 text-base text-slate-100 outline-none placeholder:text-slate-400 focus:border-amber-300 focus:ring-2 focus:ring-emerald-400/70"
           />
         </label>
 
@@ -479,7 +479,7 @@ function PayoffModal({
         <p className="mt-1 text-sm text-slate-400">{contract.contractNumber} · อัตรา {contract.interestRate}% {periodLabel}</p>
         <label className="mt-4 block text-sm">
           วันที่ปิดบัญชี
-          <input data-testid="payoff-date" type="date" value={date} onChange={(event) => onDate(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-base" />
+          <input data-testid="payoff-date" type="date" value={date} onChange={(event) => onDate(event.target.value)} className="land-control mt-1 min-h-11 w-full rounded-xl border border-slate-600 bg-slate-900 px-3 text-base text-slate-100 outline-none focus:border-amber-300 focus:ring-2 focus:ring-emerald-400/70" />
         </label>
         {error ? <p className="mt-4 text-sm text-amber-200">{error}</p> : (
           <dl className="mt-4 space-y-2 text-sm">

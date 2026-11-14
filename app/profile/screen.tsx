@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import LandNav from "@/app/components/LandNav";
+import { landControlClass } from "@/app/components/LandScreen";
 import { LAND_BRAND } from "@/lib/brand";
 import { landPasswordError, referralPath } from "@/lib/phoneAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -80,11 +81,11 @@ export default function ProfileScreen({ preview = false }: { preview?: boolean }
         </section>
         <form onSubmit={(event) => void changePassword(event)} className="rounded-3xl border border-slate-700 bg-slate-900 p-4">
           <h2 className="font-semibold">เปลี่ยนรหัสผ่าน</h2>
-          <label className="mt-3 block text-sm">รหัสผ่านใหม่
-            <input type="password" autoComplete="new-password" value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3" />
+          <label className="mt-3 block text-sm text-slate-200">รหัสผ่านใหม่
+            <input type="password" autoComplete="new-password" value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} className={`mt-1 ${landControlClass()}`} />
           </label>
-          <label className="mt-3 block text-sm">ยืนยันรหัสผ่าน
-            <input type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3" />
+          <label className="mt-3 block text-sm text-slate-200">ยืนยันรหัสผ่าน
+            <input type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} className={`mt-1 ${landControlClass()}`} />
           </label>
           <button type="submit" disabled={busy} className="mt-4 rounded-full bg-amber-300 px-4 py-3 text-sm font-semibold text-slate-950">
             {busy ? "กำลังบันทึก" : "บันทึกรหัสผ่าน"}

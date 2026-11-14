@@ -1,4 +1,4 @@
-const CACHE = "land-finance-pro-v1";
+const CACHE = "land-finance-pro-v2";
 const SHELL = ["/", "/login", "/dashboard", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

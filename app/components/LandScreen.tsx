@@ -27,7 +27,11 @@ export default function LandScreen({
 }
 
 export function landFieldClass() {
-  return "mt-1 flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950 px-3 text-slate-100 focus-within:border-amber-200/80 focus-within:ring-2 focus-within:ring-amber-100/20";
+  return "land-field mt-1 flex min-h-11 items-center gap-2 rounded-2xl border border-slate-600 bg-slate-900 px-3 text-slate-100 focus-within:border-amber-300 focus-within:ring-2 focus-within:ring-emerald-400/70";
+}
+
+export function landControlClass() {
+  return "land-control min-h-11 w-full rounded-xl border border-slate-600 bg-slate-900 px-3 text-base text-slate-100 outline-none placeholder:text-slate-400 focus:border-amber-300 focus:ring-2 focus:ring-emerald-400/70";
 }
 
 export function landButtonClass() {

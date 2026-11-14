@@ -31,7 +31,7 @@ const STEPS = [
 ] as const;
 
 const control =
-  "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-base text-white outline-none placeholder:text-white/35 focus:border-emerald-300";
+  "land-control min-h-11 w-full rounded-xl border border-slate-600 bg-slate-900 px-3 text-base text-slate-100 outline-none placeholder:text-slate-400 focus:border-amber-300 focus:ring-2 focus:ring-emerald-400/70";
 
 type CustomerRow = {
   id: string;
@@ -775,7 +775,7 @@ export default function ContractWizard() {
             </div>
             <div className="flex flex-col gap-3">
               <Field label="บันทึกสัญญา">
-                <textarea data-testid="notes" className={`${control} min-h-40`} value={notes} onChange={(event) => setNotes(event.target.value)} />
+                <textarea data-testid="notes" className={`${control} !min-h-40`} value={notes} onChange={(event) => setNotes(event.target.value)} />
               </Field>
               <Field label="แจ้งเตือนก่อนวันสิ้นสุด" hint={`ถ้าเลือกเป็นเดือน ระบบคูณ ${ALERT_DAYS_PER_MONTH} วันต่อเดือน`}>
                 <div className="flex gap-2">

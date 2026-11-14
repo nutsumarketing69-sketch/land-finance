@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { landControlClass } from "@/app/components/LandScreen";
 import { calculateContractPayoff, validateLTV } from "@/lib/financeEngine";
 import { CONTRACT_TYPE_LABELS, CONTRACT_TYPES, PRESET_INTEREST_RATES, formatBaht, type ContractType } from "@/lib/financeCalculator";
 import { createClient } from "@/lib/supabase/client";
@@ -10,7 +11,7 @@ type Split = { id?: string; personName: string; roleLabel: string; percentage: s
 
 type Photo = { path: string; url: string };
 
-const field = "w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-base";
+const field = landControlClass();
 
 function text(value: unknown) {
   return value == null ? "" : String(value);
@@ -323,7 +324,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
         <label className="text-sm">วันเริ่ม<input className={field} type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
         <label className="text-sm">วันสิ้นสุด<input className={field} type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
         <label className="text-sm">แจ้งเตือนก่อนกี่วัน<input className={field} value={alertDays} onChange={(event) => setAlertDays(event.target.value)} /></label>
-        <label className="text-sm sm:col-span-2">บันทึก<textarea className={field} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+        <label className="text-sm text-slate-200 sm:col-span-2">บันทึก<textarea className={`${field} !min-h-28`} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
       </div>
       <section className="rounded-2xl border border-emerald-300/30 p-4">
         <h2 className="font-semibold">คำนวณยอดปิด</h2>

@@ -61,7 +61,7 @@ export default function LoginScreen() {
               inputMode="tel"
               autoComplete="username"
               placeholder="0891234567"
-              className="w-full bg-transparent py-3 text-base outline-none placeholder:text-slate-600"
+              className="land-control h-11 min-h-11 w-full bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-400"
             />
           </span>
         </label>
@@ -75,7 +75,7 @@ export default function LoginScreen() {
               onChange={(event) => setPassword(event.target.value)}
               type={show ? "text" : "password"}
               autoComplete="current-password"
-              className="w-full bg-transparent py-3 text-base outline-none"
+              className="land-control h-11 min-h-11 w-full bg-transparent text-base text-slate-100 outline-none placeholder:text-slate-400"
             />
             <button type="button" onClick={() => setShow((value) => !value)} className="text-slate-400" aria-label={show ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}>
               {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

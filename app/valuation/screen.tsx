@@ -28,7 +28,7 @@ const TYPES = [
 ] as const;
 
 const control =
-  "min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 text-base text-white outline-none placeholder:text-slate-500 focus:border-amber-300";
+  "land-control min-h-11 w-full rounded-xl border border-slate-600 bg-slate-900 px-3 text-base text-slate-100 outline-none placeholder:text-slate-400 focus:border-amber-300 focus:ring-2 focus:ring-emerald-400/70";
 
 type SplitRow = { id: string; personName: string; roleLabel: string; percentage: string };
 
