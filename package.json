@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "test:finance": "tsx --test lib/financeCalculator.test.ts",
     "test:auth": "tsx --test lib/phoneAuth.test.ts",
+    "test:handoff": "tsx --test lib/hubHandoff.test.ts lib/landAccount.test.ts",
     "test:wizard": "tsx --test lib/mapLink.test.ts lib/contractAlert.test.ts",
     "test:dashboard": "tsx --test lib/dashboardData.test.ts lib/backupFile.test.ts",
     "test:engine": "tsx --test lib/financeEngine.test.ts",
