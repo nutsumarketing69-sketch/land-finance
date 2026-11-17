@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Phone, UserRound } from "lucide-react";
 import LandScreen, { landButtonClass, landFieldClass } from "@/app/components/LandScreen";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
+import { landAuthConfigured } from "@/lib/supabase/land";
 import { asUuid } from "@/lib/landProfile";
 import {
   generateInviteCode,
@@ -37,8 +38,9 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
       setInviterId(null);
       return;
     }
+    if (!landAuthConfigured()) return;
     let cancel = false;
-    const supabase = createClient();
+    const supabase = createLandClient();
     void supabase.rpc("lookup_inviter", { code: ref }).then(({ data, error: lookupError }) => {
       if (cancel || lookupError) return;
       const id = asUuid(data);
@@ -82,8 +84,12 @@ export default function RegisterScreen({ initialRef }: { initialRef: string }) {
       return;
     }
 
+    if (!landAuthConfigured()) {
+      setError("ยังเชื่อมต่อฐานข้อมูล Land ไม่ได้");
+      return;
+    }
     setBusy(true);
-    const supabase = createClient();
+    const supabase = createLandClient();
     const lookup = await supabase.rpc("lookup_inviter", { code: ref });
     if (lookup.error) {
       setError("ยังตรวจรหัสแนะนำไม่ได้ ลองอีกครั้ง");

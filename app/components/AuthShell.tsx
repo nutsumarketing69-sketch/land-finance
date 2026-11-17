@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, createLandClient } from "@/lib/supabase/client";
+import { landAuthConfigured } from "@/lib/supabase/land";
 import { capForPath, capLabel, hasCap } from "@/lib/access";
 import { LAND_BRAND } from "@/lib/brand";
 import { isLandMemberPath, signedOutEntry } from "@/lib/landPaths";
@@ -44,6 +45,20 @@ async function loadAccount() {
       .maybeSingle();
   }
   return { user, account: (accountRes.data || null) as StaffAccount | null };
+}
+
+async function loadLandSession() {
+  if (!landAuthConfigured()) return { signedIn: false, profile: null as { id: string } | null };
+  try {
+    const land = createLandClient();
+    const { data } = await land.auth.getUser();
+    const userId = data.user?.id;
+    if (!userId) return { signedIn: false, profile: null };
+    const profile = await land.from("profiles").select("id").eq("id", userId).maybeSingle();
+    return { signedIn: true, profile: profile.data ?? null };
+  } catch {
+    return { signedIn: false, profile: null };
+  }
 }
 
 export function SessionBar() {
@@ -100,6 +115,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
     const current = path;
     (async () => {
       const { user, account: row } = await loadAccount();
+      const landSession = await loadLandSession();
       if (cancel) return;
       setAccount(row);
       if (isOpenPath(current)) {
@@ -107,36 +123,20 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         setReady(true);
         return;
       }
-      if (!user) {
-        setAllowed(false);
-        setReady(true);
-        router.replace(signedOutEntry(current));
-        return;
-      }
       if (isLandMemberPath(current)) {
-        const { data: profile } = await createClient()
-          .from("profiles")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (cancel) return;
-        if (profile || (row?.status === "approved" && current === "/dashboard")) {
+        if (landSession.profile || (row?.status === "approved" && current === "/dashboard")) {
           setAllowed(true);
           setReady(true);
           return;
         }
         setAllowed(false);
         setReady(true);
-        router.replace(row?.status === "approved" ? "/" : "/pending");
+        if (!user && !landSession.signedIn) router.replace(signedOutEntry(current));
+        else router.replace(row?.status === "approved" ? "/" : "/pending");
         return;
       }
       if (!row || row.status !== "approved") {
-        const { data: profile } = await createClient()
-          .from("profiles")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (profile) {
+        if (landSession.profile) {
           if (current === "/dashboard") {
             setAllowed(true);
             setReady(true);
@@ -149,7 +149,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
         }
         setAllowed(false);
         setReady(true);
-        router.replace("/pending");
+        router.replace(user ? "/pending" : signedOutEntry(current));
         return;
       }
       if ((current.startsWith("/approvals") || current.startsWith("/backup")) && row.role !== "admin") {

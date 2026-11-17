@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { previewBackupFile } from "@/lib/backupFile";
 import { asLandProfile } from "@/lib/landProfile";
 import { loadOwnedBackup, type ScopeClient } from "@/lib/landScope";
-import { createClient } from "@/lib/supabase/server";
+import { landAuthConfigured } from "@/lib/supabase/land";
+import { createLandClient } from "@/lib/supabase/server";
 import BackupScreen from "./screen";
 
 export const instant = false;
@@ -18,7 +19,22 @@ export default function Page({ searchParams }: { searchParams: Promise<{ preview
 async function BackupContent({ searchParams }: { searchParams: Promise<{ preview?: string | string[] }> }) {
   const query = await searchParams;
   const previewFlag = (Array.isArray(query.preview) ? query.preview[0] : query.preview) === "1";
-  const supabase = await createClient();
+  if (!landAuthConfigured()) {
+    if (previewFlag) {
+      const file = previewBackupFile();
+      return (
+        <BackupScreen
+          file={file}
+          ownerId="00000000-0000-4000-8000-000000000001"
+          existing={{ customerIds: [], landIds: [], contractIds: [] }}
+          preview
+          loadError=""
+        />
+      );
+    }
+    return <main className="bg-slate-950 p-8 text-slate-200">ยังเชื่อมต่อฐานข้อมูล Land ไม่ได้</main>;
+  }
+  const supabase = await createLandClient();
   const { data: authData } = await supabase.auth.getUser();
   const user = authData.user;
 

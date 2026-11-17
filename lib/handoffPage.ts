@@ -1,4 +1,6 @@
-export const LAND_SUPABASE_HOST = "fahkknzinragbeizymny.supabase.co";
+import { LAND_SUPABASE_URL } from "./supabase/land";
+
+export const LAND_SUPABASE_HOST = new URL(LAND_SUPABASE_URL).hostname;
 
 export function isLandSupabaseUrl(url: string): boolean {
   try {

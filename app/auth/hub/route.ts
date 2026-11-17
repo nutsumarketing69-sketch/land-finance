@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { accountStop, handoffStopPage, isLandSupabaseUrl, type HandoffStop } from "@/lib/handoffPage";
 import { consumeHandoffJti, readHandoffSecret, verifyLandHandoff } from "@/lib/hubHandoff";
 import { findAuthUserByEmail, recoveryHashForExistingUser } from "@/lib/landAccount";
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/public";
+import { LAND_SCHEMA, LAND_SUPABASE_URL, landAnonKey } from "@/lib/supabase/land";
 
 const STATUS: Record<HandoffStop, number> = {
   direct: 200,
@@ -50,21 +50,23 @@ export async function POST(request: NextRequest) {
 
   const claims = verifyLandHandoff(token, secret);
   if (!claims) return stop("invalid");
-  if (!isLandSupabaseUrl(SUPABASE_URL)) return stop("unavailable");
+  if (!isLandSupabaseUrl(LAND_SUPABASE_URL)) return stop("unavailable");
 
   const key = serviceRoleKey();
-  if (!key) return stop("unavailable");
+  const anonKey = landAnonKey();
+  if (!key || !anonKey) return stop("unavailable");
   if (!consumeHandoffJti(claims.jti, claims.exp)) return stop("invalid");
 
   const found = await findAuthUserByEmail({
-    supabaseUrl: SUPABASE_URL,
+    supabaseUrl: LAND_SUPABASE_URL,
     serviceRoleKey: key,
     email: claims.email,
   });
   if (found.status !== "found") return stop(accountStop(found.status));
 
-  const admin = createClient(SUPABASE_URL, key, {
+  const admin = createClient(LAND_SUPABASE_URL, key, {
     auth: { autoRefreshToken: false, persistSession: false },
+    db: { schema: LAND_SCHEMA },
   });
   const link = await recoveryHashForExistingUser({
     expectedUserId: found.id,
@@ -85,7 +87,8 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.redirect(new URL("/dashboard", request.url), 303);
   response.headers.set("cache-control", "no-store");
   response.headers.set("referrer-policy", "no-referrer");
-  const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  const supabase = createServerClient(LAND_SUPABASE_URL, anonKey, {
+    db: { schema: LAND_SCHEMA },
     cookies: {
       getAll() {
         return request.cookies.getAll();
