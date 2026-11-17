@@ -18,7 +18,7 @@ import { calculateContractPayoff } from "@/lib/financeEngine";
 import { LAND_BRAND } from "@/lib/brand";
 import ContractFacts from "./contract-facts";
 import type { LandProfile } from "@/lib/landProfile";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
 import {
   MATCH_REASON_LABELS,
   classifyAlert,
@@ -127,7 +127,7 @@ export default function DashboardScreen({
       setSelected([]);
       return;
     }
-    const supabase = createClient();
+    const supabase = createLandClient();
     const { data, error } = await supabase
       .from("contracts")
       .update({ shared_with_upline_id: profile.referred_by })
@@ -146,7 +146,7 @@ export default function DashboardScreen({
   async function removeContract(id: string) {
     if (preview || profile.role !== "owner") return;
     if (!window.confirm("ลบสัญญานี้ทั้งหมด?")) return;
-    const { error } = await createClient().from("contracts").delete().eq("id", id);
+    const { error } = await createLandClient().from("contracts").delete().eq("id", id);
     if (error) {
       setNotice("ลบสัญญาไม่สำเร็จ");
       return;

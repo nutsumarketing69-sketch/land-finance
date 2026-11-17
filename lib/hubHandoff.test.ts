@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
 import { accountStop, handoffStopPage, isLandSupabaseUrl } from "./handoffPage";
+import { LAND_SCHEMA, LAND_SUPABASE_URL } from "./supabase/land";
+import { SUPABASE_URL } from "./supabase/public";
 import {
   clearHandoffReplayForTests,
   consumeHandoffJti,
@@ -75,9 +77,12 @@ describe("handoff stop page", () => {
     assert.match(page, /Nothing was created/);
     assert.match(page, /ยังไม่มีบัญชี Land/);
     assert.doesNotMatch(page, /eyJ/);
-    assert.equal(isLandSupabaseUrl("https://fahkknzinragbeizymny.supabase.co"), true);
-    assert.equal(isLandSupabaseUrl("https://aozoakeghslgnhdegdyr.supabase.co"), false);
-    assert.equal(isLandSupabaseUrl("http://fahkknzinragbeizymny.supabase.co"), false);
+    assert.equal(LAND_SCHEMA, "land");
+    assert.equal(LAND_SUPABASE_URL, "https://aozoakeghslgnhdegdyr.supabase.co");
+    assert.equal(isLandSupabaseUrl(LAND_SUPABASE_URL), true);
+    assert.equal(isLandSupabaseUrl("https://fahkknzinragbeizymny.supabase.co"), false);
+    assert.equal(isLandSupabaseUrl("http://aozoakeghslgnhdegdyr.supabase.co"), false);
+    assert.notEqual(new URL(SUPABASE_URL).hostname, new URL(LAND_SUPABASE_URL).hostname);
     assert.equal(accountStop("none"), "missing");
     assert.equal(accountStop("ambiguous"), "ambiguous");
   });

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { landControlClass } from "@/app/components/LandScreen";
 import { calculateContractPayoff, validateLTV } from "@/lib/financeEngine";
 import { CONTRACT_TYPE_LABELS, CONTRACT_TYPES, PRESET_INTEREST_RATES, formatBaht, type ContractType } from "@/lib/financeCalculator";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
 
 type Split = { id?: string; personName: string; roleLabel: string; percentage: string };
 
@@ -58,7 +58,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
   const [referredBy, setReferredBy] = useState("");
 
   async function signedPhotos(paths: string[]) {
-    const supabase = createClient();
+    const supabase = createLandClient();
     const next: Photo[] = [];
     for (const path of paths) {
       const signed = await supabase.storage.from("deed-images").createSignedUrl(path, 3600);
@@ -68,7 +68,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
   }
 
   async function load() {
-    const supabase = createClient();
+    const supabase = createLandClient();
     const { data: contract } = await supabase.from("contracts").select("*").eq("id", contractId).maybeSingle();
     if (!contract) {
       setMissing(true);
@@ -151,7 +151,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
   }
 
   async function addPhoto(file: File) {
-    const supabase = createClient();
+    const supabase = createLandClient();
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (!userId) return;
@@ -168,7 +168,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
   async function save() {
     setSaving(true);
     setMessage("");
-    const supabase = createClient();
+    const supabase = createLandClient();
     const photoPaths = photos.map((photo) => photo.path);
     if (customerId) {
       const customer = await supabase.from("customers").update({
@@ -241,7 +241,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
   async function removeContract() {
     if (!canDelete) return;
     if (!window.confirm("ลบสัญญานี้ทั้งหมด?")) return;
-    const { error } = await createClient().from("contracts").delete().eq("id", contractId);
+    const { error } = await createLandClient().from("contracts").delete().eq("id", contractId);
     if (error) {
       setMessage("ลบสัญญาไม่สำเร็จ");
       return;
@@ -255,7 +255,7 @@ export default function ContractEditor({ contractId }: { contractId: string }) {
       setMessage("บัญชีนี้ไม่มีต้นทาง");
       return;
     }
-    const { error } = await createClient().from("contracts").update({ shared_with_upline_id: referredBy }).eq("id", contractId);
+    const { error } = await createLandClient().from("contracts").update({ shared_with_upline_id: referredBy }).eq("id", contractId);
     if (error) {
       setMessage("ส่งขึ้นต้นทางไม่สำเร็จ");
       return;

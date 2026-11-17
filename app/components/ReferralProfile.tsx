@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Copy, LogOut } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
 import type { LandProfile } from "@/lib/landProfile";
 import { referralPath } from "@/lib/phoneAuth";
 
@@ -33,7 +33,7 @@ export default function ReferralProfile({ profile }: { profile: LandProfile }) {
   };
 
   const signOut = async () => {
-    await createClient().auth.signOut();
+    await createLandClient().auth.signOut();
     window.location.href = "/login";
   };
 

@@ -11,7 +11,7 @@ import {
   planRestore,
   type BackupFile,
 } from "@/lib/backupFile";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
 
 export default function BackupScreen({
   file,
@@ -61,7 +61,7 @@ export default function BackupScreen({
       setSummary(`โหมดตัวอย่าง ไม่ได้เขียนลงฐานข้อมูล จะเพิ่มหรือแก้ ${plan.inserted + plan.updated} แถว ข้าม ${plan.skipped.length} แถว`);
       return;
     }
-    const supabase = createClient();
+    const supabase = createLandClient();
     const steps: { table: string; rows: Record<string, unknown>[] }[] = [
       { table: "customers", rows: plan.customers },
       { table: "land_assets", rows: plan.landAssets },

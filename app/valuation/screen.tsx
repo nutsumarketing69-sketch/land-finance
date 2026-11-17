@@ -5,7 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import LandNav from "@/app/components/LandNav";
 import MapPicker from "@/app/contracts/new/map-picker";
 import { parseGoogleMapsUrl } from "@/lib/mapLink";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
 import {
   compareAppraisals,
   quoteCommission,
@@ -155,7 +155,7 @@ export default function ValuationScreen({
       return;
     }
     setSaving(true);
-    const supabase = createClient();
+    const supabase = createLandClient();
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (!userId) {

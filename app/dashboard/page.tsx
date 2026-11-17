@@ -4,7 +4,8 @@ import ReferralProfile from "@/app/components/ReferralProfile";
 import { previewContracts, PREVIEW_PROFILE } from "@/lib/dashboardData";
 import { asLandProfile, type LandProfile } from "@/lib/landProfile";
 import { loadContractCards, type ScopeClient } from "@/lib/landScope";
-import { createClient } from "@/lib/supabase/server";
+import { landAuthConfigured } from "@/lib/supabase/land";
+import { createClient, createLandClient } from "@/lib/supabase/server";
 import DashboardScreen from "./land-screen";
 
 export default function Page({ searchParams }: { searchParams: Promise<{ preview?: string | string[]; focus?: string | string[] }> }) {
@@ -19,28 +20,43 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<{ prev
   const query = await searchParams;
   const previewFlag = (Array.isArray(query.preview) ? query.preview[0] : query.preview) === "1";
   const focusSearch = (Array.isArray(query.focus) ? query.focus[0] : query.focus) === "search";
-  const supabase = await createClient();
-  const { data: authData } = await supabase.auth.getUser();
-  const user = authData.user;
+  const air = await createClient();
+  const { data: airAuth } = await air.auth.getUser();
+  const airUser = airAuth.user;
+  let land: Awaited<ReturnType<typeof createLandClient>> | null = null;
+  let landUser: { id: string } | null = null;
+  if (landAuthConfigured()) {
+    try {
+      land = await createLandClient();
+      landUser = (await land.auth.getUser()).data.user;
+    } catch {
+      land = null;
+      landUser = null;
+    }
+  }
   let profile: LandProfile | null = null;
   let staffApproved = false;
 
-  if (user) {
-    const [profileRes, staffRes] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, phone, invite_code, referred_by, role").eq("id", user.id).maybeSingle(),
-      supabase.from("staff_accounts").select("status").eq("user_id", user.id).maybeSingle(),
-    ]);
+  if (land && landUser) {
+    const profileRes = await land
+      .from("profiles")
+      .select("id, full_name, phone, invite_code, referred_by, role")
+      .eq("id", landUser.id)
+      .maybeSingle();
     if (!profileRes.error) profile = asLandProfile(profileRes.data);
+  }
+  if (airUser) {
+    const staffRes = await air.from("staff_accounts").select("status").eq("user_id", airUser.id).maybeSingle();
     staffApproved = staffStatus(staffRes.data) === "approved";
   }
 
-  if (!user && previewFlag) {
+  if (!landUser && !airUser && previewFlag) {
     const sample = previewContracts();
     return <DashboardScreen profile={PREVIEW_PROFILE} owned={sample.owned} incoming={sample.incoming} preview loadError="" focusSearch={focusSearch} />;
   }
 
   if (profile && !staffApproved) {
-    const client = supabase as unknown as ScopeClient;
+    const client = land as unknown as ScopeClient;
     const [owned, incoming] = await Promise.all([
       loadContractCards(client, profile.role === "owner" ? "all" : "owner_id", profile.id),
       loadContractCards(client, "shared_with_upline_id", profile.id),

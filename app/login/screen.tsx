@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Phone } from "lucide-react";
 import LandScreen, { landButtonClass, landFieldClass } from "@/app/components/LandScreen";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
+import { landAuthConfigured } from "@/lib/supabase/land";
 import { landAuthError, landPasswordError, normalizeThaiPhone, phoneAuthError, phoneToAuthEmail } from "@/lib/phoneAuth";
 
 export default function LoginScreen() {
@@ -32,9 +33,13 @@ export default function LoginScreen() {
       setError("เบอร์โทรศัพท์ไม่ถูกต้อง ใช้รูปแบบ 0891234567");
       return;
     }
+    if (!landAuthConfigured()) {
+      setError("ยังเชื่อมต่อฐานข้อมูล Land ไม่ได้");
+      return;
+    }
     setBusy(true);
     setError("");
-    const { error: signError } = await createClient().auth.signInWithPassword({
+    const { error: signError } = await createLandClient().auth.signInWithPassword({
       email: phoneToAuthEmail(normalized),
       password,
     });

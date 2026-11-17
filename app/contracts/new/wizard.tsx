@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Plus, Trash2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
+import { landAuthConfigured } from "@/lib/supabase/land";
 import { alertBeforeDays, ALERT_DAYS_PER_MONTH, type AlertUnit } from "@/lib/contractAlert";
 import { parseGoogleMapsUrl } from "@/lib/mapLink";
 import {
@@ -141,7 +142,11 @@ export default function ContractWizard() {
   useEffect(() => {
     let cancel = false;
     (async () => {
-      const supabase = createClient();
+      if (!landAuthConfigured()) {
+        if (!cancel) setCustomerNote("ยังเชื่อมต่อฐานข้อมูล Land ไม่ได้");
+        return;
+      }
+      const supabase = createLandClient();
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData.user?.id;
       if (!userId) {
@@ -255,7 +260,7 @@ export default function ContractWizard() {
 
   async function onPhotos(list: FileList | null) {
     if (!list?.length) return;
-    const supabase = createClient();
+    const supabase = createLandClient();
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id ?? "";
     for (const file of Array.from(list)) {
@@ -294,7 +299,7 @@ export default function ContractWizard() {
     URL.revokeObjectURL(photo.previewUrl);
     setPhotos((current) => current.filter((item) => item.localId !== photo.localId));
     if (!photo.storagePath) return;
-    await createClient().storage.from("deed-images").remove([photo.storagePath]);
+    await createLandClient().storage.from("deed-images").remove([photo.storagePath]);
   }
 
   function addSplit() {
@@ -346,7 +351,7 @@ export default function ContractWizard() {
     }
 
     setSaving(true);
-    const supabase = createClient();
+    const supabase = createLandClient();
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
     if (!userId) {

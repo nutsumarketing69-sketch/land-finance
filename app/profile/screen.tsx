@@ -6,7 +6,8 @@ import LandNav from "@/app/components/LandNav";
 import { landControlClass } from "@/app/components/LandScreen";
 import { LAND_BRAND } from "@/lib/brand";
 import { landPasswordError, referralPath } from "@/lib/phoneAuth";
-import { createClient } from "@/lib/supabase/client";
+import { createLandClient } from "@/lib/supabase/client";
+import { landAuthConfigured } from "@/lib/supabase/land";
 
 export default function ProfileScreen({ preview = false }: { preview?: boolean }) {
   const [name, setName] = useState("");
@@ -25,7 +26,8 @@ export default function ProfileScreen({ preview = false }: { preview?: boolean }
       setLink(`${window.location.origin}/register?ref=PREVIEW1`);
       return;
     }
-    const supabase = createClient();
+    if (!landAuthConfigured()) return;
+    const supabase = createLandClient();
     void supabase.auth.getUser().then(async ({ data }) => {
       const userId = data.user?.id;
       if (!userId) return;
@@ -57,8 +59,12 @@ export default function ProfileScreen({ preview = false }: { preview?: boolean }
       setMessage("โหมดตัวอย่างยังไม่เปลี่ยนรหัสผ่าน");
       return;
     }
+    if (!landAuthConfigured()) {
+      setMessage("ยังเชื่อมต่อฐานข้อมูล Land ไม่ได้");
+      return;
+    }
     setBusy(true);
-    const { error } = await createClient().auth.updateUser({ password: nextPassword });
+    const { error } = await createLandClient().auth.updateUser({ password: nextPassword });
     setBusy(false);
     setNextPassword("");
     setConfirm("");

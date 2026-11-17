@@ -1,3 +1,4 @@
+// Air shop project. Land Desk uses lib/supabase/land.ts and schema land on the hub.
 const fallbackUrl = "https://jdtdnrxilcjsmozkrved.supabase.co";
 const fallbackKey =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkdGRucnhpbGNqc21vemtydmVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNzAwNTcsImV4cCI6MjEwODk0NjA1N30.JscNaZlrP_HVTg2utsj3YF8htkvdkwzSsvvuKWpuhFQ";
